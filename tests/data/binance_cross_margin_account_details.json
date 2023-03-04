@@ -1,0 +1,1755 @@
+{
+  "tradeEnabled": true,
+  "transferEnabled": true,
+  "borrowEnabled": true,
+  "marginLevel": "999",
+  "totalAssetOfBtc": "0.01156608",
+  "totalLiabilityOfBtc": "0",
+  "totalNetAssetOfBtc": "0.01156608",
+  "userAssets": [
+    {
+      "asset": "AGLD",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "MATIC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "STPT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "APT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "STG",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "IOTX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "TVK",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SHIB",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "GLM",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "FRONT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "KDA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "NEAR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "AUDIO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "STX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "DENT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "QI",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "MBOX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SANTOS",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "WING",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "IOST",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BCH",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "CAKE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BSW",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "JST",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "HOT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SUN",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ASTR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "GMT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BTC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "RSR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "TWT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "IOTA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "AR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "REEF",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "GMX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LOKA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "CVP",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "KEY",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "FLM",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ONE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ANKR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SUSHI",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ALGO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ONT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SFP",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "MANA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "NEBL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ACH",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BEL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "MINA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ATA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "NMR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "MKR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "DODO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LIT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "WOO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ICP",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "REI",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ZEC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ADA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ICX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "REQ",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "POLYX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LOOM",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "RARE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "PAXG",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "KP3R",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "DOGE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "DUSK",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "HBAR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SXP",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "RVN",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "CHR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "WAVES",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "CHZ",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "XRP",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "JASMY",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "FIDA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "KAVA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SAND",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "C98",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "OSMO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "AVA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "STRAX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "GAL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "THETA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ENJ",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "WAN",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "GRT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "TFUEL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "NEXO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "HARD",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ENS",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "TROY",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "MASK",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "UNI",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "AAVE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "TLM",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BOND",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LUNC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "XTZ",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LUNA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "MOB",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "EOS",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BICO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SKL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "GTC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "XEC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "YGG",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "PEOPLE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ZIL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "AXS",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BURGER",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "CTXC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "CLV",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "EPX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "FLOW",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "COMP",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SLP",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "RUNE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "FORTH",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "KMD",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LEVER",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LAZIO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "DOT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "IDEX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "1INCH",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "CHESS",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "DEXE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "AVAX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "DEGO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "UNFI",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "FTM",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ERN",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "KNC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "VOXEL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "PHA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "PHB",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ATOM",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "QUICK",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "HIVE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LPT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BLZ",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SNM",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "MBL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SNX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "PORTO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "API3",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "PYR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ROSE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "WAXP",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "GLMR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SOL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "FET",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "DAR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ETC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BNB",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "OGN",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ETH",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "NEO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "KLAY",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "CELO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "AUCTION",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LRC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "HIGH",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "VET",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "MTL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "TRB",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "USDT",
+      "free": "205.87545172",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "205.87545172"
+    },
+    {
+      "asset": "DASH",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BNX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "AMB",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "DREP",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "TRX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "MDT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "MDX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "NULS",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "USTC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "IMX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "DATA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LTC",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "EGLD",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "WIN",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "PUNDIX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SPELL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "INJ",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "CRV",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BAKE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ANT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "DYDX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "FLUX",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "POND",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LINA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "QNT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LDO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ALICE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "XLM",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "LINK",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "QTUM",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ETHW",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "OP",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "SUPER",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "POLS",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "KSM",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "FIL",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "RNDR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "FIO",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "GALA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "VIB",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BETA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "RAD",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BAT",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "APE",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "BUSD",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "CTK",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "XMR",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "ARPA",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    },
+    {
+      "asset": "COTI",
+      "free": "0",
+      "locked": "0",
+      "borrowed": "0",
+      "interest": "0",
+      "netAsset": "0"
+    }
+  ]
+}

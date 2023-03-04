@@ -1,0 +1,48 @@
+# This workflow will install Python dependencies, run tests and lint with a variety of Python versions
+# For more information see: https://help.github.com/actions/language-and-framework-guides/using-python-with-github-actions
+
+name: Run testcases
+
+on:
+  push:
+    branches:
+      - develop 
+      - master
+      - release/*
+      - feature/*
+      - hotfix/*
+      - bugfix/*
+  pull_request:
+    branches:
+      - develop 
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        python -m pip install --upgrade pip
+        pip install poetry
+    - name: Initialize the virtual environment.
+      run: |
+        poetry install --no-root
+    - name: Static checks
+      run: |
+        poetry run -- mypy basana
+        poetry run -- flake8
+    - name: Testcases
+      run: |
+        poetry run pytest -vv --cov --cov-config=setup.cfg --durations=10

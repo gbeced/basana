@@ -1,0 +1,10 @@
+.idea
+.coverage
+.vscode
+cov_html
+__pycache__
+.venv/*
+venv/*
+data/*
+pocs/*
+dist/*
