@@ -5,7 +5,6 @@ homepage = "https://github.com/gbeced/basana"
 description = "A Python event driven framework for algorithmic trading, with a focus on crypto."
 authors = ["Gabriel Becedillas <gabriel.becedillas@gmail.com>"]
 license = "Apache-2.0"
-readme = "README.md"
 packages = [{include = "basana"}]
 
 [tool.poetry.dependencies]
