@@ -9,49 +9,33 @@ Features:
 * Bitstamp support
 * Asynchronous I/O
 
-## For developers
 
-### Requirements
+## About
 
-* Python 3.8.1 or greater. [pyenv](https://github.com/pyenv/pyenv) is recommended.
-* [Poetry](https://python-poetry.org/) for dependency and package management.
-* [Invoke](https://www.pyinvoke.org/) instead of using a Makefile with PHONE targets.
+TODO
 
-### Environment setup and testing
+## Compatibility
 
-#### Using Poetry
+Basana requires Python 3.8.1 or above.
 
-1. Initialize the virtual environment and install dependencies.
+## Installing
 
-	```
-	$ poetry install --no-root
-	```
+Install Basana via pip:
 
-1. Static checks
+```
+pip install basana
+```
 
-	```
-	$ poetry run -- mypy basana
-	$ poetry run -- flake8
-	```
+## Documentation
 
-1. Execute testcases
+TODO
 
-	```
-	$ poetry run pytest -vv --cov --cov-config=setup.cfg --durations=10
-	```
+## Examples
 
-#### Using Invoke
+The Basana repository comes with a number of examples you can experiment with or use as a template for your own projects. Note that these are provided for educational purposes only.
 
-Instead of running those commands manually, a couple of Invoke tasks are provided to wrap those.
+* [Backtesting a strategy based on Bollinger bands](https://github.com/gbeced/basana/blob/master/samples/backtesting_bbands.py)
+* [Backtesting a strategy based on RSI](https://github.com/gbeced/basana/blob/master/samples/backtesting_rsi.py)
+* [Live trading a Dual Moving Average Crossover strategy on Binance](https://github.com/gbeced/basana/blob/master/samples/binance_dmac.py)
+* [Live trading a Dual Moving Average Crossover strategy on Bitstamp](https://github.com/gbeced/basana/blob/master/samples/bitstamp_dmac.py)
 
-1. Initialize the virtual environment and install dependencies.
-
-	```
-	$ inv create-virtualenv
-	```
-
-1. Execute static checks and testcases 
-
-	```
-	$ inv test
-	```
