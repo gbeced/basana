@@ -20,8 +20,8 @@
 
 # Strategy based on RSI.
 # Bars can be downloaded using this command:
-# python -m basana.external.bitstamp.tools.download_bars -c btcusd -p day -s 2015-01-01 -e 2015-12-31 \
-#   > data/bitstamp_btcusd_day_2015.csv
+# python -m basana.external.bitstamp.tools.download_bars -c btcusd -p day -s 2015-01-01 -e 2021-12-31 \
+#   > bitstamp_btcusd_day.csv
 
 from decimal import Decimal
 import asyncio
@@ -129,10 +129,7 @@ async def main():
     exchange.set_pair_info(pair, bs.PairInfo(8, 2))
 
     # Load bars from CSV files.
-    for year in range(2015, 2022):
-        exchange.add_bar_source(
-            csv.BarSource(pair, f"data/bitstamp_btcusd_day_{year}.csv", csv.BarPeriod.DAY)
-        )
+    exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_day.csv", csv.BarPeriod.DAY))
 
     # RSI will be used to generate trading signals.
     signal_source = RSI_SignalSource(25, Decimal(79), Decimal(39))
