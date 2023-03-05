@@ -2,7 +2,7 @@
 name = "basana"
 version = "1.0.0"
 homepage = "https://github.com/gbeced/basana"
-description = "A Python event driven framework for algorithmic trading, with a focus on crypto."
+description = "A Python event driven framework for algorithmic trading, with a focus on crypto currencies."
 authors = ["Gabriel Becedillas <gabriel.becedillas@gmail.com>"]
 license = "Apache-2.0"
 packages = [{include = "basana"}]

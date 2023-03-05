@@ -1,6 +1,6 @@
 # Basana
 
-A Python event driven framework for algorithmic trading, with a focus on crypto.
+A Python event driven framework for algorithmic trading, with a focus on crypto currencies.
 
 Features:
 
