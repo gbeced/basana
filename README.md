@@ -41,3 +41,5 @@ In the examples [TALIpp](https://github.com/nardew/talipp) is used for the techn
 * [Live trading a Dual Moving Average Crossover strategy on Binance](https://github.com/gbeced/basana/blob/master/samples/binance_dmac.py)
 * [Live trading a Dual Moving Average Crossover strategy on Bitstamp](https://github.com/gbeced/basana/blob/master/samples/bitstamp_dmac.py)
 
+## Help
+You can seek help with using Basana in the discussion area on [GitHub](https://github.com/gbeced/basana/discussions).
