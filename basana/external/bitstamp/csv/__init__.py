@@ -21,6 +21,5 @@
 """
 
 from .bars import (
-    BarPeriod,
     BarSource,
 )

@@ -21,23 +21,21 @@
 from decimal import Decimal
 from typing import Sequence
 import datetime
-import enum
 
 from basana.core import pair, event, bar
 from basana.core.event_sources import csv
+from basana.external.bitstamp.tools.download_bars import period_to_step
 
 
-@enum.unique
-class BarPeriod(enum.Enum):
-    MINUTE = 1
-    HOUR = 2
-    DAY = 3
+period_to_timedelta = {
+    period_str: datetime.timedelta(seconds=period_secs, microseconds=-1)
+    for period_str, period_secs in period_to_step.items()
+}
 
 
 class RowParser(csv.RowParser):
     def __init__(
-            self, pair: pair.Pair, tzinfo: datetime.tzinfo = datetime.timezone.utc,
-            timedelta: datetime.timedelta = datetime.timedelta(hours=24, microseconds=-1)
+            self, pair: pair.Pair, tzinfo: datetime.tzinfo, timedelta: datetime.timedelta
     ):
         self.pair = pair
         self.tzinfo = tzinfo
@@ -66,14 +64,13 @@ class RowParser(csv.RowParser):
 
 class BarSource(csv.EventSource):
     def __init__(
-            self, pair: pair.Pair, csv_path: str, period: BarPeriod,
+            self, pair: pair.Pair, csv_path: str, period: str,
             sort: bool = False, tzinfo: datetime.tzinfo = datetime.timezone.utc,
             dict_reader_kwargs: dict = {}
     ):
-        timedelta = {
-            BarPeriod.MINUTE: datetime.timedelta(minutes=1, microseconds=-1),
-            BarPeriod.HOUR: datetime.timedelta(hours=1, microseconds=-1),
-            BarPeriod.DAY: datetime.timedelta(days=1, microseconds=-1),
-        }[period]
+        # The datetime in the files are the beginning of the period but we need to generate the event at the period's
+        # end.
+        timedelta = period_to_timedelta.get(period)
+        assert timedelta is not None, "Invalid period"
         self.row_parser = RowParser(pair, tzinfo=tzinfo, timedelta=timedelta)
         super().__init__(csv_path, self.row_parser, sort=sort, dict_reader_kwargs=dict_reader_kwargs)

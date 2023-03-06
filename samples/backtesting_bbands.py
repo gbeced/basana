@@ -110,7 +110,7 @@ async def main():
     exchange.set_pair_info(pair, bs.PairInfo(8, 2))
 
     # Load bars from CSV files.
-    exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_day.csv", csv.BarPeriod.DAY))
+    exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_day.csv", "1d"))
 
     # Bollinger bands will be used to generate trading signals.
     signal_source = BBands_SignalSource(23, 3.1)

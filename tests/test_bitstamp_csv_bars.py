@@ -27,7 +27,7 @@ from basana.core.pair import Pair
 from basana.external.bitstamp.csv import bars as csv_bars
 
 
-def test_bars_from_csv(backtesting_dispatcher):
+def test_daily_bars_from_csv(backtesting_dispatcher):
     bars = []
 
     async def on_bar(bar_event):
@@ -36,7 +36,7 @@ def test_bars_from_csv(backtesting_dispatcher):
 
     async def impl():
         pair = Pair("BTC", "USD")
-        src = csv_bars.BarSource(pair, abs_data_path("bitstamp_btcusd_day_2015.csv"), csv_bars.BarPeriod.DAY)
+        src = csv_bars.BarSource(pair, abs_data_path("bitstamp_btcusd_day_2015.csv"), "1d")
         backtesting_dispatcher.subscribe(src, on_bar)
         await backtesting_dispatcher.run()
 
@@ -49,5 +49,31 @@ def test_bars_from_csv(backtesting_dispatcher):
         assert bars[0].volume == Decimal("3087.43655395")
         assert bars[-1].datetime == datetime.datetime(2015, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
         assert bars[-1].open == Decimal("426.09")
+
+    asyncio.run(impl())
+
+
+def test_minute_bars_from_csv(backtesting_dispatcher):
+    bars = []
+
+    async def on_bar(bar_event):
+        print(bar_event.bar.datetime)
+        bars.append(bar_event.bar)
+
+    async def impl():
+        pair = Pair("BTC", "USD")
+        src = csv_bars.BarSource(pair, abs_data_path("bitstamp_btcusd_min_2020_01_01.csv"), "1m")
+        backtesting_dispatcher.subscribe(src, on_bar)
+        await backtesting_dispatcher.run()
+
+        assert len(bars) == 1440 - 45  # There are 45 bars with no volume that are skipped.
+
+        assert bars[0].open == Decimal("7160.69")
+        assert bars[0].high == Decimal("7160.69")
+        assert bars[0].low == Decimal("7159.64")
+        assert bars[0].close == Decimal("7159.64")
+        assert bars[0].volume == Decimal("5.50169101")
+        assert bars[-1].datetime == datetime.datetime(2020, 1, 1, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
+        assert bars[-1].open == Decimal("7178.68")
 
     asyncio.run(impl())
