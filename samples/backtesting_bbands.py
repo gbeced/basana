@@ -129,7 +129,7 @@ async def main():
         if currency == "USD":
             price = Decimal(1)
         else:
-            _, price = await exchange.get_bid_ask(bs.Pair(currency, "USD"))
+            price, _ = await exchange.get_bid_ask(bs.Pair(currency, "USD"))
         portfolio_value += balance.available * price
     logging.info("Final portfolio value in USD: %s", round(portfolio_value, 2))
 
