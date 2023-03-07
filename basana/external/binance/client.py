@@ -138,6 +138,22 @@ class APIClient:
             params["limit"] = limit
         return await self._make_request("GET", "/api/v3/depth", qs_params=params)
 
+    async def get_candlestick_data(
+            self, symbol: str, interval: str, start_time: Optional[int] = None, end_time: Optional[int] = None,
+            limit: Optional[int] = None
+    ) -> dict:
+        params: Dict[str, Any] = {
+            "symbol": symbol,
+            "interval": interval,
+        }
+        if start_time is not None:
+            params["startTime"] = start_time
+        if end_time is not None:
+            params["endTime"] = end_time
+        if limit is not None:
+            params["limit"] = limit
+        return await self._make_request("GET", "/api/v3/klines", qs_params=params)
+
 
 # https://binance-docs.github.io/apidocs/spot/en/#spot-account-trade
 class SpotAccount:

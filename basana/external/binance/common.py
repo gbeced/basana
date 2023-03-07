@@ -58,8 +58,7 @@ class Trade:
 
     @property
     def datetime(self) -> datetime.datetime:
-        timestamp = self.json["time"] / 1e3
-        return datetime.datetime.utcfromtimestamp(timestamp).replace(tzinfo=datetime.timezone.utc)
+        return helpers.timestamp_to_datetime(self.json["time"])
 
     @property
     def is_best_match(self) -> bool:
@@ -178,8 +177,7 @@ class CreatedOrder:
 
     @property
     def datetime(self) -> datetime.datetime:
-        timestamp = self.json["transactTime"] / 1e3
-        return datetime.datetime.utcfromtimestamp(timestamp).replace(tzinfo=datetime.timezone.utc)
+        return helpers.timestamp_to_datetime(self.json["transactTime"])
 
     @property
     def client_order_id(self) -> str:
@@ -283,8 +281,7 @@ class OpenOrder:
 
     @property
     def datetime(self) -> datetime.datetime:
-        timestamp = self.json["time"] / 1e3
-        return datetime.datetime.utcfromtimestamp(timestamp).replace(tzinfo=datetime.timezone.utc)
+        return helpers.timestamp_to_datetime(self.json["time"])
 
     @property
     def client_order_id(self) -> str:
@@ -341,8 +338,7 @@ class CreatedOCOOrder:
 
     @property
     def datetime(self) -> datetime.datetime:
-        timestamp = self.json["transactionTime"] / 1e3
-        return datetime.datetime.utcfromtimestamp(timestamp).replace(tzinfo=datetime.timezone.utc)
+        return helpers.timestamp_to_datetime(self.json["transactionTime"])
 
     @property
     def is_open(self) -> bool:

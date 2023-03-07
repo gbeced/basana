@@ -21,10 +21,11 @@
 from decimal import Decimal
 from typing import Optional
 from urllib.parse import urlencode
+import datetime
 import hashlib
 import hmac
 
-from basana.core import pair
+from basana.core import dt, pair
 from basana.core.enums import OrderOperation
 
 
@@ -88,3 +89,11 @@ def get_optional_decimal(mapping: dict, key: str, skip_zero: bool) -> Optional[D
         price = Decimal(price)
         ret = None if price == Decimal(0) and skip_zero else price
     return ret
+
+
+def timestamp_to_datetime(timestamp: int) -> datetime.datetime:
+    return datetime.datetime.utcfromtimestamp(timestamp / 1e3).replace(tzinfo=datetime.timezone.utc)
+
+
+def datetime_to_timestamp(datetime: datetime.datetime) -> int:
+    return int(dt.to_utc_timestamp(datetime) * 1e3)
