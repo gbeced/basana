@@ -22,7 +22,7 @@ import datetime
 
 from basana.core import pair
 from basana.core.event_sources import csv
-from basana.external.bitstamp.tools.download_bars import period_to_step
+from basana.external.binance.tools.download_bars import period_to_step
 from basana.external.common.csv.bars import RowParser
 
 

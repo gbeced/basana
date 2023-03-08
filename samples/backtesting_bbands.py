@@ -21,8 +21,8 @@
 # Strategy based on Bollinger bands.
 # https://www.investopedia.com/articles/trading/07/bollinger.asp
 # Bars can be downloaded using this command:
-# python -m basana.external.bitstamp.tools.download_bars -c btcusd -p day -s 2015-01-01 -e 2021-12-31 \
-#   > bitstamp_btcusd_day.csv
+# python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2017-01-01 -e 2021-12-31 >
+#   binance_btcusdt_day.csv
 
 from decimal import Decimal
 import asyncio
@@ -31,7 +31,7 @@ import logging
 
 from talipp.indicators import BB
 
-from basana.external.bitstamp import csv
+from basana.external.binance import csv
 import basana as bs
 import basana.backtesting.exchange as backtesting_exchange
 
@@ -105,12 +105,12 @@ async def main():
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
 
     event_dispatcher = bs.backtesting_dispatcher()
-    pair = bs.Pair("BTC", "USD")
-    exchange = backtesting_exchange.Exchange(event_dispatcher, initial_balances={"USD": Decimal(10000)})
+    pair = bs.Pair("BTC", "USDT")
+    exchange = backtesting_exchange.Exchange(event_dispatcher, initial_balances={"USDT": Decimal(10000)})
     exchange.set_pair_info(pair, bs.PairInfo(8, 2))
 
     # Load bars from CSV files.
-    exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_day.csv", csv.BarPeriod.DAY))
+    exchange.add_bar_source(csv.BarSource(pair, "binance_btcusdt_day.csv", "1d"))
 
     # Bollinger bands will be used to generate trading signals.
     signal_source = BBands_SignalSource(23, 3.1)
@@ -122,16 +122,16 @@ async def main():
     # Run the backtest.
     await event_dispatcher.run()
 
-    # Calculate the portfolio value in USD.
+    # Calculate the portfolio value in USDT.
     portfolio_value = Decimal(0)
     balances = await exchange.get_balances()
     for currency, balance in balances.items():
-        if currency == "USD":
+        if currency == "USDT":
             price = Decimal(1)
         else:
-            price, _ = await exchange.get_bid_ask(bs.Pair(currency, "USD"))
+            price, _ = await exchange.get_bid_ask(bs.Pair(currency, "USDT"))
         portfolio_value += balance.available * price
-    logging.info("Final portfolio value in USD: %s", round(portfolio_value, 2))
+    logging.info("Final portfolio value in USDT: %s", round(portfolio_value, 2))
 
 
 if __name__ == "__main__":
