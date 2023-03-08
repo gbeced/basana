@@ -18,7 +18,9 @@
 .. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
 """
 
+from typing import Union
 import datetime
+import enum
 
 from basana.core import pair
 from basana.core.event_sources import csv
@@ -32,12 +34,27 @@ period_to_timedelta = {
 }
 
 
+# TODO: Deprecate at v2.
+@enum.unique
+class BarPeriod(enum.Enum):
+    MINUTE = 1
+    HOUR = 2
+    DAY = 3
+
+
 class BarSource(csv.EventSource):
     def __init__(
-            self, pair: pair.Pair, csv_path: str, period: str,
+            self, pair: pair.Pair, csv_path: str, period: Union[str, BarPeriod],
             sort: bool = False, tzinfo: datetime.tzinfo = datetime.timezone.utc,
             dict_reader_kwargs: dict = {}
     ):
+        # TODO: Deprecate at v2.
+        if isinstance(period, BarPeriod):
+            period = {
+                BarPeriod.MINUTE: "1m",
+                BarPeriod.HOUR: "1h",
+                BarPeriod.DAY: "1d",
+            }[period]
         # The datetime in the files are the beginning of the period but we need to generate the event at the period's
         # end.
         timedelta = period_to_timedelta.get(period)

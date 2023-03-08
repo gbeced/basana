@@ -53,7 +53,7 @@ def test_daily_bars_from_csv(backtesting_dispatcher):
     asyncio.run(impl())
 
 
-def test_minute_bars_from_csv(backtesting_dispatcher):
+def test_minute_bars_from_csv_using_deprecated_period_format(backtesting_dispatcher):
     bars = []
 
     async def on_bar(bar_event):
@@ -62,7 +62,7 @@ def test_minute_bars_from_csv(backtesting_dispatcher):
 
     async def impl():
         pair = Pair("BTC", "USD")
-        src = csv_bars.BarSource(pair, abs_data_path("bitstamp_btcusd_min_2020_01_01.csv"), "1m")
+        src = csv_bars.BarSource(pair, abs_data_path("bitstamp_btcusd_min_2020_01_01.csv"), csv_bars.BarPeriod.MINUTE)
         backtesting_dispatcher.subscribe(src, on_bar)
         await backtesting_dispatcher.run()
 
