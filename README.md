@@ -1,3 +1,7 @@
+[![Testcases](https://github.com/gbeced/basana/actions/workflows/runtests.yml/badge.svg?branch=master)](https://github.com/gbeced/basana/actions/workflows/runtests.yml)
+[![PyPI version](https://badge.fury.io/py/basana.svg)](https://badge.fury.io/py/basana)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 # Basana
 
 A Python event driven framework for algorithmic trading, with a focus on crypto currencies.
@@ -8,7 +12,6 @@ Features:
 * Live trading at Binance
 * Live trading at Bitstamp
 * Asynchronous I/O
-
 
 ## About
 
@@ -28,7 +31,7 @@ pip install basana
 
 ## Documentation
 
-TODO
+In progress
 
 ## Examples
 
