@@ -2,7 +2,7 @@
 name = "basana"
 version = "1.1.0"
 homepage = "https://github.com/gbeced/basana"
-description = "A Python event driven framework for algorithmic trading, with a focus on crypto currencies."
+description = "A Python async and event driven framework for algorithmic trading, with a focus on crypto currencies."
 authors = ["Gabriel Becedillas <gabriel.becedillas@gmail.com>"]
 license = "Apache-2.0"
 packages = [{include = "basana"}]
@@ -22,6 +22,7 @@ pytest-mock = "^3.10.0"
 talipp = "^1.9.1"
 types-python-dateutil = "^2.8.19.8"
 websockets = "^10.4"
+sphinx = "^6.1.3"
 
 [build-system]
 requires = ["poetry-core"]

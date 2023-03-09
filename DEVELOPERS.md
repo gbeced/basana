@@ -45,3 +45,8 @@ Instead of running those commands manually, a couple of Invoke tasks are provide
 	$ inv test
 	```
 
+## Building docs
+
+```
+$ inv build-docs
+```
