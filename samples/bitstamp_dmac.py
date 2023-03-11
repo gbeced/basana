@@ -22,50 +22,12 @@
 
 from decimal import Decimal
 import asyncio
-import datetime
 import logging
 
-from talipp.indicators import EMA
 
 from basana.external.bitstamp import exchange as bitstamp_exchange
 import basana as bs
-
-
-class TradingSignal(bs.Event):
-    def __init__(self, when: datetime.datetime, operation: bs.OrderOperation, pair: bs.Pair):
-        super().__init__(when)
-        self.operation = operation
-        self.pair = pair
-
-
-class DMAC_SignalSource(bs.FifoQueueEventSource):
-    def __init__(self, short_term_period: int, long_term_period: int):
-        super().__init__()
-        self._st_sma = EMA(period=short_term_period)
-        self._lt_sma = EMA(period=long_term_period)
-
-    async def on_bar_event(self, bar_event: bs.BarEvent):
-        logging.info(
-            "Bar event: pair=%s open=%s high=%s low=%s close=%s volume=%s",
-            bar_event.bar.pair, bar_event.bar.open, bar_event.bar.high, bar_event.bar.low, bar_event.bar.close,
-            bar_event.bar.volume
-        )
-
-        # Feed the technical indicators.
-        value = float(bar_event.bar.close)
-        self._st_sma.add_input_value(value)
-        self._lt_sma.add_input_value(value)
-
-        # Are MAs ready ?
-        if len(self._st_sma) < 2 or len(self._lt_sma) < 2:
-            return
-
-        # Short term MA crossed above long term MA ?
-        if self._st_sma[-2] <= self._lt_sma[-2] and self._st_sma[-1] > self._lt_sma[-1]:
-            self.push(TradingSignal(bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair))
-        # Short term MA crossed below long term MA ?
-        elif self._st_sma[-2] >= self._lt_sma[-2] and self._st_sma[-1] < self._lt_sma[-1]:
-            self.push(TradingSignal(bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair))
+import dmac
 
 
 # The strategy is responsible for placing orders in response to trading signals.
@@ -75,7 +37,7 @@ class Strategy:
         self._exchange = exchange
         self._position_amount = position_amount
 
-    async def calculate_price(self, trading_signal: TradingSignal):
+    async def calculate_price(self, trading_signal: bs.TradingSignal):
         bid, ask = await self._exchange.get_bid_ask(trading_signal.pair)
         return {
             bs.OrderOperation.BUY: ask,
@@ -89,7 +51,7 @@ class Strategy:
             if open_order.operation == order_operation
         ])
 
-    async def on_trading_signal(self, trading_signal: TradingSignal):
+    async def on_trading_signal(self, trading_signal: bs.TradingSignal):
         logging.info("Trading signal: operation=%s pair=%s", trading_signal.operation, trading_signal.pair)
 
         try:
@@ -137,15 +99,16 @@ async def main():
     strategy = Strategy(exchange, Decimal(30))
 
     pairs = [
-        # bs.Pair("BTC", "USD"),
+        bs.Pair("BTC", "USD"),
         bs.Pair("ETH", "USD"),
     ]
     for pair in pairs:
-        # DMAC will be used to generate trading signals.
-        signal_source = DMAC_SignalSource(5, 9)
+        # Connect the signal source with the bar events from the exchange.
+        signal_source = dmac.SignalSource(event_dispatcher, 5, 9)
         exchange.subscribe_to_bar_events(pair, 60, signal_source.on_bar_event, flush_delay=1)
+
         # Connect the strategy with the signal source.
-        event_dispatcher.subscribe(signal_source, strategy.on_trading_signal)
+        signal_source.subscribe_to_trading_signals(strategy.on_trading_signal)
 
     await event_dispatcher.run()
 

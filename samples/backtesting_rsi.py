@@ -18,50 +18,18 @@
 .. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
 """
 
-# Strategy based on RSI.
 # Bars can be downloaded using this command:
-# python -m basana.external.bitstamp.tools.download_bars -c BTC/USD -p day -s 2015-01-01 -e 2021-12-31 \
-#   > bitstamp_btcusd_day.csv
+# python -m basana.external.bitstamp.tools.download_bars -c BTC/USD -p day -s 2015-01-01 -e 2021-12-31 > \
+# bitstamp_btcusd_day.csv
 
 from decimal import Decimal
 import asyncio
-import datetime
 import logging
-
-from talipp.indicators import RSI
 
 from basana.external.bitstamp import csv
 import basana as bs
 import basana.backtesting.exchange as backtesting_exchange
-
-
-class TradingSignal(bs.Event):
-    def __init__(self, when: datetime.datetime, operation: bs.OrderOperation, pair: bs.Pair):
-        super().__init__(when)
-        self.operation = operation
-        self.pair = pair
-
-
-class RSI_SignalSource(bs.FifoQueueEventSource):
-    def __init__(self, period: int, overbought_level: Decimal, oversold_level: Decimal):
-        super().__init__()
-        self._overbought_level = overbought_level
-        self._oversold_level = oversold_level
-        self._rsi = RSI(period=period)
-
-    async def on_bar_event(self, bar_event: bs.BarEvent):
-        self._rsi.add_input_value(float(bar_event.bar.close))
-
-        # Is RSI ready ?
-        if len(self._rsi) < 2:
-            return
-
-        # RSI crossed below oversold level
-        if self._rsi[-2] >= self._oversold_level and self._rsi[-1] < self._oversold_level:
-            self.push(TradingSignal(bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair))
-        # RSI crossed above overbought level
-        elif self._rsi[-2] <= self._overbought_level and self._rsi[-1] > self._overbought_level:
-            self.push(TradingSignal(bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair))
+import rsi
 
 
 # The strategy is responsible for placing orders in response to trading signals.
@@ -71,7 +39,7 @@ class Strategy:
         self._exchange = exchange
         self._position_pct = position_pct
 
-    async def calculate_price(self, trading_signal: TradingSignal):
+    async def calculate_price(self, trading_signal: bs.TradingSignal):
         bid, ask = await self._exchange.get_bid_ask(trading_signal.pair)
         return {
             bs.OrderOperation.BUY: ask,
@@ -85,7 +53,7 @@ class Strategy:
             if open_order.operation == order_operation
         ])
 
-    async def on_trading_signal(self, trading_signal: TradingSignal):
+    async def on_trading_signal(self, trading_signal: bs.TradingSignal):
         logging.info("Trading signal: operation=%s pair=%s", trading_signal.operation, trading_signal.pair)
         try:
             # Cancel any open orders in the opposite direction.
@@ -124,33 +92,28 @@ async def main():
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
 
     event_dispatcher = bs.backtesting_dispatcher()
-    pair = bs.Pair("BTC", "USD")
-    exchange = backtesting_exchange.Exchange(event_dispatcher, initial_balances={"USD": Decimal(10000)})
+    pair = bs.Pair("BTC", "USDT")
+    exchange = backtesting_exchange.Exchange(event_dispatcher, initial_balances={"USDT": Decimal(10000)})
     exchange.set_pair_info(pair, bs.PairInfo(8, 2))
+
+    # Connect the signal source with the bar events from the exchange.
+    signal_source = rsi.SignalSource(event_dispatcher, 25, 39, 79)
+    exchange.subscribe_to_bar_events(pair, signal_source.on_bar_event)
+
+    # Connect the strategy to the trading signal source.
+    strategy = Strategy(exchange, Decimal("0.95"))
+    signal_source.subscribe_to_trading_signals(strategy.on_trading_signal)
 
     # Load bars from CSV files.
     exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_day.csv", "1d"))
 
-    # RSI will be used to generate trading signals.
-    signal_source = RSI_SignalSource(25, Decimal(79), Decimal(39))
-    exchange.subscribe_to_bar_events(pair, signal_source.on_bar_event)
-
-    strategy = Strategy(exchange, Decimal("0.95"))
-    event_dispatcher.subscribe(signal_source, strategy.on_trading_signal)
-
-    # Run the backtes
+    # Run the backtest.
     await event_dispatcher.run()
 
-    # Calculate the portfolio value in USD.
-    portfolio_value = Decimal(0)
+    # Log balances.
     balances = await exchange.get_balances()
     for currency, balance in balances.items():
-        if currency == "USD":
-            price = Decimal(1)
-        else:
-            price, _ = await exchange.get_bid_ask(bs.Pair(currency, "USD"))
-        portfolio_value += balance.available * price
-    logging.info("Final portfolio value in USD: %s", round(portfolio_value, 2))
+        logging.info("%s balance: %s", currency, balance.available)
 
 
 if __name__ == "__main__":
