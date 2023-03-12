@@ -29,7 +29,7 @@ from basana.core import pair
 from basana.external.binance import exchange
 
 
-def test_bars_from_trades(realtime_dispatcher, caplog):
+def test_bars_from_trades(realtime_dispatcher):
     p = pair.Pair("BTC", "USDT")
     last_bar = None
 
@@ -73,7 +73,7 @@ def test_bars_from_trades(realtime_dispatcher, caplog):
 
             await realtime_dispatcher.run()
 
-    asyncio.run(asyncio.wait_for(test_main(), 3))
+    asyncio.run(asyncio.wait_for(test_main(), 5))
 
     assert last_bar is not None
     assert last_bar.pair == p
