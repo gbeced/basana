@@ -18,19 +18,17 @@
 .. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
 """
 
-# Strategy based on Dual Moving Average Crossover signals.
-
 from decimal import Decimal
 import asyncio
 import logging
 
-from basana.external.bitstamp import exchange as bitstamp_exchange
+from basana.external.binance import exchange as binance_exchange
 import basana as bs
-import dmac
+import bbands
 
 
 class PositionManager:
-    def __init__(self, exchange: bitstamp_exchange.Exchange, position_amount: Decimal):
+    def __init__(self, exchange: binance_exchange.Exchange, position_amount: Decimal):
         assert position_amount > 0
         self._exchange = exchange
         self._position_amount = position_amount
@@ -44,14 +42,13 @@ class PositionManager:
 
     async def cancel_open_orders(self, pair: bs.Pair, order_operation: bs.OrderOperation):
         await asyncio.gather(*[
-            self._exchange.cancel_order(open_order.id)
-            for open_order in await self._exchange.get_open_orders(pair)
+            self._exchange.spot_account.cancel_order(pair, order_id=open_order.id)
+            for open_order in await self._exchange.spot_account.get_open_orders(pair)
             if open_order.operation == order_operation
         ])
 
     async def on_trading_signal(self, trading_signal: bs.TradingSignal):
         logging.info("Trading signal: operation=%s pair=%s", trading_signal.operation, trading_signal.pair)
-
         try:
             # Cancel any open orders in the opposite direction.
             await self.cancel_open_orders(
@@ -62,7 +59,7 @@ class PositionManager:
 
             # Calculate the order price and size.
             balances, price, pair_info = await asyncio.gather(
-                self._exchange.get_balances(),
+                self._exchange.spot_account.get_balances(),
                 self.calculate_price(trading_signal),
                 self._exchange.get_pair_info(trading_signal.pair)
             )
@@ -80,7 +77,7 @@ class PositionManager:
                 "Creating %s limit order for %s: amount=%s price=%s",
                 trading_signal.operation, trading_signal.pair, order_size, price
             )
-            await self._exchange.create_limit_order(
+            await self._exchange.spot_account.create_limit_order(
                 trading_signal.operation, trading_signal.pair, order_size, price
             )
         except Exception as e:
@@ -100,16 +97,16 @@ async def main():
     event_dispatcher = bs.realtime_dispatcher()
     api_key = "YOUR_API_KEY"
     api_secret = "YOUR_API_SECRET"
-    exchange = bitstamp_exchange.Exchange(event_dispatcher, api_key=api_key, api_secret=api_secret)
+    exchange = binance_exchange.Exchange(event_dispatcher, api_key=api_key, api_secret=api_secret)
     position_mgr = PositionManager(exchange, Decimal(30))
 
     pairs = [
-        bs.Pair("BTC", "USD"),
-        bs.Pair("ETH", "USD"),
+        bs.Pair("BTC", "USDT"),
+        bs.Pair("ETH", "USDT"),
     ]
     for pair in pairs:
         # Connect the strategy to the bar events from the exchange.
-        strategy = dmac.Strategy(event_dispatcher, 5, 9)
+        strategy = bbands.Strategy(event_dispatcher, 20, 1.5)
         exchange.subscribe_to_bar_events(pair, 60, strategy.on_bar_event)
 
         # Connect the position manager to the strategy signals and to bar events just for logging.

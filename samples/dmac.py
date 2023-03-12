@@ -31,7 +31,7 @@ class Strategy(bs.TradingSignalSource):
         self._lt_sma = EMA(period=long_term_period)
 
     async def on_bar_event(self, bar_event: bs.BarEvent):
-        # Feed the technical indicator.
+        # Feed the technical indicators.
         value = float(bar_event.bar.close)
         self._st_sma.add_input_value(value)
         self._lt_sma.add_input_value(value)

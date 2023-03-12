@@ -28,9 +28,13 @@ Backtesting
 
 The examples that follow are structured like this:
 
-* A trading **strategy** that implements a the set of rules that define when to enter or exit a trade based on market conditions.
-* A **position manager** responsible for executing trades and managing positions. It receives trading signals from the trading
-  strategy and submits orders to the exchange or broker.
+* A trading **strategy** that implements the set of rules that define when to enter or exit a trade based on market conditions.
+* A **position manager** that is responsible for executing trades and managing positions. It receives trading signals from the strategy
+  and submits orders to the exchange or broker.
+
+.. note::
+
+    The way the examples are structured is just one way to do it. You're free to structure the code in any other way.
 
 The strategy that we're going to use for backtesting is based on `Bollinger Bands <https://www.investopedia.com/articles/trading/07/bollinger.asp>`_
 and the purpose of this example is just to give you an overview on how to connect the different pieces together.
@@ -45,7 +49,6 @@ At a high level this is how this strategy will work:
   or close a position.
 
 We'll be using market orders to keep this example short, but you'll probably want to use limit orders when writing your own position managers.
-Many examples, including those that use limit orders, are available in the `examples folder <https://github.com/gbeced/basana/tree/master/samples>`_.
 
 The first thing we'll need in order to execute the backtest is historical data. Use the following command to download minute bars from Binance
 for January 2021:
@@ -60,7 +63,7 @@ Next, save the following strategy code as *bbands.py*:
    :language: python
    :lines: 21-
 
-Next, save the following code as *backtesting_bbands.py*:
+and the following code as *backtesting_bbands.py*:
 
 .. literalinclude:: ../samples/backtesting_bbands.py
    :language: python
@@ -72,13 +75,32 @@ and execute the backtest like this:
 
     (.venv) $ python backtesting_bbands.py
 
-.. note::
-
-    The way the examples are structured is just one way to do it. You're free to structure things in any other way.
-
 .. _quickstart_livetrading:
 
 Live trading
 ------------
 
-TODO
+The strategy that we're going to use for live trading is the exact same one that we used for backtesting, but instead of using a backtesting
+exchange we'll use `Binance <https://www.binance.com/>`_ crypto currency exchange.
+
+.. note::
+    The examples provided are for educational purposes only. If you decide to execute them with real credentials you are doing that at
+    your own risk.
+
+If you decide to move forward, save the following code as *binance_bbands.py* and update your *api_key* and *api_secret*:
+
+.. literalinclude:: ../samples/binance_bbands.py
+   :language: python
+   :lines: 21-
+
+Next, start live trading using the following command:
+
+.. code-block:: console
+
+    (.venv) $ python binance_bbands.py
+
+Next steps
+----------
+
+The examples presented here, and many others, can be found at the `examples folder <https://github.com/gbeced/basana/tree/master/samples>`_.
+

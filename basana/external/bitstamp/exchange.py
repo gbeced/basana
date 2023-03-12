@@ -375,7 +375,7 @@ class Exchange:
 
     def subscribe_to_bar_events(
             self, pair: Pair, bar_duration: int, event_handler: BarEventHandler, skip_first_bar: bool = True,
-            flush_delay: float = 0.5
+            flush_delay: float = 1
     ):
         event_source = RealTimeTradesToBar(pair, bar_duration, skip_first_bar=skip_first_bar, flush_delay=flush_delay)
         self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
