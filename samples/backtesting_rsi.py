@@ -32,8 +32,7 @@ import basana.backtesting.exchange as backtesting_exchange
 import rsi
 
 
-# The strategy is responsible for placing orders in response to trading signals.
-class Strategy:
+class PositionManager:
     def __init__(self, exchange: backtesting_exchange.Exchange, position_amount: Decimal):
         assert position_amount > 0
         self._exchange = exchange
@@ -100,13 +99,13 @@ async def main():
     )
     exchange.set_pair_info(pair, bs.PairInfo(8, 2))
 
-    # Connect the signal source with the bar events from the exchange.
-    signal_source = rsi.SignalSource(event_dispatcher, 20, 30, 70)
-    exchange.subscribe_to_bar_events(pair, signal_source.on_bar_event)
+    # Connect the strategy to the bar events from the exchange.
+    strategy = rsi.Strategy(event_dispatcher, 20, 30, 70)
+    exchange.subscribe_to_bar_events(pair, strategy.on_bar_event)
 
-    # Connect the strategy to the trading signal source.
-    strategy = Strategy(exchange, Decimal(1000))
-    signal_source.subscribe_to_trading_signals(strategy.on_trading_signal)
+    # Connect the position manager to the strategy signals.
+    position_mgr = PositionManager(exchange, Decimal(1000))
+    strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
 
     # Load bars from CSV files.
     exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_min.csv", "1d"))

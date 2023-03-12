@@ -23,9 +23,8 @@ from talipp.indicators import RSI
 import basana as bs
 
 
-# Signal source based on RSI:
-# https://www.investopedia.com/terms/r/rsi.asp
-class SignalSource(bs.TradingSignalSource):
+# Strategy based on RSI: https://www.investopedia.com/terms/r/rsi.asp
+class Strategy(bs.TradingSignalSource):
     def __init__(self, dispatcher: bs.EventDispatcher, period: int, oversold_level: float, overbought_level: float):
         super().__init__(dispatcher)
         self._oversold_level = oversold_level
@@ -36,7 +35,7 @@ class SignalSource(bs.TradingSignalSource):
         # Feed the technical indicator.
         self._rsi.add_input_value(float(bar_event.bar.close))
 
-        # Is RSI ready ?
+        # Is the indicator ready ?
         if len(self._rsi) < 2:
             return
 

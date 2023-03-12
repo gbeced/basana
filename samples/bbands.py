@@ -23,8 +23,8 @@ from talipp.indicators import BB
 import basana as bs
 
 
-# Signal source based on Bollinger Bands: https://www.investopedia.com/articles/trading/07/bollinger.asp
-class SignalSource(bs.TradingSignalSource):
+# Strategy based on Bollinger Bands: https://www.investopedia.com/articles/trading/07/bollinger.asp
+class Strategy(bs.TradingSignalSource):
     def __init__(self, dispatcher: bs.EventDispatcher, period: int, std_dev_multiplier: float):
         super().__init__(dispatcher)
         self._bb = BB(period, std_dev_multiplier)
@@ -38,7 +38,7 @@ class SignalSource(bs.TradingSignalSource):
         # Keep a small window of values to check if there is a crossover.
         self._values = (self._values[-1], value)
 
-        # Is indicator ready ?
+        # Is the indicator ready ?
         if len(self._bb) < 2:
             return
 

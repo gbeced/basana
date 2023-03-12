@@ -23,8 +23,8 @@ from talipp.indicators import EMA
 import basana as bs
 
 
-# Signal source based on Dual Moving Average Crossover.
-class SignalSource(bs.TradingSignalSource):
+# Strategy based on Dual Moving Average Crossover.
+class Strategy(bs.TradingSignalSource):
     def __init__(self, dispatcher: bs.EventDispatcher, short_term_period: int, long_term_period: int):
         super().__init__(dispatcher)
         self._st_sma = EMA(period=short_term_period)

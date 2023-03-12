@@ -30,8 +30,7 @@ import basana as bs
 import dmac
 
 
-# The strategy is responsible for placing orders in response to trading signals.
-class Strategy:
+class PositionManager:
     def __init__(self, exchange: bitstamp_exchange.Exchange, position_amount: Decimal):
         assert position_amount > 0
         self._exchange = exchange
@@ -96,19 +95,19 @@ async def main():
     api_key = "YOUR_API_KEY"
     api_secret = "YOUR_API_SECRET"
     exchange = bitstamp_exchange.Exchange(event_dispatcher, api_key=api_key, api_secret=api_secret)
-    strategy = Strategy(exchange, Decimal(30))
+    position_mgr = PositionManager(exchange, Decimal(30))
 
     pairs = [
         bs.Pair("BTC", "USD"),
         bs.Pair("ETH", "USD"),
     ]
     for pair in pairs:
-        # Connect the signal source with the bar events from the exchange.
-        signal_source = dmac.SignalSource(event_dispatcher, 5, 9)
-        exchange.subscribe_to_bar_events(pair, 60, signal_source.on_bar_event, flush_delay=1)
+        # Connect the strategy to the bar events from the exchange.
+        strategy = dmac.Strategy(event_dispatcher, 5, 9)
+        exchange.subscribe_to_bar_events(pair, 60, strategy.on_bar_event, flush_delay=1)
 
-        # Connect the strategy with the signal source.
-        signal_source.subscribe_to_trading_signals(strategy.on_trading_signal)
+        # Connect the position manager to the strategy signals.
+        strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
 
     await event_dispatcher.run()
 
