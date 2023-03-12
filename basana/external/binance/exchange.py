@@ -36,8 +36,10 @@ class PairInfoEx(PairInfo):
 
 BarEventHandler = Callable[[bar.BarEvent], Awaitable[Any]]
 Error = client.Error
+OrderBookEvent = order_book.OrderBookEvent
 OrderBookEventHandler = Callable[[order_book.OrderBookEvent], Awaitable[Any]]
 OrderOperation = enums.OrderOperation
+TradeEvent = trades.TradeEvent
 TradeEventHandler = Callable[[trades.TradeEvent], Awaitable[Any]]
 
 

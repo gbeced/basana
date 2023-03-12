@@ -34,8 +34,11 @@ from basana.core.pair import Pair, PairInfo
 
 BarEventHandler = Callable[[bar.BarEvent], Awaitable[Any]]
 Error = client.Error
+OrderBookEvent = order_book.OrderBookEvent
 OrderBookEventHandler = Callable[[order_book.OrderBookEvent], Awaitable[Any]]
+OrderEvent = orders.OrderEvent
 OrderEventHandler = Callable[[orders.OrderEvent], Awaitable[Any]]
+TradeEvent = trades.TradeEvent
 TradeEventHandler = Callable[[trades.TradeEvent], Awaitable[Any]]
 
 
@@ -268,9 +271,9 @@ class RealTimeTradesToBar(bar.RealTimeTradesToBar):
 
 class Exchange:
     def __init__(
-            self, dispatcher: dispatcher.EventDispatcher, api_key: str, api_secret: str,
-            session: Optional[aiohttp.ClientSession] = None, tb: Optional[token_bucket.TokenBucketLimiter] = None,
-            config_overrides: dict = {}
+            self, dispatcher: dispatcher.EventDispatcher, api_key: Optional[str] = None,
+            api_secret: Optional[str] = None, session: Optional[aiohttp.ClientSession] = None,
+            tb: Optional[token_bucket.TokenBucketLimiter] = None, config_overrides: dict = {}
     ):
         self._dispatcher = dispatcher
         self._api_key = api_key
