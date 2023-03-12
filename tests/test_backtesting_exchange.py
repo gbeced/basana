@@ -93,9 +93,8 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         assert created_order is not None
 
         balances = await e.get_balances()
-        for symbol in ["ARS", "BTC", "USD"]:
+        for symbol in ["ARS", "BTC", "ETH", "USD"]:
             assert symbol in balances
-        assert "ETH" not in balances
 
         order_info = await e.get_order_info(created_order.id)
         assert order_info is not None

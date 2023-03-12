@@ -34,10 +34,9 @@ class AccountBalances:
         self._holds_by_order: Dict[str, Dict[str, Decimal]] = {}
 
     def get_symbols(self) -> List[str]:
-        symbols = [symbol for symbol, balance in self._balances.items() if balance]
-        symbols += [symbol for symbol, balance in self._holds_by_symbol.items() if balance]
-        unique_symbols = set(symbols)
-        return list(unique_symbols)
+        symbols = set(self._balances.keys())
+        symbols.update(self._holds_by_symbol.keys())
+        return list(symbols)
 
     def get_available_balance(self, symbol: str) -> Decimal:
         return self._balances.get(symbol, Decimal(0)) - self.get_balance_on_hold(symbol)
