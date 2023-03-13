@@ -18,7 +18,7 @@
 
 ### Installation
 
-The examples use [TALIpp](https://github.com/nardew/talipp) for the technical indicators, but you're free to use any other library.
+The examples use [TALIpp](https://github.com/nardew/talipp) for the technical indicators, so we need to install talipp as well.
 
 ```
 $ pip install basana talipp
