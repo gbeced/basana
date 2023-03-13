@@ -43,6 +43,11 @@ from .core.event import (
     Producer,
 )
 
+from .core.event_sources.trading_signal import (
+    TradingSignal,
+    TradingSignalSource,
+)
+
 from .core.enums import (
     OrderOperation,
 )

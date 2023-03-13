@@ -138,8 +138,7 @@ class Exchange:
         for symbol in self._balances.get_symbols():
             available = self._balances.get_available_balance(symbol)
             hold = self._balances.get_balance_on_hold(symbol)
-            if available or hold:
-                ret[symbol] = Balance(available=available, total=available + hold)
+            ret[symbol] = Balance(available=available, total=available + hold)
         return ret
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Optional[Decimal], Optional[Decimal]]:

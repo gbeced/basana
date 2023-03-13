@@ -127,4 +127,5 @@ def test_symbols():
     balances.order_updated(order, {"BTC": Decimal("0.05"), "USD": Decimal("-5000")})
     symbols = balances.get_symbols()
     symbols.sort()
-    assert symbols == ["BTC"]
+    assert symbols == ["BTC", "USD"]
+    assert balances.get_available_balance("USD") == 0

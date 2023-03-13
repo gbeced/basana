@@ -18,64 +18,22 @@
 .. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
 """
 
-# Strategy based on Dual Moving Average Crossover signals.
-
 from decimal import Decimal
 import asyncio
-import datetime
 import logging
-
-from talipp.indicators import EMA
 
 from basana.external.binance import exchange as binance_exchange
 import basana as bs
+import dmac
 
 
-class TradingSignal(bs.Event):
-    def __init__(self, when: datetime.datetime, operation: bs.OrderOperation, pair: bs.Pair):
-        super().__init__(when)
-        self.operation = operation
-        self.pair = pair
-
-
-class DMAC_SignalSource(bs.FifoQueueEventSource):
-    def __init__(self, short_term_period: int, long_term_period: int):
-        super().__init__()
-        self._st_sma = EMA(period=short_term_period)
-        self._lt_sma = EMA(period=long_term_period)
-
-    async def on_bar_event(self, bar_event: bs.BarEvent):
-        logging.info(
-            "Bar event: pair=%s open=%s high=%s low=%s close=%s volume=%s",
-            bar_event.bar.pair, bar_event.bar.open, bar_event.bar.high, bar_event.bar.low, bar_event.bar.close,
-            bar_event.bar.volume
-        )
-
-        # Feed the technical indicators.
-        value = float(bar_event.bar.close)
-        self._st_sma.add_input_value(value)
-        self._lt_sma.add_input_value(value)
-
-        # Are MAs ready ?
-        if len(self._st_sma) < 2 or len(self._lt_sma) < 2:
-            return
-
-        # Short term MA crossed above long term MA ?
-        if self._st_sma[-2] <= self._lt_sma[-2] and self._st_sma[-1] > self._lt_sma[-1]:
-            self.push(TradingSignal(bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair))
-        # Short term MA crossed below long term MA ?
-        elif self._st_sma[-2] >= self._lt_sma[-2] and self._st_sma[-1] < self._lt_sma[-1]:
-            self.push(TradingSignal(bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair))
-
-
-# The strategy is responsible for placing orders in response to trading signals.
-class Strategy:
+class PositionManager:
     def __init__(self, exchange: binance_exchange.Exchange, position_amount: Decimal):
         assert position_amount > 0
         self._exchange = exchange
         self._position_amount = position_amount
 
-    async def calculate_price(self, trading_signal: TradingSignal):
+    async def calculate_price(self, trading_signal: bs.TradingSignal):
         bid, ask = await self._exchange.get_bid_ask(trading_signal.pair)
         return {
             bs.OrderOperation.BUY: ask,
@@ -89,7 +47,7 @@ class Strategy:
             if open_order.operation == order_operation
         ])
 
-    async def on_trading_signal(self, trading_signal: TradingSignal):
+    async def on_trading_signal(self, trading_signal: bs.TradingSignal):
         logging.info("Trading signal: operation=%s pair=%s", trading_signal.operation, trading_signal.pair)
         try:
             # Cancel any open orders in the opposite direction.
@@ -125,6 +83,13 @@ class Strategy:
         except Exception as e:
             logging.error(e)
 
+    async def on_bar_event(self, bar_event: bs.BarEvent):
+        logging.info(
+            "Bar event: pair=%s open=%s high=%s low=%s close=%s volume=%s",
+            bar_event.bar.pair, bar_event.bar.open, bar_event.bar.high, bar_event.bar.low, bar_event.bar.close,
+            bar_event.bar.volume
+        )
+
 
 async def main():
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
@@ -133,18 +98,20 @@ async def main():
     api_key = "YOUR_API_KEY"
     api_secret = "YOUR_API_SECRET"
     exchange = binance_exchange.Exchange(event_dispatcher, api_key=api_key, api_secret=api_secret)
-    strategy = Strategy(exchange, Decimal(30))
+    position_mgr = PositionManager(exchange, Decimal(30))
 
     pairs = [
         bs.Pair("BTC", "USDT"),
-        # bs.Pair("ETH", "USDT"),
+        bs.Pair("ETH", "USDT"),
     ]
     for pair in pairs:
-        # DMAC will be used to generate trading signals.
-        signal_source = DMAC_SignalSource(5, 9)
-        exchange.subscribe_to_bar_events(pair, 60, signal_source.on_bar_event, flush_delay=1)
-        # Connect the strategy with the signal source.
-        event_dispatcher.subscribe(signal_source, strategy.on_trading_signal)
+        # Connect the strategy to the bar events from the exchange.
+        strategy = dmac.Strategy(event_dispatcher, 5, 9)
+        exchange.subscribe_to_bar_events(pair, 60, strategy.on_bar_event)
+
+        # Connect the position manager to the strategy signals and to bar events just for logging.
+        strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
+        exchange.subscribe_to_bar_events(pair, 60, position_mgr.on_bar_event)
 
     await event_dispatcher.run()
 

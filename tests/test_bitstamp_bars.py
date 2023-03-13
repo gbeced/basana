@@ -82,7 +82,7 @@ def test_bars_from_trades(realtime_dispatcher):
 
             await realtime_dispatcher.run()
 
-    asyncio.run(asyncio.wait_for(test_main(), 3))
+    asyncio.run(asyncio.wait_for(test_main(), 5))
 
     assert last_bar is not None
     assert last_bar.pair == p

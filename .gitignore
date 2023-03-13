@@ -1,10 +1,11 @@
-.idea
 .coverage
-.vscode
-cov_html
-__pycache__
+.idea
 .venv/*
-venv/*
+.vscode
+__pycache__
+cov_html
 data/*
-pocs/*
 dist/*
+docs/_build
+pocs/*
+venv/*

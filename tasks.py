@@ -31,3 +31,9 @@ def test(c, html_report=False):
 @task
 def create_virtualenv(c):
     c.run("poetry install --no-root", pty=True)
+
+
+@task
+def build_docs(c):
+    with c.cd("docs"):
+        c.run("poetry run -- make html", pty=True)

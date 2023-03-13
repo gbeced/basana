@@ -34,8 +34,11 @@ from basana.core.pair import Pair, PairInfo
 
 BarEventHandler = Callable[[bar.BarEvent], Awaitable[Any]]
 Error = client.Error
+OrderBookEvent = order_book.OrderBookEvent
 OrderBookEventHandler = Callable[[order_book.OrderBookEvent], Awaitable[Any]]
+OrderEvent = orders.OrderEvent
 OrderEventHandler = Callable[[orders.OrderEvent], Awaitable[Any]]
+TradeEvent = trades.TradeEvent
 TradeEventHandler = Callable[[trades.TradeEvent], Awaitable[Any]]
 
 
@@ -268,9 +271,9 @@ class RealTimeTradesToBar(bar.RealTimeTradesToBar):
 
 class Exchange:
     def __init__(
-            self, dispatcher: dispatcher.EventDispatcher, api_key: str, api_secret: str,
-            session: Optional[aiohttp.ClientSession] = None, tb: Optional[token_bucket.TokenBucketLimiter] = None,
-            config_overrides: dict = {}
+            self, dispatcher: dispatcher.EventDispatcher, api_key: Optional[str] = None,
+            api_secret: Optional[str] = None, session: Optional[aiohttp.ClientSession] = None,
+            tb: Optional[token_bucket.TokenBucketLimiter] = None, config_overrides: dict = {}
     ):
         self._dispatcher = dispatcher
         self._api_key = api_key
@@ -283,6 +286,7 @@ class Exchange:
         self._priv_websocket: Optional[bitstamp_ws.PrivateWebSocketClient] = None
         self._channel_to_event_source: Dict[str, event.EventSource] = {}
         self._pair_info_cache: Dict[Pair, PairInfo] = {}
+        self._bar_event_source: Dict[Tuple[Pair, int, bool, float], RealTimeTradesToBar] = {}
 
     async def get_balance(self, symbol: str) -> Balance:
         balance = await self._cli.get_account_balance(symbol.lower())
@@ -375,11 +379,17 @@ class Exchange:
 
     def subscribe_to_bar_events(
             self, pair: Pair, bar_duration: int, event_handler: BarEventHandler, skip_first_bar: bool = True,
-            flush_delay: float = 0.5
+            flush_delay: float = 1
     ):
-        event_source = RealTimeTradesToBar(pair, bar_duration, skip_first_bar=skip_first_bar, flush_delay=flush_delay)
+        key = (pair, bar_duration, skip_first_bar, flush_delay)
+        event_source = self._bar_event_source.get(key)
+        if not event_source:
+            event_source = RealTimeTradesToBar(
+                pair, bar_duration, skip_first_bar=skip_first_bar, flush_delay=flush_delay
+            )
+            self.subscribe_to_public_trade_events(pair, event_source.on_trade_event)
+            self._bar_event_source[key] = event_source
         self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
-        self.subscribe_to_public_trade_events(pair, event_source.on_trade_event)
 
     def subscribe_to_order_book_events(self, pair: Pair, event_handler: OrderBookEventHandler):
         channel = order_book.get_channel(pair)
