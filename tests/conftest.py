@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 from tests.fixtures.binance import *  # noqa: F401,F403
 from tests.fixtures.bitstamp import *  # noqa: F401,F403
 from tests.fixtures.dispatcher import *  # noqa: F401,F403

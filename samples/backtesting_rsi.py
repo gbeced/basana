@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 # Bars can be downloaded using this command:
 # python -m basana.external.bitstamp.tools.download_bars -c BTC/USD -p 1m -s 2021-01-01 -e 2021-01-31 > \
 # bitstamp_btcusd_min.csv
