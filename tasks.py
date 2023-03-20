@@ -30,7 +30,7 @@ def test(c, html_report=False):
 
 @task
 def create_virtualenv(c):
-    c.run("poetry install --no-root", pty=True)
+    c.run("poetry install", pty=True)
 
 
 @task

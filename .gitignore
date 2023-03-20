@@ -7,5 +7,6 @@ cov_html
 data/*
 dist/*
 docs/_build
+docs/generated
 pocs/*
 venv/*
