@@ -22,9 +22,7 @@ from . import orders
 
 
 class FeeStrategy(metaclass=abc.ABCMeta):
-    """
-    Base class for fee strategies.
-    """
+    """Base class for fee strategies."""
 
     def calculate_fees(
             self, order: orders.Order, balance_updates: Dict[str, Decimal]

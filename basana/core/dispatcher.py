@@ -174,9 +174,9 @@ async def await_no_raise(coro: Awaitable[Any], message: str = "Unhandled excepti
         await coro
 
 
-def realtime_dispatcher():
+def realtime_dispatcher() -> EventDispatcher:
     return EventDispatcher(strict_order=False, stop_when_idle=False)
 
 
-def backtesting_dispatcher():
+def backtesting_dispatcher() -> EventDispatcher:
     return BacktestingDispatcher()

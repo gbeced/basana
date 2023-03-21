@@ -151,8 +151,8 @@ class Exchange:
         return bid, ask
 
     async def create_order(self, order_request: requests.ExchangeOrder) -> CreatedOrder:
-        """
-        Places an exchange order request.
+        """Creates an exchange order.
+
         :param order_request: An exchange order request.
         :return: The order created.
         """

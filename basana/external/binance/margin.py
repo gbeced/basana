@@ -95,14 +95,16 @@ class Account(metaclass=abc.ABCMeta):
             self, pair: Pair, order_id: Optional[str] = None, client_order_id: Optional[str] = None,
             include_trades: bool = True
     ) -> OrderInfo:
-        """
+        """Request order information.
 
-        @param pair:
-        @param order_id:
-        @param client_order_id:
-        @return:
+        @param pair: That trading pair.
+        @param order_id: The order id.
+        @param client_order_id: The client order id.
+        @return: Order information.
 
-        This requires making 2 requests to Binance.
+        .. note::
+            * This requires making 2 requests to Binance.
+            * Either order_id or client_order_id have to be set.
         """
         order_book_symbol = helpers.pair_to_order_book_symbol(pair)
         order_info = await self.client.query_order(

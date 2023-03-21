@@ -31,6 +31,8 @@ class InvalidBar(Exception):
 
 
 class Bar:
+    """A Bar is the summary of the trading activity in a given period."""
+
     def __init__(
             self, datetime: datetime.datetime, pair: pair.Pair,
             open: Decimal, high: Decimal, low: Decimal, close: Decimal, volume: Decimal

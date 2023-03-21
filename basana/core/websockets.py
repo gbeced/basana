@@ -40,9 +40,7 @@ class ChannelEventSource(event.FifoQueueEventSource):
 
 
 class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
-    """"
-    Base class for channel based web socket clients.
-    """
+    """"Base class for channel based web socket clients."""
     def __init__(
             self, url: str, session: Optional[aiohttp.ClientSession] = None, config_overrides: dict = {},
             heartbeat: float = 30

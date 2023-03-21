@@ -21,7 +21,7 @@ from dateutil import tz
 
 
 def is_naive(dt: datetime.datetime) -> bool:
-    """ Returns True if datetime is naive."""
+    """Returns True if datetime is naive."""
     return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
 
 

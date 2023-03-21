@@ -52,8 +52,9 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def get_estimated_fill_price(self) -> Optional[Decimal]:  # pragma: no cover
-        """
-        Returns the estimated fill price for the order. This will be used to estimate the cost of executing this order.
+        """ Returns the estimated fill price for the order.
+
+        This will be used to estimate the cost of executing this order.
         """
         raise NotImplementedError()
 
@@ -63,7 +64,8 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
 
 
 class MarketOrder(ExchangeOrder):
-    """
+    """Market order request.
+
     A market order is an order to buy or sell a stock at the best available price.
     Generally, this type of order will be executed immediately. However, the price at which a market order will be
     executed is not guaranteed.
@@ -84,7 +86,8 @@ class MarketOrder(ExchangeOrder):
 
 
 class LimitOrder(ExchangeOrder):
-    """
+    """Limit order request.
+
     A limit order is an order to buy or sell a stock at a specific price or better.
     A buy limit order can only be executed at the limit price or lower, and a sell limit order can only be executed
     at the limit price or higher.
@@ -118,7 +121,8 @@ class LimitOrder(ExchangeOrder):
 
 
 class StopOrder(ExchangeOrder):
-    """
+    """Stop order request.
+
     A stop order, also referred to as a stop-loss order, is an order to buy or sell a stock once the price of the
     stock reaches a specified price, known as the stop price.
     When the stop price is reached, a stop order becomes a market order.
@@ -156,7 +160,8 @@ class StopOrder(ExchangeOrder):
 
 
 class StopLimitOrder(ExchangeOrder):
-    """
+    """Stop limit order request.
+
     A stop-limit order is an order to buy or sell a stock that combines the features of a stop order and a limit
     order.
     Once the stop price is reached, a stop-limit order becomes a limit order that will be executed at a specified
