@@ -46,10 +46,12 @@ class RowParser(csv.RowParser):
             return []
 
         dt = datetime.datetime.strptime(row_dict["datetime"], "%Y-%m-%d %H:%M:%S").replace(tzinfo=self.tzinfo)
-        dt += self.timedelta
         return [
-            bar.BarEvent(bar.Bar(
-                dt, self.pair, Decimal(row_dict["open"]), Decimal(row_dict["high"]), Decimal(row_dict["low"]),
-                Decimal(row_dict["close"]), volume
-            ))
+            bar.BarEvent(
+                dt + self.timedelta,
+                bar.Bar(
+                    dt, self.pair, Decimal(row_dict["open"]), Decimal(row_dict["high"]), Decimal(row_dict["low"]),
+                    Decimal(row_dict["close"]), volume
+                )
+            )
         ]

@@ -29,10 +29,11 @@ from basana.external.bitstamp.csv import bars as csv_bars
 
 def test_daily_bars_from_csv(backtesting_dispatcher):
     bars = []
+    events = []
 
     async def on_bar(bar_event):
-        print(bar_event.bar.datetime)
         bars.append(bar_event.bar)
+        events.append(bar_event)
 
     async def impl():
         pair = Pair("BTC", "USD")
@@ -47,8 +48,9 @@ def test_daily_bars_from_csv(backtesting_dispatcher):
         assert bars[0].low == Decimal("312.6")
         assert bars[0].close == Decimal("313.81")
         assert bars[0].volume == Decimal("3087.43655395")
-        assert bars[-1].datetime == datetime.datetime(2015, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
+        assert bars[-1].datetime == datetime.datetime(2015, 12, 31, tzinfo=datetime.timezone.utc)
         assert bars[-1].open == Decimal("426.09")
+        assert events[-1].when == datetime.datetime(2015, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
 
     asyncio.run(impl())
 
@@ -57,7 +59,6 @@ def test_minute_bars_from_csv_using_deprecated_period_format(backtesting_dispatc
     bars = []
 
     async def on_bar(bar_event):
-        print(bar_event.bar.datetime)
         bars.append(bar_event.bar)
 
     async def impl():
@@ -73,7 +74,7 @@ def test_minute_bars_from_csv_using_deprecated_period_format(backtesting_dispatc
         assert bars[0].low == Decimal("7159.64")
         assert bars[0].close == Decimal("7159.64")
         assert bars[0].volume == Decimal("5.50169101")
-        assert bars[-1].datetime == datetime.datetime(2020, 1, 1, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
+        assert bars[-1].datetime == datetime.datetime(2020, 1, 1, 23, 59, tzinfo=datetime.timezone.utc)
         assert bars[-1].open == Decimal("7178.68")
 
     asyncio.run(impl())

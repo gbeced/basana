@@ -391,18 +391,30 @@ def test_order_requests(order_plan, backtesting_dispatcher):
 
         # These are for testing scenarios where fills take place in multiple bars.
         bs = event.FifoQueueEventSource(events=[
-            bar.BarEvent(bar.Bar(
-                dt.local_datetime(2001, 1, 2), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
-            )),
-            bar.BarEvent(bar.Bar(
-                dt.local_datetime(2001, 1, 3), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
-            )),
-            bar.BarEvent(bar.Bar(
-                dt.local_datetime(2001, 1, 4), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
-            )),
-            bar.BarEvent(bar.Bar(
-                dt.local_datetime(2001, 1, 5), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
-            )),
+            bar.BarEvent(
+                dt.local_datetime(2001, 1, 2, 23, 59, 59),
+                bar.Bar(
+                    dt.local_datetime(2001, 1, 2), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
+                )
+            ),
+            bar.BarEvent(
+                dt.local_datetime(2001, 1, 3, 23, 59, 59),
+                bar.Bar(
+                    dt.local_datetime(2001, 1, 3), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
+                )
+            ),
+            bar.BarEvent(
+                dt.local_datetime(2001, 1, 4, 23, 59, 59),
+                bar.Bar(
+                    dt.local_datetime(2001, 1, 4), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
+                )
+            ),
+            bar.BarEvent(
+                dt.local_datetime(2001, 1, 5, 23, 59, 59),
+                bar.Bar(
+                    dt.local_datetime(2001, 1, 5), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
+                )
+            ),
         ])
         e.add_bar_source(bs)
 
@@ -534,13 +546,19 @@ def test_small_fill_is_ignored_after_rounding(backtesting_dispatcher):
 
     bs = event.FifoQueueEventSource(events=[
         # This one should be ignored since quote amount should be removed after rounding.
-        bar.BarEvent(bar.Bar(
-            dt.local_datetime(2000, 1, 3), p, Decimal(1), Decimal(1), Decimal(1), Decimal(1), Decimal("0.01")
-        )),
+        bar.BarEvent(
+            dt.local_datetime(2000, 1, 3, 23, 59, 59),
+            bar.Bar(
+                dt.local_datetime(2000, 1, 3), p, Decimal(1), Decimal(1), Decimal(1), Decimal(1), Decimal("0.01")
+            )
+        ),
         # This one should be used during fill.
-        bar.BarEvent(bar.Bar(
-            dt.local_datetime(2000, 1, 4), p, Decimal(2), Decimal(2), Decimal(2), Decimal(2), Decimal(10)
-        ))
+        bar.BarEvent(
+            dt.local_datetime(2000, 1, 4, 23, 59, 59),
+            bar.Bar(
+                dt.local_datetime(2000, 1, 4), p, Decimal(2), Decimal(2), Decimal(2), Decimal(2), Decimal(10)
+            )
+        )
     ])
     e.add_bar_source(bs)
     e.set_pair_info(p, PairInfo(8, 2))
@@ -573,16 +591,22 @@ def test_liquidity_is_exhausted_and_order_is_canceled(backtesting_dispatcher):
 
     async def impl():
         bs = event.FifoQueueEventSource(events=[
-            bar.BarEvent(bar.Bar(
-                dt.local_datetime(2000, 1, 3), Pair("ORCL", "USD"),
-                Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"),
-                Decimal("98122000")
-            )),
-            bar.BarEvent(bar.Bar(
-                dt.local_datetime(2000, 1, 7), Pair("ORCL", "USD"),
-                Decimal("95.00"), Decimal("103.50"), Decimal("93.56"), Decimal("103.37"),
-                Decimal("91775600")
-            )),
+            bar.BarEvent(
+                dt.local_datetime(2000, 1, 3, 23, 59, 59),
+                bar.Bar(
+                    dt.local_datetime(2000, 1, 3), Pair("ORCL", "USD"),
+                    Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"),
+                    Decimal("98122000")
+                )
+            ),
+            bar.BarEvent(
+                dt.local_datetime(2000, 1, 7, 23, 59, 59),
+                bar.Bar(
+                    dt.local_datetime(2000, 1, 7), Pair("ORCL", "USD"),
+                    Decimal("95.00"), Decimal("103.50"), Decimal("93.56"), Decimal("103.37"),
+                    Decimal("91775600")
+                )
+            ),
         ])
         e.add_bar_source(bs)
 
@@ -695,10 +719,13 @@ def test_bid_ask(backtesting_dispatcher):
     async def impl():
         p = Pair("ORCL", "USD")
         bs = event.FifoQueueEventSource(events=[
-            bar.BarEvent(bar.Bar(
-                dt.local_datetime(2000, 1, 3), p,
-                Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"), Decimal("98122000")
-            ))
+            bar.BarEvent(
+                dt.local_datetime(2000, 1, 3, 23, 59, 59),
+                bar.Bar(
+                    dt.local_datetime(2000, 1, 3), p,
+                    Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"), Decimal("98122000")
+                )
+            )
         ])
         e.add_bar_source(bs)
 

@@ -87,10 +87,10 @@ bars_to_sanitize = [
 
 def test_multiple_sources():
     d = dispatcher.EventDispatcher()
-    event_bars = []
+    events = []
 
     async def add_bar(event: bar.BarEvent):
-        event_bars.append(event.bar)
+        events.append(event)
 
     src_1 = bars.CSVBarSource(
         pair.Pair("ORCL", "USD"), helpers.abs_data_path("orcl-2000-yahoo-sorted.csv"), sort=False,
@@ -105,24 +105,22 @@ def test_multiple_sources():
 
     asyncio.run(d.run())
 
-    assert event_bars[0].datetime == datetime.datetime(
-        2000, 1, 3, hour=23, minute=59, second=59, microsecond=999999, tzinfo=datetime.timezone.utc
-    )
-    assert event_bars[0].pair.base_symbol == "ORCL"
-    assert event_bars[0].pair.quote_symbol == "USD"
-    assert event_bars[0].open == Decimal("124.62")
-    assert event_bars[0].high == Decimal("125.19")
-    assert event_bars[0].low == Decimal("111.62")
-    assert event_bars[0].close == Decimal("118.12")
-    assert event_bars[0].volume == Decimal("98122000")
+    assert events[0].bar.datetime == datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
+    assert events[0].bar.pair.base_symbol == "ORCL"
+    assert events[0].bar.pair.quote_symbol == "USD"
+    assert events[0].bar.open == Decimal("124.62")
+    assert events[0].bar.high == Decimal("125.19")
+    assert events[0].bar.low == Decimal("111.62")
+    assert events[0].bar.close == Decimal("118.12")
+    assert events[0].bar.volume == Decimal("98122000")
 
-    assert event_bars[-1].datetime == datetime.datetime(
-        2001, 12, 31, hour=23, minute=59, second=59, microsecond=999999, tzinfo=tz.tzlocal()
-    )
-    assert round_decimal(event_bars[-1].open, 2) == Decimal("13.78")
-    assert round_decimal(event_bars[-1].high, 2) == Decimal("13.91")
-    assert round_decimal(event_bars[-1].low, 2) == Decimal("13.49")
-    assert event_bars[-1].close == Decimal("13.50")
+    assert events[-1].bar.datetime == datetime.datetime(2001, 12, 31, tzinfo=tz.tzlocal())
+    assert events[-1].when == datetime.datetime(2001, 12, 31, 23, 59, 59, microsecond=999999, tzinfo=tz.tzlocal())
+
+    assert round_decimal(events[-1].bar.open, 2) == Decimal("13.78")
+    assert round_decimal(events[-1].bar.high, 2) == Decimal("13.91")
+    assert round_decimal(events[-1].bar.low, 2) == Decimal("13.49")
+    assert events[-1].bar.close == Decimal("13.50")
 
 
 @pytest.mark.parametrize("row_dict", bars_to_sanitize)
