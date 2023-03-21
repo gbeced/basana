@@ -60,8 +60,8 @@ class Bar:
 
 
 class BarEvent(event.Event):
-    def __init__(self, bar: Bar):
-        super().__init__(bar.datetime)
+    def __init__(self, when: datetime.datetime, bar: Bar):
+        super().__init__(when)
         self.bar = bar
 
 
@@ -123,8 +123,8 @@ class RealTimeTradesToBar(event.FifoQueueEventSource, event.Producer):
 
         # If there were trades in the current window then build the bar and publish the event.
         if volume and not self._skip_first_bar:
-            bar = Bar(end, self._pair, open, high, low, close, volume)
-            self.push(BarEvent(bar))
+            bar = Bar(begin, self._pair, open, high, low, close, volume)
+            self.push(BarEvent(end, bar))
         self._skip_first_bar = False
 
         # Dump the trades that were already processed

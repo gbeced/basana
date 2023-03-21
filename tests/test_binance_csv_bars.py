@@ -29,10 +29,11 @@ from basana.external.binance.csv import bars as csv_bars
 
 def test_daily_bars_from_csv(backtesting_dispatcher):
     bars = []
+    events = []
 
     async def on_bar(bar_event):
-        print(bar_event.bar.datetime)
         bars.append(bar_event.bar)
+        events.append(bar_event)
 
     async def impl():
         pair = Pair("BTC", "USDT")
@@ -47,7 +48,8 @@ def test_daily_bars_from_csv(backtesting_dispatcher):
         assert bars[0].low == Decimal("7175.15")
         assert bars[0].close == Decimal("7200.85")
         assert bars[0].volume == Decimal("16792.388165")
-        assert bars[-1].datetime == datetime.datetime(2020, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
+        assert bars[-1].datetime == datetime.datetime(2020, 12, 31, tzinfo=datetime.timezone.utc)
         assert bars[-1].open == Decimal("28875.55")
+        assert events[-1].when == datetime.datetime(2020, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
 
     asyncio.run(impl())

@@ -75,8 +75,6 @@ class RowParser(csv.RowParser):
 
     def parse_row(self, row_dict: dict) -> Sequence[event.Event]:
         dt = datetime.datetime.strptime(row_dict["Date"], "%Y-%m-%d").replace(tzinfo=self.tzinfo)
-        dt += self.timedelta
-
         open, high, low, close = (
             Decimal(row_dict["Open"]), Decimal(row_dict["High"]), Decimal(row_dict["Low"]), Decimal(row_dict["Close"])
         )
@@ -85,9 +83,12 @@ class RowParser(csv.RowParser):
         if self.adjust_ohlc:
             open, high, low, close = adjust_ohlc(open, high, low, close, Decimal(row_dict["Adj Close"]))
 
-        return [bar.BarEvent(bar.Bar(
-            dt, self.pair, open, high, low, close, Decimal(row_dict["Volume"])
-        ))]
+        return [
+            bar.BarEvent(
+                dt + self.timedelta,
+                bar.Bar(dt, self.pair, open, high, low, close, Decimal(row_dict["Volume"]))
+            )
+        ]
 
 
 class CSVBarSource(csv.EventSource):
