@@ -1,23 +1,10 @@
 API
 ===
 
-basana
-------
+.. toctree::
+    :maxdepth: 2
 
-TODO
-
-basana.backtesting
-------------------
-
-TODO
-
-basana.external.binance
------------------------
-
-TODO
-
-basana.external.bitstamp
-------------------------
-
-TODO
-
+    basana
+    backtesting
+    binance
+    bitstamp
