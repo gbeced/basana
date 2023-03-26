@@ -10,7 +10,7 @@
 
 ## Key Features
 
-* Backtesing exchange so you can try your trading strategies before using real funds.
+* Backtesting exchange so you can try your trading strategies before using real funds.
 * Live trading at [Binance](https://www.binance.com/) and [Bitstamp](https://www.bitstamp.net/) crypto currency exchanges.
 * Asynchronous I/O and event driven.
 
