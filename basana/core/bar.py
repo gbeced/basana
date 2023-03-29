@@ -31,7 +31,7 @@ class InvalidBar(Exception):
 
 
 class Bar:
-    """A Bar is the summary of the trading activity in a given period."""
+    """A Bar, also known as candlestick or OHLC, is the summary of the trading activity in a given period."""
 
     def __init__(
             self, datetime: datetime.datetime, pair: pair.Pair,
@@ -48,18 +48,29 @@ class Bar:
         elif low > close:
             raise InvalidBar(f"low > close on {datetime}")
 
+        #: The beginning of the period.
         self.datetime = datetime
+        #: The trading pair.
         self.pair = pair
+        #: The opening price.
         self.open = open
+        #: The highest traded price.
         self.high = high
+        #: The lowest traded price.
         self.low = low
+        #: The closing price.
         self.close = close
+        #: The volume traded.
         self.volume = volume
 
 
 class BarEvent(event.Event):
+    """An event for :class:`Bar` instances."""
+
     def __init__(self, when: datetime.datetime, bar: Bar):
         super().__init__(when)
+
+        #: The bar.
         self.bar = bar
 
 

@@ -26,6 +26,7 @@ def is_naive(dt: datetime.datetime) -> bool:
 
 
 def utc_now() -> datetime.datetime:
+    """Returns the current datetime in UTC timezone."""
     return datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
 
 
@@ -34,6 +35,7 @@ def local_datetime(*args, **kwargs) -> datetime.datetime:
 
 
 def local_now() -> datetime.datetime:
+    """Returns the current datetime in local timezone."""
     return datetime.datetime.now().replace(tzinfo=tz.tzlocal())
 
 

@@ -29,9 +29,23 @@ IdleHandler = Callable[[], Awaitable[Any]]
 
 
 class EventDispatcher:
+    """Responsible for connecting event sources to event handlers and dispatching events in the right order.
+
+    :param strict_order: True to abort if an event arrives out of order.
+    :param stop_when_idle: True to stop when there are no more events to dispatch.
+
+    .. note::
+
+        The following helper functions are provided to build event dispatchers suitable for backtesting or for live
+        trading:
+
+        * :func:`basana.backtesting_dispatcher`
+        * :func:`basana.realtime_dispatcher`
+    """
+
     def __init__(self, strict_order: bool = True, stop_when_idle: bool = True):
         self._event_handlers: Dict[event.EventSource, Set[EventHandler]] = {}
-        self._prefetched_events: Dict[event.EventSource, event.Event] = {}
+        self._prefetched_events: Dict[event.EventSource, Optional[event.Event]] = {}
         self._prev_events: Dict[event.EventSource, datetime.datetime] = {}
         self._idle_handlers: Set[IdleHandler] = set()
         self._producers: Set[event.Producer] = set()
@@ -44,24 +58,48 @@ class EventDispatcher:
 
     @property
     def current_event_dt(self) -> Optional[datetime.datetime]:
+        """The datetime of the event that is currently being processed."""
         return self._current_event_dt
 
     def stop(self):
+        """Requests the event dispatcher to stop the event processing loop."""
         self._stopped = True
         if self._open_task_group:
             self._open_task_group.cancel()
 
     def subscribe_idle(self, idle_handler: IdleHandler):
+        """Registers an async callable that will be called when there are no events to dispatch.
+
+        :param idle_handler: An async callable that receives no arguments.
+        """
+
         # Called when there are no events to dispatch.
         self._idle_handlers.add(idle_handler)
 
     def subscribe(self, source: event.EventSource, event_handler: EventHandler):
+        """Registers an async callable that will be called when an event source has new events.
+
+        :param source: An event source.
+        :param event_handler: An async callable that receives an event.
+        """
+
         assert not self._running
         self._event_handlers.setdefault(source, set()).add(event_handler)
         if source.producer:
             self._producers.add(source.producer)
 
     async def run(self, stop_signals: List[int] = [signal.SIGINT, signal.SIGTERM]):
+        """Executes the event dispatch loop.
+
+        :param stop_signals: The signals that will be handled to request :func:`run()` to :func:`stop()`.
+
+        This method will execute the following steps in order:
+
+        #. Call :meth:`basana.Producer.initialize` on all producers.
+        #. Call :meth:`basana.Producer.main` on all producers and execute event dispatch loop until stopped.
+        #. Call :meth:`basana.Producer.finalize` on all producers.
+        """
+
         assert not self._running, "Running or already ran"
         assert self._open_task_group is None
 
@@ -117,7 +155,7 @@ class EventDispatcher:
             next_dt = min(map(lambda e: e.when, prefetched_events))
         return next_dt
 
-    async def _dispatch_next(self, ge_or_assert):
+    async def _dispatch_next(self, ge_or_assert: Optional[datetime.datetime]):
         # Pre-fetch events from all sources.
         self._prefetch()
 
@@ -155,8 +193,6 @@ class EventDispatcher:
                     # Otherwise we'll monopolize the event loop.
                     await asyncio.sleep(0.01)
             else:
-                assert not self._strict_order or last_dt is None or dispatched_dt >= last_dt, \
-                    f"{dispatched_dt} dispatched after {last_dt}"
                 last_dt = dispatched_dt
 
 
@@ -175,8 +211,10 @@ async def await_no_raise(coro: Awaitable[Any], message: str = "Unhandled excepti
 
 
 def realtime_dispatcher() -> EventDispatcher:
+    """Creates an event dispatcher suitable for live trading."""
     return EventDispatcher(strict_order=False, stop_when_idle=False)
 
 
 def backtesting_dispatcher() -> EventDispatcher:
+    """Creates an event dispatcher suitable for backtesting."""
     return BacktestingDispatcher()

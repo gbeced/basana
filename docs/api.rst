@@ -5,6 +5,3 @@ API
     :maxdepth: 2
 
     basana
-    backtesting
-    binance
-    bitstamp

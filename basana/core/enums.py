@@ -20,7 +20,11 @@ import enum
 # Using these values to avoid misunderstandings with external API values.
 @enum.unique
 class OrderOperation(enum.Enum):
+    """Enumeration for order operations."""
+
+    #:
     BUY = 100
+    #:
     SELL = 101
 
     def __str__(self):
