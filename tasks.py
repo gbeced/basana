@@ -12,6 +12,9 @@ def clean(c):
     for pattern in patterns:
         c.run("find . -d -name '{}' -exec rm -rf {{}} \\;".format(pattern))
 
+    with c.cd("docs"):
+        c.run("poetry run -- make clean", pty=True)
+
 
 @task
 def lint(c):
