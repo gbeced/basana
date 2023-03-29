@@ -154,7 +154,7 @@ class Exchange:
         """Creates an exchange order.
 
         :param order_request: An exchange order request.
-        :return: The order created.
+        :returns: The order created.
         """
 
         # Validate request parameters.

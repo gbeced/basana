@@ -39,7 +39,7 @@ class LiquidityStrategy(metaclass=abc.ABCMeta):
         """Takes/consumes available liquidity.
 
         :param amount: The amount of liquidity to take. It must be <= available liquidity.
-        :return: The percentage of the price impact.
+        :returns: The percentage of the price impact.
         """
         raise NotImplementedError()
 

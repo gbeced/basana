@@ -136,7 +136,7 @@ class Order:
 
         :param bar: The bar that summarizes the trading activity.
         :param liquidity_strategy: The strategy used to model available liquidity.
-        :return: A dictionary that maps the symbol to the amount.
+        :returns: A dictionary that maps the symbol to the amount.
 
         .. note::
 
