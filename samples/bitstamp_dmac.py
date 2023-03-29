@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 # Strategy based on Dual Moving Average Crossover signals.
 
 from decimal import Decimal

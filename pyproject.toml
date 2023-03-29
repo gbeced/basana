@@ -2,6 +2,8 @@
 name = "basana"
 version = "1.2.1"
 homepage = "https://github.com/gbeced/basana"
+repository = "https://github.com/gbeced/basana"
+documentation = "https://basana.readthedocs.io/en/latest/"
 description = "A Python async and event driven framework for algorithmic trading, with a focus on crypto currencies."
 authors = ["Gabriel Becedillas <gabriel.becedillas@gmail.com>"]
 license = "Apache-2.0"

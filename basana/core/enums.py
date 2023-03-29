@@ -14,17 +14,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 import enum
 
 
 # Using these values to avoid misunderstandings with external API values.
 @enum.unique
 class OrderOperation(enum.Enum):
+    """Enumeration for order operations."""
+
+    #:
     BUY = 100
+    #:
     SELL = 101
 
     def __str__(self):

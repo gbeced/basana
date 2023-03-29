@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 import asyncio
 import time
 
@@ -46,9 +42,7 @@ class TokenBucketLimiter:
         return self._period_duration
 
     def consume(self) -> float:
-        """
-        Consumes one token and returns the time to wait before using it.
-        """
+        """Consumes one token and returns the time to wait before using it."""
 
         # Refill pool of tokens.
         now = time.time()

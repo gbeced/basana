@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 import decimal
 from decimal import Decimal
 from typing import cast, Any, Awaitable, Callable, Dict, Generator, List, Optional, Tuple
@@ -155,10 +151,10 @@ class Exchange:
         return bid, ask
 
     async def create_order(self, order_request: requests.ExchangeOrder) -> CreatedOrder:
-        """
-        Places an exchange order request.
+        """Creates an exchange order.
+
         :param order_request: An exchange order request.
-        :return: The order created.
+        :returns: The order created.
         """
 
         # Validate request parameters.

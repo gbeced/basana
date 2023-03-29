@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 from decimal import Decimal
 import abc
 
@@ -25,54 +21,41 @@ from basana.core import bar
 
 
 class LiquidityStrategy(metaclass=abc.ABCMeta):
-    """
-    Base class for liquidity strategies.
-    """
+    """Base class for strategies that model available liquidity."""
 
     @abc.abstractmethod
     def on_bar(self, bar: bar.Bar):  # pragma: no cover
-        """
-        Called when a new bar is available.
-        """
+        """Called when a new bar is available."""
         raise NotImplementedError()
 
     @property
     @abc.abstractmethod
     def available_liquidity(self) -> Decimal:  # pragma: no cover
-        """
-        Returns the available liquidity.
-        """
+        """Returns the available liquidity."""
         raise NotImplementedError()
 
     @abc.abstractmethod
     def take_liquidity(self, amount: Decimal) -> Decimal:  # pragma: no cover
-        """
-        Takes/consumes available liquidity.
+        """Takes/consumes available liquidity.
 
         :param amount: The amount of liquidity to take. It must be <= available liquidity.
-        :return: The percentage of the price impact.
+        :returns: The percentage of the price impact.
         """
         raise NotImplementedError()
 
     @abc.abstractmethod
     def calculate_price_impact(self, amount: Decimal) -> Decimal:  # pragma: no cover
-        """
-        Returns the percentage of the price impact for a given amount of liquidity taken.
-        """
+        """Returns the percentage of the price impact if a given amount of liquidity was taken."""
         raise NotImplementedError()
 
     @abc.abstractmethod
     def calculate_amount(self, price_impact: Decimal) -> Decimal:  # pragma: no cover
-        """
-        Returns the amount of liquidity that can be taken with an impact <= price_impact.
-        """
+        """Returns the amount of liquidity that can be taken with an impact <= price_impact."""
         raise NotImplementedError()
 
 
 class InfiniteLiquidity(LiquidityStrategy):
-    """
-    Infinite liquidity strategy.
-    """
+    """Infinite liquidity strategy."""
 
     def on_bar(self, bar: bar.Bar):
         pass
@@ -100,10 +83,10 @@ class InfiniteLiquidity(LiquidityStrategy):
 
 
 class VolumeShareImpact(LiquidityStrategy):
-    """
-    The price impact is calculated by multiplying the price impact constant by the square of the ratio of the used
+    """The price impact is calculated by multiplying the price impact constant by the square of the ratio of the used
     volume to the total volume.
     """
+
     def __init__(self, volume_limit_pct: Decimal = Decimal("25"), price_impact: Decimal = Decimal("10")):
         """
         :param volume_limit: Maximum percent of volume that can be used in each bar.

@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
@@ -115,7 +111,7 @@ class Account:
             self, pair: Pair, order_id: Optional[str] = None, client_order_id: Optional[str] = None,
             include_trades: bool = True
     ) -> OrderInfo:
-        """
+        """ Returns information about an order.
 
         @param pair:
         @param order_id:

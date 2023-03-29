@@ -14,23 +14,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 import dataclasses
 
 
 @dataclasses.dataclass(frozen=True)
-class PairInfo:
-    base_precision: int
-    quote_precision: int
-
-
-@dataclasses.dataclass(frozen=True)
 class Pair:
+    """A trading pair."""
+
+    #: The base symbol. It could be a stock, a crypto currency, a currency, etc.
     base_symbol: str
+
+    #: The quote symbol. It could be a stock, a crypto currency, a currency, etc.
     quote_symbol: str
 
     def __str__(self):
         return "{}/{}".format(self.base_symbol, self.quote_symbol)
+
+
+@dataclasses.dataclass(frozen=True)
+class PairInfo:
+    """Information about a trading pair."""
+
+    #: The precision for the base symbol.
+    base_precision: int
+
+    #: The precision for the quote symbol.
+    quote_precision: int

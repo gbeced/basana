@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 from decimal import Decimal
 from typing import Optional
 import asyncio
@@ -84,9 +80,22 @@ async def use_or_create_session(session: Optional[aiohttp.ClientSession] = None)
             yield new_session
 
 
-def round_decimal(amount: Decimal, precision: int, rounding=None) -> Decimal:
-    return amount.quantize(Decimal(f"1e-{precision}"), rounding=rounding)
+def round_decimal(value: Decimal, precision: int, rounding=None) -> Decimal:
+    """Rounds a decimal value.
+
+    :param value: The value to round.
+    :param precision: The number of digits after the decimal point.
+    :param rounding: An optional rounding option from the :mod:`decimal` module.
+    :returns: The rounded value.
+    """
+    return value.quantize(Decimal(f"1e-{precision}"), rounding=rounding)
 
 
-def truncate_decimal(amount: Decimal, precision: int) -> Decimal:
-    return round_decimal(amount, precision, rounding=decimal.ROUND_DOWN)
+def truncate_decimal(value: Decimal, precision: int) -> Decimal:
+    """Truncates a decimal value.
+
+    :param value: The value to truncate.
+    :param precision: The number of digits after the decimal point.
+    :returns: The truncated value.
+    """
+    return round_decimal(value, precision, rounding=decimal.ROUND_DOWN)

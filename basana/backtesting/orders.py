@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 from decimal import Decimal
 from typing import Dict, Optional
 import abc
@@ -136,17 +132,23 @@ class Order:
     def get_balance_updates(
             self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy
     ) -> Dict[str, Decimal]:  # pragma: no cover
-        """
-        Returns the balance updates required to fill the order, either completely or partially, based on the trading
-        activity summarized by the bar and the available liquidity. It should include both the base amount and
-        the quote amount, with opposite signs depending on the operation.
+        """Returns the balance updates required to fill the order.
+
+        :param bar: The bar that summarizes the trading activity.
+        :param liquidity_strategy: The strategy used to model available liquidity.
+        :returns: A dictionary that maps the symbol to the amount.
+
+        .. note::
+
+            * It can be either a complete or partial fill, based on the trading activity summarized by the bar and the
+              available liquidity.
+            * It should include both the base amount and the quote amount, with opposite signs depending on the
+              operation.
         """
         raise NotImplementedError()
 
     def not_filled(self):
-        """
-        Called every time the order was processed but no fill took place.
-        """
+        """Called every time the order was processed but no fill took place."""
         pass
 
 

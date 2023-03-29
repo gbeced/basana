@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 from decimal import Decimal
 from typing import Any, Dict, Optional
 import abc
@@ -63,6 +59,8 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
 
 class MarketOrder(ExchangeOrder):
     """
+    Market order request.
+
     A market order is an order to buy or sell a stock at the best available price.
     Generally, this type of order will be executed immediately. However, the price at which a market order will be
     executed is not guaranteed.
@@ -82,7 +80,8 @@ class MarketOrder(ExchangeOrder):
 
 
 class LimitOrder(ExchangeOrder):
-    """
+    """Limit order request.
+
     A limit order is an order to buy or sell a stock at a specific price or better.
     A buy limit order can only be executed at the limit price or lower, and a sell limit order can only be executed
     at the limit price or higher.

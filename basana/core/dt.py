@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 import calendar
 import datetime
 
@@ -25,11 +21,12 @@ from dateutil import tz
 
 
 def is_naive(dt: datetime.datetime) -> bool:
-    """ Returns True if datetime is naive."""
+    """Returns True if datetime is naive."""
     return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
 
 
 def utc_now() -> datetime.datetime:
+    """Returns the current datetime in UTC timezone."""
     return datetime.datetime.utcnow().replace(tzinfo=datetime.timezone.utc)
 
 
@@ -38,6 +35,7 @@ def local_datetime(*args, **kwargs) -> datetime.datetime:
 
 
 def local_now() -> datetime.datetime:
+    """Returns the current datetime in local timezone."""
     return datetime.datetime.now().replace(tzinfo=tz.tzlocal())
 
 
