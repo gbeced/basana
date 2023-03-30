@@ -1,8 +1,11 @@
 basana
 ======
 
+.. contents:: Table of Contents
+   :depth: 2
+
 Events, sources and dispatchers
--------------------------------------
+-------------------------------
 
 This is the core of the event driven architecture. At a high level you have:
 
