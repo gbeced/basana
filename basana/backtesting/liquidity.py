@@ -21,7 +21,17 @@ from basana.core import bar
 
 
 class LiquidityStrategy(metaclass=abc.ABCMeta):
-    """Base class for strategies that model available liquidity."""
+    """Base class for liquidity strategies.
+
+    A liquidity strategy defines how much of a :class:`basana.Bar`s volume can be used when processing an order and
+    what is the price slippage.
+
+    .. note::
+
+        * This is a base class and should not be used directly.
+        * Concrete strategies will be created by the :class:`basana.backtesting.exchange.Exchange` for each traded
+          pair.
+    """
 
     @abc.abstractmethod
     def on_bar(self, bar: bar.Bar):  # pragma: no cover
@@ -45,7 +55,7 @@ class LiquidityStrategy(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def calculate_price_impact(self, amount: Decimal) -> Decimal:  # pragma: no cover
-        """Returns the percentage of the price impact if a given amount of liquidity was taken."""
+        """A read-only version of :meth:`take_liquidity`."""
         raise NotImplementedError()
 
     @abc.abstractmethod
@@ -55,7 +65,7 @@ class LiquidityStrategy(metaclass=abc.ABCMeta):
 
 
 class InfiniteLiquidity(LiquidityStrategy):
-    """Infinite liquidity strategy."""
+    """This class models infinite liquidity with no price impact."""
 
     def on_bar(self, bar: bar.Bar):
         pass
@@ -85,14 +95,12 @@ class InfiniteLiquidity(LiquidityStrategy):
 class VolumeShareImpact(LiquidityStrategy):
     """The price impact is calculated by multiplying the price impact constant by the square of the ratio of the used
     volume to the total volume.
+
+    :param volume_limit_pct: Maximum percentage of volume that can be used from each bar.
+    :param price_impact: Maximum price impact (percentage).
     """
 
     def __init__(self, volume_limit_pct: Decimal = Decimal("25"), price_impact: Decimal = Decimal("10")):
-        """
-        :param volume_limit: Maximum percent of volume that can be used in each bar.
-        :param price_impact: Maximum price impact (percentage).
-        """
-
         assert volume_limit_pct >= Decimal(0), f"Invalid volume_limit_pct {volume_limit_pct}"
         assert price_impact >= Decimal(0), f"Invalid price_impact {price_impact}"
 

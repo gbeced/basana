@@ -1,6 +1,8 @@
 basana
 ======
 
+.. module:: basana
+
 .. contents:: Table of Contents
    :depth: 2
 
@@ -36,7 +38,6 @@ Exchange related
     :members:
 .. autoclass:: basana.BarEvent
     :show-inheritance:
-    :inherited-members:
     :members:
 .. autoclass:: basana.OrderOperation
     :members:

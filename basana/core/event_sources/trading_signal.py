@@ -21,7 +21,12 @@ from basana.core import dispatcher, enums, event, pair
 
 
 class TradingSignal(event.Event):
-    """A trading signal is an event that instructs to buy or sell a given pair."""
+    """A trading signal is an event that instructs to buy or sell a given pair.
+
+    :param when: The datetime when the trading signal occurred. It must have timezone information set.
+    :param operation: The operation.
+    :param pair: The pair to trade.
+    """
 
     def __init__(self, when: datetime.datetime, operation: enums.OrderOperation, pair: pair.Pair):
         super().__init__(when)
@@ -34,8 +39,9 @@ class TradingSignal(event.Event):
 class TradingSignalSource(event.FifoQueueEventSource):
     """Base class for event sources that generate :class:`basana.TradingSignal` events.
 
-    :param dispatcher: The :class:`basana.EventDispatcher`.
-    :param producer: An optional :class:`basana.Producer` instance associated with this event source.
+    :param dispatcher: The event dispatcher.
+    :param producer: An optional producer associated with this event source.
+    :param events: An optional list of initial events.
     """
 
     def __init__(

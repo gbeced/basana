@@ -39,15 +39,22 @@ class OrderState(enum.Enum):
 
 @dataclasses.dataclass
 class OrderInfo:
+    #: The order id.
     id: str
+    #: True if the order is open, False otherwise.
     is_open: bool
+    #: The amount filled.
     amount_filled: Decimal
+    #: The amount remaining.
     amount_remaining: Decimal
+    #: The quote amount filled.
     quote_amount_filled: Decimal
+    #: The fees charged.
     fees: Dict[str, Decimal]
 
     @property
     def fill_price(self) -> Optional[Decimal]:
+        """The fill price."""
         fill_price = None
         if self.amount_filled:
             fill_price = self.quote_amount_filled / self.amount_filled

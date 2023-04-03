@@ -19,12 +19,16 @@ import dataclasses
 
 @dataclasses.dataclass(frozen=True)
 class Pair:
-    """A trading pair."""
+    """A trading pair.
 
-    #: The base symbol. It could be a stock, a crypto currency, a currency, etc.
+    :param base_symbol: The base symbol. It could be a stock, a crypto currency, a currency, etc.
+    :param quote_symbol: The quote symbol. It could be a stock, a crypto currency, a currency, etc.
+    """
+
+    #: The base symbol.
     base_symbol: str
 
-    #: The quote symbol. It could be a stock, a crypto currency, a currency, etc.
+    #: The quote symbol.
     quote_symbol: str
 
     def __str__(self):
@@ -33,7 +37,11 @@ class Pair:
 
 @dataclasses.dataclass(frozen=True)
 class PairInfo:
-    """Information about a trading pair."""
+    """Information about a trading pair.
+
+    :param base_precision: The precision for the base symbol.
+    :param quote_precision: The precision for the quote symbol.
+    """
 
     #: The precision for the base symbol.
     base_precision: int
