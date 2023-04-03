@@ -80,29 +80,50 @@ class OrderIndex:
 
 @dataclasses.dataclass
 class Balance:
+    #: The available balance.
     available: Decimal
+    #: The total balance (available + reserved).
     total: Decimal
 
 
 @dataclasses.dataclass
 class CreatedOrder:
+    #: The order id.
     id: str
 
 
 @dataclasses.dataclass
 class CanceledOrder:
+    #: The order id.
     id: str
 
 
 @dataclasses.dataclass
 class OpenOrder:
+    #: The order id.
     id: str
+    #: The operation.
     operation: OrderOperation
+    #: The original amount.
     amount: Decimal
+    #: The amount filled.
     amount_filled: Decimal
 
 
 class Exchange:
+    """This class implements a backtesting exchange.
+
+    This backtesting exchange has support for Market, Limit, Stop and Stop Limit orders and it will simulate order
+    execution based on summarized trading activity (:class:`basana.BarEvent`).
+
+    :param dispatcher: The event dispatcher.
+    :param initial_balances: The initial balance for each currency/symbol/etc.
+    :param liquidity_strategy_factory: A callable that returns a new liquidity strategy.
+    :param fee_strategy: The fee stragegy to use.
+    :param default_pair_info: The default pair information if a specific one was not set using
+        :meth:`Exchange.set_pair_info`.
+    :param bid_ask_spread: The spread to use for :meth:`Exchange.get_bid_ask`.
+    """
     def __init__(
             self,
             dispatcher: dispatcher.EventDispatcher,
@@ -125,11 +146,16 @@ class Exchange:
         self._bid_ask_spread = bid_ask_spread
 
     async def get_balance(self, symbol: str) -> Balance:
+        """Returns the balance for a specific currency/symbol/etc..
+
+        :param symbol: The currency/symbol/etc..
+        """
         available = self._balances.get_available_balance(symbol)
         hold = self._balances.get_balance_on_hold(symbol)
         return Balance(available=available, total=available + hold)
 
     async def get_balances(self) -> Dict[str, Balance]:
+        """Returns all balances."""
         ret = {}
         for symbol in self._balances.get_symbols():
             available = self._balances.get_available_balance(symbol)
@@ -138,6 +164,13 @@ class Exchange:
         return ret
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Optional[Decimal], Optional[Decimal]]:
+        """Returns the current bid and ask price, if available.
+
+        This is calculated using the closing price of the last bar, and the bid/ask spread specified during
+        initialization.
+
+        :param pair: The trading pair.
+        """
         bid = ask = None
         last_price = await self._get_last_price(pair)
         if last_price:
@@ -151,12 +184,6 @@ class Exchange:
         return bid, ask
 
     async def create_order(self, order_request: requests.ExchangeOrder) -> CreatedOrder:
-        """Creates an exchange order.
-
-        :param order_request: An exchange order request.
-        :returns: The order created.
-        """
-
         # Validate request parameters.
         pair_info = await self.get_pair_info(order_request.pair)
         order_request.validate(pair_info)
@@ -175,24 +202,88 @@ class Exchange:
         return CreatedOrder(id=order.id)
 
     async def create_market_order(self, operation: OrderOperation, pair: Pair, amount: Decimal) -> CreatedOrder:
+        """Creates a market order.
+
+        A market order is an order to immediately buy or sell at the best available price.
+        Generally, this type of order will be executed on the next bar using the open price as a reference, and
+        according to the rules defined by the liquidity strategy.
+        If the order is not filled on the next bar, due to lack of liquidity or funds, the order will be canceled.
+
+        If the order can't be created an :class:`Error` will be raised.
+
+        :param operation: The order operation.
+        :param pair: The pair to trade.
+        :param amount: The base amount to buy/sell.
+        """
         return await self.create_order(requests.MarketOrder(operation, pair, amount))
 
     async def create_limit_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal
     ) -> CreatedOrder:
+        """Creates a limit order.
+
+        A limit order is an order to buy or sell at a specific price or better.
+        A buy limit order can only be executed at the limit price or lower, and a sell limit order can only be executed
+        at the limit price or higher.
+
+        If the order can't be created an :class:`Error` will be raised.
+
+        :param operation: The order operation.
+        :param pair: The pair to trade.
+        :param amount: The base amount to buy/sell.
+        :param limit_price: The limit price.
+        """
         return await self.create_order(requests.LimitOrder(operation, pair, amount, limit_price))
 
     async def create_stop_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal
     ) -> CreatedOrder:
+        """Creates a stop order.
+
+        A stop order, also referred to as a stop-loss order, is an order to buy or sell once the price reaches a
+        specified price, known as the stop price.
+        When the stop price is reached, a stop order becomes a market order.
+
+        * A buy stop order is entered at a stop price above the current market price. Investors generally use a buy
+          stop order to limit a loss or to protect a profit on an instrument that they have sold short.
+        * A sell stop order is entered at a stop price below the current market price. Investors generally use a sell
+          stop order to limit a loss or to protect a profit on an instrument that they own.
+
+        If the order can't be created an :class:`Error` will be raised.
+
+        :param operation: The order operation.
+        :param pair: The pair to trade.
+        :param amount: The base amount to buy/sell.
+        :param stop_price: The stop price.
+        """
         return await self.create_order(requests.StopOrder(operation, pair, amount, stop_price))
 
     async def create_stop_limit_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal, limit_price: Decimal
     ) -> CreatedOrder:
+        """Creates a stop limit order.
+
+        A stop-limit order is an order to buy or sell that combines the features of a stop order and a limit order.
+        Once the stop price is reached, a stop-limit order becomes a limit order that will be executed at a specified
+        price (or better).
+
+        If the order can't be created an :class:`Error` will be raised.
+
+        :param operation: The order operation.
+        :param pair: The pair to trade.
+        :param amount: The base amount to buy/sell.
+        :param stop_price: The stop price.
+        :param limit_price: The limit price.
+        """
         return await self.create_order(requests.StopLimitOrder(operation, pair, amount, stop_price, limit_price))
 
     async def cancel_order(self, order_id: str) -> CanceledOrder:
+        """Cancels an order.
+
+        If the order doesn't exist, or its not open, an :class:`Error` will be raised.
+
+        :param order_id: The order id.
+        """
         order = self._orders.get_order(order_id)
         if order is None:
             raise Error("Order not found")
@@ -204,12 +295,23 @@ class Exchange:
         return CanceledOrder(id=order_id)
 
     async def get_order_info(self, order_id: str) -> OrderInfo:
+        """Returns information about an order.
+
+        If the order doesn't exist, or its not open, an :class:`Error` will be raised.
+
+        :param order_id: The order id.
+        """
         order = self._orders.get_order(order_id)
         if not order:
             raise Error("Order not found")
         return order.get_order_info()
 
     async def get_open_orders(self, pair: Optional[Pair] = None) -> List[OpenOrder]:
+        """Returns open orders.
+
+        :param pair: If set, only open orders matching this pair will be returned, otherwise all open orders will be
+            returned.
+        """
         return [
             OpenOrder(
                 id=order.id,
@@ -222,9 +324,20 @@ class Exchange:
         ]
 
     def add_bar_source(self, bar_source: event.EventSource):
+        """Adds an event source that produces :class:`basana.BarEvent` instances.
+
+        These will be used to drive the backtest.
+
+        :param bar_source: An event source that produces :class:`basana.BarEvent` instances.
+        """
         self._dispatcher.subscribe(bar_source, self._on_bar_event)
 
     def subscribe_to_bar_events(self, pair: Pair, event_handler: BarEventHandler):
+        """Registers an async callable that will be called when a new bar is available.
+
+        :param pair: The trading pair.
+        :param event_handler: An async callable that receives a :class:`basana.BarEvent`.
+        """
         # Get/create the event source for the given pair.
         event_source = self._bar_event_source.get(pair)
         if event_source is None:
@@ -232,17 +345,26 @@ class Exchange:
             self._bar_event_source[pair] = event_source
         self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
 
+    async def get_pair_info(self, pair: Pair) -> PairInfo:
+        """Returns information about a trading pair.
+
+        :param pair: The trading pair.
+        """
+        return self._get_pair_info(pair)
+
+    def set_pair_info(self, pair: Pair, pair_info: PairInfo):
+        """Set information about a trading pair.
+
+        :param pair: The trading pair.
+        :param pair_info: The pair information.
+        """
+        self._pairs_info[pair] = pair_info
+
     def _get_pair_info(self, pair: Pair) -> PairInfo:
         ret = self._pairs_info.get(pair)
         if ret is None:
             ret = self._default_pair_info
         return ret
-
-    async def get_pair_info(self, pair: Pair) -> PairInfo:
-        return self._get_pair_info(pair)
-
-    def set_pair_info(self, pair: Pair, pair_info: PairInfo):
-        self._pairs_info[pair] = pair_info
 
     def _round_balance_updates(self, pair: Pair, balance_updates: Dict[str, Decimal]) -> Dict[str, Decimal]:
         ret = copy.copy(balance_updates)

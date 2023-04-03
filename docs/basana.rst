@@ -1,8 +1,13 @@
 basana
 ======
 
+.. module:: basana
+
+.. contents:: Table of Contents
+   :depth: 2
+
 Events, sources and dispatchers
--------------------------------------
+-------------------------------
 
 This is the core of the event driven architecture. At a high level you have:
 
@@ -33,7 +38,6 @@ Exchange related
     :members:
 .. autoclass:: basana.BarEvent
     :show-inheritance:
-    :inherited-members:
     :members:
 .. autoclass:: basana.OrderOperation
     :members:

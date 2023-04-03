@@ -5,3 +5,4 @@ API
     :maxdepth: 2
 
     basana
+    backtesting

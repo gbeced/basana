@@ -22,20 +22,33 @@ from . import orders
 
 
 class FeeStrategy(metaclass=abc.ABCMeta):
-    """Base class for fee strategies."""
+    """Base class for strategies that model fee schemes.
+
+    .. note::
+
+        * This is a base class and should not be used directly.
+    """
 
     def calculate_fees(
             self, order: orders.Order, balance_updates: Dict[str, Decimal]
     ) -> Dict[str, Decimal]:  # pragma: no cover
+        """TODO."""
         raise NotImplementedError()
 
 
 class NoFee(FeeStrategy):
+    """This strategy applies no fees to the trades."""
+
     def calculate_fees(self, order: orders.Order, balance_updates: Dict[str, Decimal]) -> Dict[str, Decimal]:
         return {}
 
 
 class Percentage(FeeStrategy):
+    """This strategy applies a fixed percentage per trade, in quote currency.
+
+    :param percentage: The percentage to apply.
+    """
+
     def __init__(self, percentage: Decimal):
         assert percentage >= 0 and percentage < 100, f"Invalid percentage {percentage}"
         self._percentage = percentage

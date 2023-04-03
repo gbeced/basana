@@ -24,7 +24,7 @@ from . import dt
 class Producer:
     """Base class for producers.
 
-    A producer is the active, optional, part of an :class:`basana.EventSource` or a group of them.
+    A producer is the active part of an :class:`basana.EventSource` or a group of them.
     Take a look at :meth:`EventDispatcher.run` for details on how producers are used.
 
     .. note::
@@ -56,6 +56,8 @@ class Event:
     * A new bar (candlestick/ohlc).
     * Others
 
+    :param when: The datetime when the event occurred. It must have timezone information set.
+
     .. note::
 
         This is a base class and should not be used directly.
@@ -74,7 +76,7 @@ class EventSource(metaclass=abc.ABCMeta):
     This class declares the interface that is required by the :class:`basana.EventDispatcher` to gather events for
     processing.
 
-    :param producer: An optional :class:`basana.Producer` instance associated with this event source.
+    :param producer: An optional producer associated with this event source.
     """
 
     def __init__(self, producer: Optional[Producer] = None):
@@ -93,8 +95,8 @@ class EventSource(metaclass=abc.ABCMeta):
 class FifoQueueEventSource(EventSource):
     """A FIFO queue event source.
 
-    :param producer: An optional :class:`basana.Producer` instance associated with this event source.
-    :param events: An initial list of :class:`basana.Event` instances.
+    :param producer: An optional producer associated with this event source.
+    :param events: An optional list of initial events.
     """
     def __init__(self, producer: Optional[Producer] = None, events: List[Event] = []):
         super().__init__(producer)
