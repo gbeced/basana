@@ -43,3 +43,9 @@ def test_token_wait():
     begin = time.time()
     asyncio.run(limiter.wait())
     assert round(time.time() - begin, 1) == 0.5
+
+
+def test_dont_accumulate():
+    limiter = TokenBucketLimiter(100, 1, 100)
+    time.sleep(0.1)
+    assert limiter.consume() == 0
