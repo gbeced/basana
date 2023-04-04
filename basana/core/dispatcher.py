@@ -18,6 +18,7 @@ from typing import Awaitable, Any, Callable, Dict, List, Set, Optional
 import asyncio
 import datetime
 import logging
+import platform
 import signal
 
 from . import event, helpers, logs
@@ -103,8 +104,9 @@ class EventDispatcher:
         assert not self._running, "Running or already ran"
         assert self._open_task_group is None
 
-        for stop_signal in stop_signals:
-            asyncio.get_event_loop().add_signal_handler(stop_signal, self.stop)
+        if platform.system() != "Windows":  # pragma: no cover
+            for stop_signal in stop_signals:
+                asyncio.get_event_loop().add_signal_handler(stop_signal, self.stop)
 
         self._running = True
         try:
