@@ -57,3 +57,8 @@ from .core.pair import (
     Pair,
     PairInfo,
 )
+
+from .core.token_bucket import (
+    TokenBucketLimiter,
+)
+

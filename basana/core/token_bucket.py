@@ -19,6 +19,13 @@ import time
 
 
 class TokenBucketLimiter:
+    """This class implements a token bucket algorithm, useful for throttling requests.
+
+    :param tokens_per_period: The maximum amount of tokens per perdiod.
+    :param period_duration: The period duration in seconds.
+    :param initial_tokens: The initial amount of tokens.
+    """
+
     def __init__(self, tokens_per_period: float, period_duration: int, initial_tokens=0):
         assert tokens_per_period > 0
         assert period_duration > 0

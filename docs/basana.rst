@@ -63,6 +63,7 @@ you define. Take a look at the :doc:`quickstart` section for examples on how to 
 Helpers
 -------
 
+.. autoclass:: basana.TokenBucketLimiter
 .. autofunction:: basana.round_decimal
 .. autofunction:: basana.truncate_decimal
 .. autofunction:: basana.local_now
