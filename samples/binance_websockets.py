@@ -54,7 +54,7 @@ async def main():
         bs.Pair("ETH", "USDT"),
     ]
     for pair in pairs:
-        exchange.subscribe_to_bar_events(pair, 60, on_bar_event)
+        exchange.subscribe_to_bar_events(pair, "1m", on_bar_event)
         exchange.subscribe_to_order_book_events(pair, on_order_book_event)
         exchange.subscribe_to_trade_events(pair, on_trade_event)
 
