@@ -25,8 +25,8 @@ from basana.core import pair
 from basana.external.binance import exchange
 
 
-def test_bars_from_trades(realtime_dispatcher):
-    p = pair.Pair("BTC", "USDT")
+def test_bars(realtime_dispatcher):
+    p = pair.Pair("BNB", "BTC")
     last_bar = None
 
     async def on_bar_event(bar_event):
@@ -40,25 +40,41 @@ def test_bars_from_trades(realtime_dispatcher):
         assert message["method"] == "SUBSCRIBE"
         await websocket.send(json.dumps({"result": None, "id": message["id"]}))
 
+        kline_event = {
+            "e": "kline",     # Event type
+            "E": 123456789,   # Event time
+            "s": "BNBBTC",    # Symbol
+            "k": {
+                "t": 123400000,  # Kline start time
+                "T": 123460000,  # Kline close time
+                "s": "BNBBTC",   # Symbol
+                "i": "1m",       # Interval
+                "f": 100,        # First trade ID
+                "L": 200,        # Last trade ID
+                "o": "0.0010",   # Open price
+                "c": "0.0020",   # Close price
+                "h": "0.0025",   # High price
+                "l": "0.0005",   # Low price
+                "v": "1000",     # Base asset volume
+                "n": 100,        # Number of trades
+                "x": False,      # Is this kline closed?
+                "q": "1.0000",   # Quote asset volume
+                "V": "500",      # Taker buy base asset volume
+                "Q": "0.500",    # Taker buy quote asset volume
+                "B": "123456"    # Ignore
+            }
+        }
+
         while True:
             timestamp = time.time()
-            await websocket.send(json.dumps({
-                "stream": "btcusdt@trade",
-                "data": {
-                    "e": "trade",
-                    "E": 1669932275175,
-                    "s": "BTCUSDT",
-                    "T": int(timestamp * 1e3),
-                    "p": "1000",
-                    "q": "1",
-                    "b": 16081955917,
-                    "a": 16081955890,
-                    "t": 1234,
-                    "m": False,
-                    "M": True
-                }
-            }))
-            await asyncio.sleep(0.4)
+            for kline_closed in (False, True):
+                kline_event["E"] = int(timestamp * 1e3)
+                kline_event["k"]["x"] = kline_closed
+                await websocket.send(json.dumps({
+                    "stream": "bnbbtc@kline_1s",
+                    "data": kline_event,
+                }))
+                await asyncio.sleep(0.4)
 
     async def test_main():
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
@@ -74,8 +90,8 @@ def test_bars_from_trades(realtime_dispatcher):
     assert last_bar is not None
     assert last_bar.pair == p
     assert last_bar.datetime is not None
-    assert last_bar.open == Decimal(1000)
-    assert last_bar.high == Decimal(1000)
-    assert last_bar.low == Decimal(1000)
-    assert last_bar.close == Decimal(1000)
-    assert last_bar.volume >= Decimal(2) and last_bar.volume <= Decimal(3)
+    assert last_bar.open == Decimal("0.001")
+    assert last_bar.high == Decimal("0.0025")
+    assert last_bar.low == Decimal("0.0005")
+    assert last_bar.close == Decimal("0.002")
+    assert last_bar.volume == Decimal(1000)

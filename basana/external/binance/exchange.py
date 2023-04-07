@@ -15,12 +15,12 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Any, Awaitable, Callable, Dict, List, Optional, Tuple
+from typing import cast, Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
 import dataclasses
 
 import aiohttp
 
-from . import client, helpers, order_book, trades, websockets as binance_ws, spot, cross_margin, isolated_margin
+from . import client, helpers, order_book, trades, websockets as binance_ws, spot, cross_margin, isolated_margin, klines
 from basana.core import bar, dispatcher, enums, event, token_bucket, websockets as core_ws
 from basana.core.pair import Pair, PairInfo
 
@@ -39,11 +39,6 @@ TradeEvent = trades.TradeEvent
 TradeEventHandler = Callable[[trades.TradeEvent], Awaitable[Any]]
 
 
-class RealTimeTradesToBar(bar.RealTimeTradesToBar):
-    async def on_trade_event(self, trade_event: trades.TradeEvent):
-        self.push_trade(trade_event.trade.datetime, trade_event.trade.price, trade_event.trade.amount)
-
-
 class Exchange:
     def __init__(
             self, dispatcher: dispatcher.EventDispatcher, api_key: Optional[str] = None,
@@ -60,21 +55,66 @@ class Exchange:
         self._websocket: Optional[binance_ws.WebSocketClient] = None
         self._channel_to_event_source: Dict[str, event.EventSource] = {}
         self._pair_info_cache: Dict[Pair, PairInfoEx] = {}
-        self._bar_event_source: Dict[Tuple[Pair, int, bool, float], RealTimeTradesToBar] = {}
 
     def subscribe_to_bar_events(
-            self, pair: Pair, bar_duration: int, event_handler: BarEventHandler, skip_first_bar: bool = True,
-            flush_delay: float = 1
+            self, pair: Pair, bar_duration: Union[int, str], event_handler: BarEventHandler,
+            skip_first_bar: bool = True, flush_delay: float = 1
     ):
-        key = (pair, bar_duration, skip_first_bar, flush_delay)
-        event_source = self._bar_event_source.get(key)
-        if not event_source:
-            event_source = RealTimeTradesToBar(
-                pair, bar_duration, skip_first_bar=skip_first_bar, flush_delay=flush_delay
-            )
-            self.subscribe_to_trade_events(pair, event_source.on_trade_event)
-            self._bar_event_source[key] = event_source
-        self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
+        """Registers an async callable that will be called when a new bar is available.
+
+        :param pair: The trading pair.
+        :param interval: The bar interval. One of 1s, 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M.
+        :type interval: str
+        :param event_handler: An async callable that receives a :class:`basana.BarEvent`.
+        :param skip_first_bar: Ignored.
+        :param flush_delay: Ignored.
+        """
+
+        # TODO: Deprecate support for bar_duration as int.
+        interval = {
+            # Supporting interval as int for backwards compatibility reasons.
+            1: "1s",
+            60: "1m",
+            3 * 60: "3m",
+            5 * 60: "5m",
+            15 * 60: "15m",
+            30 * 60: "30m",
+            3600: "1h",
+            2 * 3600: "2h",
+            4 * 3600: "4h",
+            6 * 3600: "6h",
+            8 * 3600: "8h",
+            12 * 3600: "12h",
+            86400: "1d",
+            3 * 86400: "3d",
+            7 * 86400: "1w",
+            31 * 86400: "1M",
+            # Once support for interval as int is removed, this should be simplified.
+            "1s": "1s",
+            "1m": "1m",
+            "3m": "3m",
+            "5m": "5m",
+            "15m": "15m",
+            "30m": "30m",
+            "1h": "1h",
+            "2h": "2h",
+            "4h": "4h",
+            "6h": "6h",
+            "8h": "8h",
+            "12h": "12h",
+            "1d": "1d",
+            "3d": "3d",
+            "1w": "1w",
+            "1M": "1M",
+        }.get(bar_duration)
+        assert interval, "Invalid bar_duration"
+
+        channel = klines.get_channel(pair, interval)
+        self._subscribe_to_ws_channel_events(
+            channel,
+            lambda ws_cli: klines.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler)
+        )
 
     def subscribe_to_order_book_events(
             self, pair: Pair, event_handler: OrderBookEventHandler, depth: int = 10
