@@ -103,11 +103,11 @@ async def main():
     for pair in pairs:
         # Connect the strategy to the bar events from the exchange.
         strategy = bbands.Strategy(event_dispatcher, 20, 1.5)
-        exchange.subscribe_to_bar_events(pair, 60, strategy.on_bar_event)
+        exchange.subscribe_to_bar_events(pair, "1m", strategy.on_bar_event)
 
         # Connect the position manager to the strategy signals and to bar events just for logging.
         strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
-        exchange.subscribe_to_bar_events(pair, 60, position_mgr.on_bar_event)
+        exchange.subscribe_to_bar_events(pair, "1m", position_mgr.on_bar_event)
 
     await event_dispatcher.run()
 

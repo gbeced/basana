@@ -27,6 +27,14 @@ from basana.core.pair import Pair, PairInfo
 
 @dataclasses.dataclass(frozen=True)
 class PairInfoEx(PairInfo):
+    """Information about a trading pair.
+
+    :param base_precision: The precision for the base symbol.
+    :param quote_precision: The precision for the quote symbol.
+    :param permissions: The account and pair permissions.
+    """
+
+    #: The account and pair permissions.
     permissions: List[str]
 
 
@@ -40,6 +48,17 @@ TradeEventHandler = Callable[[trades.TradeEvent], Awaitable[Any]]
 
 
 class Exchange:
+    """A client for `Binance <https://www.binance.com/>`_ crypto currency exchange.
+
+    :param dispatcher: The event dispatcher.
+    :param api_key: An optional api key. If not set only public endpoints can be used.
+    :param api_secret: An optional api secret. If not set only public endpoints can be used.
+    :param session: An optional client session, in case you want to reuse connections.
+    :type session: aiohttp.ClientSession
+    :param tb: An optional token bucket limiter, in case you want to throttle requests.
+    :param config_overrides: An optional dictionary for overriding config settings.
+    """
+
     def __init__(
             self, dispatcher: dispatcher.EventDispatcher, api_key: Optional[str] = None,
             api_secret: Optional[str] = None, session: Optional[aiohttp.ClientSession] = None,
@@ -62,15 +81,18 @@ class Exchange:
     ):
         """Registers an async callable that will be called when a new bar is available.
 
-        :param pair: The trading pair.
-        :param interval: The bar interval. One of 1s, 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M.
-        :type interval: str
-        :param event_handler: An async callable that receives a :class:`basana.BarEvent`.
-        :param skip_first_bar: Ignored.
-        :param flush_delay: Ignored.
-        """
+        Works as defined in https://binance-docs.github.io/apidocs/spot/en/#kline-candlestick-streams but only closed
+        klines are reported.
 
+        :param pair: The trading pair.
+        :param bar_duration: The bar duration. One of 1s, 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M.
+        :type bar_duration: str
+        :param event_handler: An async callable that receives a :class:`basana.BarEvent`.
+        :param skip_first_bar: Ignored. It will be removed in a future version.
+        :param flush_delay: Ignored. It will be removed in a future version.
+        """
         # TODO: Deprecate support for bar_duration as int.
+        # TODO: Remove skip_first_bar and flush_delay.
         interval = {
             # Supporting interval as int for backwards compatibility reasons.
             1: "1s",
@@ -119,6 +141,14 @@ class Exchange:
     def subscribe_to_order_book_events(
             self, pair: Pair, event_handler: OrderBookEventHandler, depth: int = 10
     ):
+        """Registers an async callable that will be called every 1 second with the top bids/asks of the order book.
+
+        Works as defined in https://binance-docs.github.io/apidocs/spot/en/#partial-book-depth-streams.
+
+        :param pair: The trading pair.
+        :param event_handler: An async callable that receives a :class:`order_book.OrderBookEvent`.
+        :param depth: The order book depth. Valid values are: 5, 10, 20.
+        """
         channel = order_book.get_channel(pair, depth)
         self._subscribe_to_ws_channel_events(
             channel,
@@ -127,6 +157,13 @@ class Exchange:
         )
 
     def subscribe_to_trade_events(self, pair: Pair, event_handler: TradeEventHandler):
+        """Registers an async callable that will be called for every new trade.
+
+        Works as defined in https://binance-docs.github.io/apidocs/spot/en/#trade-streams.
+
+        :param pair: The trading pair.
+        :param event_handler: An async callable that receives a :class:`trades.TradeEvent`.
+        """
         channel = trades.get_channel(pair)
         self._subscribe_to_ws_channel_events(
             channel,
@@ -135,6 +172,10 @@ class Exchange:
         )
 
     async def get_pair_info(self, pair: Pair) -> PairInfoEx:
+        """Returns information about a trading pair.
+
+        :param pair: The trading pair.
+        """
         ret = self._pair_info_cache.get(pair)
         if not ret:
             exchange_info = await self._cli.get_exchange_info(helpers.pair_to_order_book_symbol(pair))
@@ -154,19 +195,26 @@ class Exchange:
         return ret
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Decimal, Decimal]:
+        """Returns the current bid and ask price.
+
+        :param pair: The trading pair.
+        """
         order_book = await self._cli.get_order_book(helpers.pair_to_order_book_symbol(pair), limit=1)
         return Decimal(order_book["bids"][0][0]), Decimal(order_book["asks"][0][0])
 
     @property
     def spot_account(self) -> spot.Account:
+        """Returns the spot account."""
         return spot.Account(self._cli.spot_account)
 
     @property
     def cross_margin_account(self) -> cross_margin.Account:
+        """Returns the cross margin account."""
         return cross_margin.Account(self._cli.cross_margin_account)
 
     @property
     def isolated_margin_account(self) -> isolated_margin.Account:
+        """Returns the isolated margin account."""
         return isolated_margin.Account(self._cli.isolated_margin_account)
 
     def _subscribe_to_ws_channel_events(

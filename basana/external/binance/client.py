@@ -31,12 +31,25 @@ from basana.core.config import get_config_value
 
 
 class Error(Exception):
-    def __init__(self, msg: str, code: Optional[int], resp: aiohttp.ClientResponse, json_response):
+    """
+    An error returned by the exchange.
+
+    :param msg: The error message, if available.
+    :param code: The error code, if available.
+    :param resp: The response.
+    :param json_response: The response body, if it was a JSON.
+    """
+    def __init__(self, msg: str, code: Optional[int], resp: aiohttp.ClientResponse, json_response: Optional[Any]):
         super().__init__(msg)
+        #: The error message.
         self.msg = msg
+        #: The error code, if available.
         self.code = code
+        #: The HTTP status code.
         self.http_status = resp.status
+        #: The HTTP reason.
         self.http_reason = resp.reason
+        #: The response body, if it was a JSON.
         self.json_response = json_response
 
 

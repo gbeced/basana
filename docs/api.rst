@@ -6,3 +6,4 @@ API
 
     basana
     backtesting
+    binance
