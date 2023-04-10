@@ -1,32 +1,10 @@
 basana.external.binance
 =======================
-
-.. contents:: Table of Contents
-   :depth: 2
-
-Exchange
---------
  
-.. module:: basana.external.binance.exchange
-.. autoclass:: basana.external.binance.exchange.Exchange
-    :members:
-.. autoclass:: basana.external.binance.exchange.PairInfoEx
-    :show-inheritance:
-    :members:
-.. autoexception:: basana.external.binance.exchange.Error
-    :members:
+.. toctree::
+    :maxdepth: 3
 
-Spot account
-------------
-
-.. module:: basana.external.binance.spot
-
-Cross margin account
---------------------
-
-.. module:: basana.external.binance.cross_margin
-
-Isolated margin account
------------------------
-
-.. module:: basana.external.binance.isolated_margin
+    binance_exchange
+    binance_order_book
+    binance_trades
+    binance_spot

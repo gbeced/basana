@@ -32,6 +32,8 @@ class PairInfoEx(PairInfo):
     :param base_precision: The precision for the base symbol.
     :param quote_precision: The precision for the quote symbol.
     :param permissions: The account and pair permissions.
+
+    Check **Account and Symbol Permissions** in https://binance-docs.github.io/apidocs/spot/en/#public-api-definitions.
     """
 
     #: The account and pair permissions.

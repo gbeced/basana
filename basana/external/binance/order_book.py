@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, List, Optional
 import asyncio
+import datetime
 import logging
 
 import aiohttp
@@ -32,32 +33,46 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Entry:
+    #: The price.
     price: Decimal
+
+    #: The amount.
     volume: Decimal
 
 
 class OrderBook:
+    """An order book."""
     def __init__(self, pair: Pair, json: dict):
-        self.pair = pair
-        self.json = json
+        #: The trading pair.
+        self.pair: Pair = pair
+        #: The JSON representation.
+        self.json: dict = json
 
     @property
     def bids(self) -> List[Entry]:
+        """Retuns the top bid entries."""
         return [
             Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["bids"]
         ]
 
     @property
     def asks(self) -> List[Entry]:
+        """Retuns the top ask entries."""
         return [
             Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["asks"]
         ]
 
 
 class OrderBookEvent(event.Event):
-    def __init__(self, order_book: OrderBook):
-        super().__init__(dt.utc_now())
-        self.order_book = order_book
+    """An event for order book updates.
+
+    :param when: The datetime when the event occurred. It must have timezone information set.
+    :param order_book: The updated order book.
+    """
+    def __init__(self, when: datetime.datetime, order_book: OrderBook):
+        super().__init__(when)
+        #: The order book.
+        self.order_book: OrderBook = order_book
 
 
 class PollOrderBook(event.FifoQueueEventSource, event.Producer):
@@ -76,7 +91,10 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
 
     async def _fetch_and_push(self, order_book_symbol: str):
         order_book_json = await self._client.get_order_book(order_book_symbol, limit=self._limit)
-        self.push(OrderBookEvent(OrderBook(self.pair, order_book_json)))
+        self.push(OrderBookEvent(
+            dt.utc_now(),
+            OrderBook(self.pair, order_book_json)
+        ))
 
     async def on_error(self, error: Any):
         logger.error(logs.StructuredMessage("Error polling order book", channel=self.pair, error=error))
@@ -98,7 +116,11 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         self._pair = pair
 
     async def push_from_message(self, message: dict):
-        self.push(OrderBookEvent(OrderBook(self._pair, message["data"])))
+        event = message["data"]
+        self.push(OrderBookEvent(
+            dt.utc_now(),  # The event doesn't include a timestamp.
+            OrderBook(self._pair, event)
+        ))
 
 
 def get_channel(pair: Pair, depth: int) -> str:

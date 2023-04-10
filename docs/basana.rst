@@ -1,10 +1,10 @@
 basana
 ======
 
-.. module:: basana
-
 .. contents:: Table of Contents
    :depth: 2
+
+.. module:: basana
 
 Events, sources and dispatchers
 -------------------------------
