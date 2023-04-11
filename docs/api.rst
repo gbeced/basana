@@ -2,8 +2,8 @@ API
 ===
 
 .. toctree::
-    :maxdepth: 2
+    :maxdepth: 1
 
-    basana
+    basana_index
     backtesting
     binance
