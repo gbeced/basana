@@ -5,5 +5,5 @@ API
     :maxdepth: 1
 
     basana_index
-    backtesting
-    binance
+    backtesting_index
+    binance_index
