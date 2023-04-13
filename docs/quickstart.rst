@@ -61,13 +61,13 @@ Next, save the following strategy code as *bbands.py*:
 
 .. literalinclude:: ../samples/bbands.py
    :language: python
-   :lines: 21-
+   :lines: 17-
 
 and the following code as *backtesting_bbands.py*:
 
 .. literalinclude:: ../samples/backtesting_bbands.py
    :language: python
-   :lines: 25-
+   :lines: 21-
 
 and execute the backtest like this:
 
@@ -91,7 +91,7 @@ If you decide to move forward, save the following code as *binance_bbands.py* an
 
 .. literalinclude:: ../samples/binance_bbands.py
    :language: python
-   :lines: 21-
+   :lines: 17-
 
 Next, start live trading using the following command:
 
