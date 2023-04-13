@@ -14,3 +14,4 @@ API
     binance_spot
     binance_margin
     binance_cross
+    binance_isolated
