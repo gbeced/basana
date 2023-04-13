@@ -27,22 +27,27 @@ class IsolatedBalance:
 
     @property
     def base_asset(self) -> str:
+        """The base asset."""
         return self.json["baseAsset"]["asset"]
 
     @property
     def base_asset_balance(self) -> margin.Balance:
+        """The base asset balance."""
         return margin.Balance(self.json["baseAsset"])
 
     @property
     def quote_asset(self) -> str:
+        """The quote asset."""
         return self.json["quoteAsset"]["asset"]
 
     @property
     def quote_asset_balance(self) -> margin.Balance:
+        """The quote asset balance."""
         return margin.Balance(self.json["quoteAsset"])
 
 
 class Account(margin.Account):
+    """Isolated margin account."""
     def __init__(self, cli: client.IsolatedMarginAccount):
         self._cli = cli
 
@@ -51,6 +56,7 @@ class Account(margin.Account):
         return self._cli
 
     async def get_balances(self) -> Dict[Pair, IsolatedBalance]:
+        """Returns all balances."""
         account_info = await self.client.get_account_information()
         ret = {}
         for isolated_balance in account_info["assets"]:
@@ -60,7 +66,23 @@ class Account(margin.Account):
         return ret
 
     async def transfer_from_spot_account(self, asset: str, pair: Pair, amount: Decimal) -> dict:
+        """Transfer balances from the spot account to the isolated margin account.
+
+        If the transfer can't be completed a :class:`basana.external.binance.exchange.Error` will be raised.
+
+        :param asset: The asset to transfer.
+        :param pair: The trading pair.
+        :param amount: The amount to transfer.
+        """
         return await self.client.transfer_from_spot_account(asset, helpers.pair_to_order_book_symbol(pair), amount)
 
     async def transfer_to_spot_account(self, asset: str, pair: Pair, amount: Decimal) -> dict:
+        """Transfer balances from the isolated margin account to the spot account.
+
+        If the transfer can't be completed a :class:`basana.external.binance.exchange.Error` will be raised.
+
+        :param asset: The asset to transfer.
+        :param pair: The trading pair.
+        :param amount: The amount to transfer.
+        """
         return await self.client.transfer_to_spot_account(asset, helpers.pair_to_order_book_symbol(pair), amount)

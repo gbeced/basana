@@ -67,7 +67,7 @@ class Event:
         assert not dt.is_naive(when), f"{when} should have timezone information set"
 
         #: The datetime when the event occurred.
-        self.when = when
+        self.when: datetime.datetime = when
 
 
 class EventSource(metaclass=abc.ABCMeta):

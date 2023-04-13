@@ -31,15 +31,15 @@ class Bar(bar.Bar):
             helpers.timestamp_to_datetime(int(json["t"])), pair, Decimal(json["o"]), Decimal(json["h"]),
             Decimal(json["l"]), Decimal(json["c"]), Decimal(json["v"])
         )
-        self.pair = pair
-        self.json = json
+        self.pair: Pair = pair
+        self.json: dict = json
 
 
 # Generate BarEvents events from websocket messages.
 class WebSocketEventSource(core_ws.ChannelEventSource):
     def __init__(self, pair: Pair, producer: event.Producer):
         super().__init__(producer=producer)
-        self._pair = pair
+        self._pair: Pair = pair
 
     async def push_from_message(self, message: dict):
         kline_event = message["data"]
