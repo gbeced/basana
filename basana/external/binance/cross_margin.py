@@ -21,6 +21,7 @@ from . import client, margin
 
 
 class Account(margin.Account):
+    """Cross margin account."""
     def __init__(self, cli: client.CrossMarginAccount):
         self._cli = cli
 
@@ -29,11 +30,26 @@ class Account(margin.Account):
         return self._cli
 
     async def get_balances(self) -> Dict[str, margin.Balance]:
+        """Returns all balances."""
         account_info = await self.client.get_account_information()
         return {balance["asset"].upper(): margin.Balance(balance) for balance in account_info["userAssets"]}
 
     async def transfer_from_spot_account(self, asset: str, amount: Decimal) -> dict:
+        """Transfer balances from the spot account to the cross margin account.
+
+        If the transfer can't be completed a :class:`basana.external.binance.exchange.Error` will be raised.
+
+        :param asset: The asset to transfer.
+        :param amount: The amount to transfer.
+        """
         return await self.client.transfer_from_spot_account(asset, amount)
 
     async def transfer_to_spot_account(self, asset: str, amount: Decimal) -> dict:
+        """Transfer balances from the cross margin account to the spot account.
+
+        If the transfer can't be completed a :class:`basana.external.binance.exchange.Error` will be raised.
+
+        :param asset: The asset to transfer.
+        :param amount: The amount to transfer.
+        """
         return await self.client.transfer_to_spot_account(asset, amount)

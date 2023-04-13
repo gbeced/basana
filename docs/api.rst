@@ -2,8 +2,15 @@ API
 ===
 
 .. toctree::
-    :maxdepth: 1
+    :maxdepth: 2
 
-    basana_index
-    backtesting_index
-    binance_index
+    basana
+    backtesting_exchange
+    backtesting_fees
+    backtesting_liquidity
+    binance_exchange
+    binance_order_book
+    binance_trades
+    binance_spot
+    binance_margin
+    binance_cross
