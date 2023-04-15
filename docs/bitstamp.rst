@@ -1,2 +1,0 @@
-basana.external.bitstamp
-========================

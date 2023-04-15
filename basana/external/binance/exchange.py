@@ -89,7 +89,7 @@ class Exchange:
         :param pair: The trading pair.
         :param bar_duration: The bar duration. One of 1s, 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w, 1M.
         :type bar_duration: str
-        :param event_handler: An async callable that receives a :class:`basana.BarEvent`.
+        :param event_handler: An async callable that receives a BarEvent.
         :param skip_first_bar: Ignored. It will be removed in a future version.
         :param flush_delay: Ignored. It will be removed in a future version.
         """
@@ -148,7 +148,7 @@ class Exchange:
         Works as defined in https://binance-docs.github.io/apidocs/spot/en/#partial-book-depth-streams.
 
         :param pair: The trading pair.
-        :param event_handler: An async callable that receives a :class:`order_book.OrderBookEvent`.
+        :param event_handler: An async callable that receives an OrderBookEvent.
         :param depth: The order book depth. Valid values are: 5, 10, 20.
         """
         channel = order_book.get_channel(pair, depth)
@@ -164,7 +164,7 @@ class Exchange:
         Works as defined in https://binance-docs.github.io/apidocs/spot/en/#trade-streams.
 
         :param pair: The trading pair.
-        :param event_handler: An async callable that receives a :class:`trades.TradeEvent`.
+        :param event_handler: An async callable that receives a TradeEvent.
         """
         channel = trades.get_channel(pair)
         self._subscribe_to_ws_channel_events(
