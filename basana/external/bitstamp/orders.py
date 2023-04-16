@@ -51,6 +51,11 @@ class Order:
         return Decimal(self.json["price_str"])
 
     @property
+    def type(self) -> OrderOperation:
+        # TODO: Deprecate this property.
+        return self.operation
+
+    @property
     def operation(self) -> OrderOperation:
         """The operation."""
         return helpers.order_type_to_order_operation(int(self.json["order_type"]))

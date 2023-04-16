@@ -96,6 +96,7 @@ def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher
     assert last_order.pair == p
     assert last_order.datetime is not None
     assert last_order.id == "1531241723363332"
+    assert last_order.type == OrderOperation.SELL
     assert last_order.operation == OrderOperation.SELL
     assert last_order.price == Decimal("19342")
     assert last_order.amount == Decimal("0.28435528")
