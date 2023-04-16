@@ -15,3 +15,7 @@ API
     binance_margin
     binance_cross
     binance_isolated
+    bitstamp_exchange
+    bitstamp_order_book
+    bitstamp_orders
+    bitstamp_trades

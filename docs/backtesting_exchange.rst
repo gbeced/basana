@@ -3,10 +3,10 @@ basana.backtesting.exchange
 
 .. module:: basana.backtesting.exchange
 
-.. autoexception:: basana.backtesting.exchange.Error
-    :show-inheritance:
 .. autoclass:: basana.backtesting.exchange.Exchange
     :members:
+.. autoexception:: basana.backtesting.exchange.Error
+    :show-inheritance:
 .. autoclass:: basana.backtesting.exchange.Balance
     :members:
 .. autoclass:: basana.backtesting.exchange.CreatedOrder

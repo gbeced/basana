@@ -336,7 +336,7 @@ class Exchange:
         """Registers an async callable that will be called when a new bar is available.
 
         :param pair: The trading pair.
-        :param event_handler: An async callable that receives a :class:`basana.BarEvent`.
+        :param event_handler: An async callable that receives a basana.BarEvent.
         """
         # Get/create the event source for the given pair.
         event_source = self._bar_event_source.get(pair)

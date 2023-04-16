@@ -36,7 +36,7 @@ class Entry:
     #: The price.
     price: Decimal
 
-    #: The amount.
+    #: The volume.
     volume: Decimal
 
 
@@ -50,14 +50,14 @@ class OrderBook:
 
     @property
     def bids(self) -> List[Entry]:
-        """Retuns the top bid entries."""
+        """Returns the top bid entries."""
         return [
             Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["bids"]
         ]
 
     @property
     def asks(self) -> List[Entry]:
-        """Retuns the top ask entries."""
+        """Returns the top ask entries."""
         return [
             Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["asks"]
         ]

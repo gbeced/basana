@@ -25,53 +25,68 @@ from basana.core.pair import Pair
 
 class Trade:
     def __init__(self, pair: Pair, json: dict):
-        self.pair = pair
-        self.json = json
+        #: The trading pair.
+        self.pair: Pair = pair
+        #: The JSON representation.
+        self.json: dict = json
 
     @property
     def id(self) -> str:
+        """The trade id."""
         return str(self.json["id"])
 
     @property
     def datetime(self) -> datetime.datetime:
+        """The datetime when the trade occurred."""
         timestamp = int(self.json["microtimestamp"]) / 1e6
         return datetime.datetime.utcfromtimestamp(timestamp).replace(tzinfo=datetime.timezone.utc)
 
     @property
     def amount(self) -> Decimal:
+        """The amount."""
         return Decimal(self.json["amount_str"])
 
     @property
     def price(self) -> Decimal:
+        """The price."""
         return Decimal(self.json["price_str"])
 
     @property
     def type(self) -> OrderOperation:
+        # TODO: Deprecate this property.
+        return self.operation
+
+    @property
+    def operation(self) -> OrderOperation:
+        """The operation."""
         return helpers.order_type_to_order_operation(int(self.json["type"]))
 
     @property
     def buy_order_id(self) -> str:
+        """The buy order id."""
         return str(self.json["buy_order_id"])
 
     @property
     def sell_order_id(self) -> str:
+        """The sell order id."""
         return str(self.json["sell_order_id"])
 
 
 class TradeEvent(event.Event):
-    def __init__(self, trade: Trade):
-        super().__init__(dt.utc_now())
-        self.trade = trade
+    def __init__(self, when: datetime.datetime, trade: Trade):
+        super().__init__(when)
+        #: The trade.
+        self.trade: Trade = trade
 
 
 # Generate Trade events from websocket messages.
 class WebSocketEventSource(core_ws.ChannelEventSource):
     def __init__(self, pair: Pair, producer: event.Producer):
         super().__init__(producer=producer)
-        self._pair = pair
+        self._pair: Pair = pair
 
     async def push_from_message(self, message: dict):
-        self.push(TradeEvent(Trade(self._pair, message["data"])))
+        self.push(TradeEvent(dt.utc_now(), Trade(self._pair, message["data"])))
 
 
 def get_public_channel(pair: Pair) -> str:

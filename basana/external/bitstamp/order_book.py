@@ -24,7 +24,7 @@ import logging
 import aiohttp
 
 from . import client, helpers
-from basana.core import dt, event, logs, pair, token_bucket, websockets as core_ws
+from basana.core import dt, event, logs, token_bucket, websockets as core_ws
 from basana.core.pair import Pair
 
 
@@ -33,15 +33,19 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class Entry:
+    #: The price.
     price: Decimal
+    #: The volume.
     volume: Decimal
 
 
 # https://www.bitstamp.net/api/#order-book
 class OrderBook:
-    def __init__(self, pair: pair.Pair, json: dict):
-        self.pair = pair
-        self.json = json
+    def __init__(self, pair: Pair, json: dict):
+        #: The trading pair.
+        self.pair: Pair = pair
+        #: The JSON representation.
+        self.json: dict = json
 
     @property
     def datetime(self) -> datetime.datetime:
@@ -50,26 +54,35 @@ class OrderBook:
 
     @property
     def bids(self) -> List[Entry]:
+        """Returns the top bid entries."""
         return [
             Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["bids"]
         ]
 
     @property
     def asks(self) -> List[Entry]:
+        """Returns the top ask entries."""
         return [
             Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["asks"]
         ]
 
 
 class OrderBookEvent(event.Event):
-    def __init__(self, order_book: OrderBook):
-        super().__init__(dt.utc_now())
-        self.order_book = order_book
+    """An event for order book updates.
+
+    :param when: The datetime when the event occurred. It must have timezone information set.
+    :param order_book: The updated order book.
+    """
+
+    def __init__(self, when: datetime.datetime, order_book: OrderBook):
+        super().__init__(when)
+        #: The order book.
+        self.order_book: OrderBook = order_book
 
 
 class PollOrderBook(event.FifoQueueEventSource, event.Producer):
     def __init__(
-            self, pair: pair.Pair, interval: float, group: Optional[int] = None,
+            self, pair: Pair, interval: float, group: Optional[int] = None,
             session: Optional[aiohttp.ClientSession] = None, tb: Optional[token_bucket.TokenBucketLimiter] = None,
             config_overrides: dict = {}
     ):
@@ -83,7 +96,7 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
 
     async def _fetch_and_push(self, currency_pair: str):
         order_book_json = await self._client.get_order_book(currency_pair, group=self._group)
-        self.push(OrderBookEvent(OrderBook(self.pair, order_book_json)))
+        self.push(OrderBookEvent(dt.utc_now(), OrderBook(self.pair, order_book_json)))
 
     async def main(self):
         currency_pair = helpers.pair_to_currency_pair(self.pair)
@@ -105,7 +118,7 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         self._pair = pair
 
     async def push_from_message(self, message: dict):
-        self.push(OrderBookEvent(OrderBook(self._pair, message["data"])))
+        self.push(OrderBookEvent(dt.utc_now(), OrderBook(self._pair, message["data"])))
 
 
 def get_channel(pair: Pair) -> str:
