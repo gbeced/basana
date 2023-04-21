@@ -16,7 +16,7 @@
 
 import decimal
 from decimal import Decimal
-from typing import cast, Any, Awaitable, Callable, Dict, Generator, List, Optional, Tuple
+from typing import cast, Any, Awaitable, Callable, Dict, Generator, List, Optional, Sequence, Tuple
 import copy
 import dataclasses
 import logging
@@ -76,6 +76,9 @@ class OrderIndex:
 
         if new_open_orders is not None:
             self._open_orders = new_open_orders
+
+    def get_all_orders(self) -> Sequence[orders.Order]:
+        return self._orders.values()
 
 
 @dataclasses.dataclass
@@ -456,7 +459,7 @@ class Exchange:
             # Update the liquidity strategy.
             liquidity_strategy.take_liquidity(abs(balance_updates[bar_event.bar.pair.base_symbol]))
             # Update the order.
-            order.add_fill(balance_updates, fees)
+            order.add_fill(bar_event.when, balance_updates, fees)
             # Update balances.
             self._balances.order_updated(order, final_updates)
             logger.debug(logs.StructuredMessage(
@@ -519,3 +522,6 @@ class Exchange:
 
         # Return only negative balance updates as required balances.
         return {symbol: -amount for symbol, amount in estimated_balance_updates.items() if amount < Decimal(0)}
+
+    def _get_all_orders(self) -> Sequence[orders.Order]:
+        return self._orders.get_all_orders()

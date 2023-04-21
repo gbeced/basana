@@ -15,9 +15,10 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 import abc
 import dataclasses
+import datetime
 import enum
 import logging
 
@@ -61,6 +62,13 @@ class OrderInfo:
         return fill_price
 
 
+@dataclasses.dataclass
+class Fill:
+    when: datetime.datetime
+    balance_updates: Dict[str, Decimal]
+    fees: Dict[str, Decimal]
+
+
 # This is an internal abstraction to be used by the exchange.
 class Order:
     def __init__(self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState):
@@ -73,6 +81,7 @@ class Order:
         self._state = state
         self._balance_updates: Dict[str, Decimal] = {}
         self._fees: Dict[str, Decimal] = {}
+        self._fills: List[Fill] = []
 
     @property
     def id(self) -> str:
@@ -118,15 +127,20 @@ class Order:
     def quote_amount_filled(self) -> Decimal:
         return abs(self._balance_updates.get(self.pair.quote_symbol, Decimal(0)))
 
+    @property
+    def fills(self) -> List[Fill]:
+        return self._fills
+
     def cancel(self):
         assert self._state == OrderState.OPEN
         self._state = OrderState.CANCELED
 
-    def add_fill(self, balance_updates: Dict[str, Decimal], fees: Dict[str, Decimal]):
+    def add_fill(self, when: datetime.datetime, balance_updates: Dict[str, Decimal], fees: Dict[str, Decimal]):
         self._balance_updates = helpers.add_amounts(self._balance_updates, balance_updates)
         self._fees = helpers.add_amounts(self._fees, fees)
         if self.amount_filled >= self.amount:
             self._state = OrderState.COMPLETED
+        self._fills.append(Fill(when=when, balance_updates=balance_updates, fees=fees))
 
     def get_order_info(self) -> OrderInfo:
         return OrderInfo(
