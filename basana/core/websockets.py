@@ -35,7 +35,7 @@ class ChannelEventSource(event.FifoQueueEventSource):
         super().__init__(producer=producer)
 
     @abc.abstractmethod
-    async def push_from_message(self, message: dict):  # pragma: no cover
+    async def push_from_message(self, message: dict):
         raise NotImplementedError()
 
 
@@ -110,11 +110,11 @@ class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def subscribe_to_channels(
             self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse
-    ):  # pragma: no cover
+    ):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    async def handle_message(self, message: dict) -> bool:  # pragma: no cover
+    async def handle_message(self, message: dict) -> bool:
         raise NotImplementedError()
 
     async def _msg_loop(self, ws_cli: aiohttp.ClientWebSocketResponse):

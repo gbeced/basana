@@ -152,7 +152,7 @@ class Order:
     @abc.abstractmethod
     def get_balance_updates(
             self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy
-    ) -> Dict[str, Decimal]:  # pragma: no cover
+    ) -> Dict[str, Decimal]:
         """Returns the balance updates required to fill the order.
 
         :param bar: The bar that summarizes the trading activity.

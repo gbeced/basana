@@ -51,7 +51,7 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
             )
 
     @abc.abstractmethod
-    def get_estimated_fill_price(self) -> Optional[Decimal]:  # pragma: no cover
+    def get_estimated_fill_price(self) -> Optional[Decimal]:
         """ Returns the estimated fill price for the order.
 
         This will be used to estimate the cost of executing this order.
@@ -59,7 +59,7 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def create_order(self, id: str) -> orders.Order:  # pragma: no cover
+    def create_order(self, id: str) -> orders.Order:
         raise NotImplementedError()
 
 

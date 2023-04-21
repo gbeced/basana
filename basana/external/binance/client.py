@@ -302,7 +302,7 @@ class MarginAccount(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def is_isolated(self) -> bool:  # pragma: no cover
+    def is_isolated(self) -> bool:
         raise NotImplementedError()
 
     async def create_order(

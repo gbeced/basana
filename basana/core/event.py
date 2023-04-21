@@ -83,7 +83,7 @@ class EventSource(metaclass=abc.ABCMeta):
         self.producer = producer
 
     @abc.abstractmethod
-    def pop(self) -> Optional[Event]:  # pragma: no cover
+    def pop(self) -> Optional[Event]:
         """Override to return the next event, or None if there are no events available.
 
         This method is used by the :class:`basana.EventDispatcher` during the event dispatch loop so **it should return

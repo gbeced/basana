@@ -104,6 +104,7 @@ class EventDispatcher:
         assert not self._running, "Running or already ran"
         assert self._open_task_group is None
 
+        # This block has coverage on all platforms except on Windows.
         if platform.system() != "Windows":  # pragma: no cover
             for stop_signal in stop_signals:
                 asyncio.get_event_loop().add_signal_handler(stop_signal, self.stop)

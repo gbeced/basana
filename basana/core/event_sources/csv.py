@@ -31,7 +31,7 @@ from basana.core import event
 
 class RowParser(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def parse_row(self, row_dict: dict) -> Sequence[event.Event]:  # pragma: no cover
+    def parse_row(self, row_dict: dict) -> Sequence[event.Event]:
         raise NotImplementedError()
 
 

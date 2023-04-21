@@ -77,7 +77,7 @@ class CreatedOrder(common.CreatedOrder):
 class Account(metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
-    def client(self) -> client.MarginAccount:  # pragma: no cover
+    def client(self) -> client.MarginAccount:
         raise NotImplementedError()
 
     async def create_order(self, order_request: margin_requests.ExchangeOrder) -> CreatedOrder:
