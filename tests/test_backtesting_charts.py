@@ -18,11 +18,10 @@ from decimal import Decimal
 import asyncio
 import datetime
 import os
-import tempfile
 
 import pytest
 
-from .helpers import abs_data_path
+from . import helpers
 from basana.backtesting import charts, exchange
 from basana.core.pair import Pair
 from basana.external.yahoo import bars
@@ -57,19 +56,13 @@ def test_save_line_chart(order_plan, backtesting_dispatcher):
             assert created_order is not None
 
     async def impl():
-        e.add_bar_source(bars.CSVBarSource(pair, abs_data_path("orcl-2000-yahoo-sorted.csv")))
+        e.add_bar_source(bars.CSVBarSource(pair, helpers.abs_data_path("orcl-2000-yahoo-sorted.csv")))
         e.subscribe_to_bar_events(pair, on_bar)
 
         await backtesting_dispatcher.run()
 
-        # On Windows the name can't used to open the file a second time. That is why we're using this only to generate
-        # the file name.
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp_file:
-            pass
-        try:
-            chart.save(tmp_file.name)
-            assert os.stat(tmp_file.name).st_size > 100
-        finally:
-            os.remove(tmp_file.name)
+        with helpers.temp_file_name(suffix=".png") as tmp_file_name:
+            chart.save(tmp_file_name)
+            assert os.stat(tmp_file_name).st_size > 100
 
     asyncio.run(impl())
