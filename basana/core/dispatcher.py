@@ -45,10 +45,10 @@ class EventDispatcher:
     """
 
     def __init__(self, strict_order: bool = True, stop_when_idle: bool = True):
-        self._event_handlers: Dict[event.EventSource, Set[EventHandler]] = {}
+        self._event_handlers: Dict[event.EventSource, List[EventHandler]] = {}
         self._prefetched_events: Dict[event.EventSource, Optional[event.Event]] = {}
         self._prev_events: Dict[event.EventSource, datetime.datetime] = {}
-        self._idle_handlers: Set[IdleHandler] = set()
+        self._idle_handlers: List[IdleHandler] = []
         self._producers: Set[event.Producer] = set()
         self._open_task_group: Optional[helpers.TaskGroup] = None
         self._strict_order = strict_order
@@ -74,8 +74,8 @@ class EventDispatcher:
         :param idle_handler: An async callable that receives no arguments.
         """
 
-        # Called when there are no events to dispatch.
-        self._idle_handlers.add(idle_handler)
+        if idle_handler not in self._idle_handlers:
+            self._idle_handlers.append(idle_handler)
 
     def subscribe(self, source: event.EventSource, event_handler: EventHandler):
         """Registers an async callable that will be called when an event source has new events.
@@ -85,7 +85,9 @@ class EventDispatcher:
         """
 
         assert not self._running
-        self._event_handlers.setdefault(source, set()).add(event_handler)
+        handlers = self._event_handlers.setdefault(source, [])
+        if event_handler not in handlers:
+            handlers.append(event_handler)
         if source.producer:
             self._producers.add(source.producer)
 
