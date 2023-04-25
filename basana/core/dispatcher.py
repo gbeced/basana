@@ -49,6 +49,7 @@ class EventDispatcher:
         self._prefetched_events: Dict[event.EventSource, Optional[event.Event]] = {}
         self._prev_events: Dict[event.EventSource, datetime.datetime] = {}
         self._idle_handlers: List[IdleHandler] = []
+        self._sniffers: List[EventHandler] = []
         self._producers: Set[event.Producer] = set()
         self._open_task_group: Optional[helpers.TaskGroup] = None
         self._strict_order = strict_order
@@ -90,6 +91,16 @@ class EventDispatcher:
             handlers.append(event_handler)
         if source.producer:
             self._producers.add(source.producer)
+
+    def subscribe_all(self, event_handler: EventHandler):
+        """Registers an async callable that will be called for all events.
+
+        :param event_handler: An async callable that receives an event.
+        """
+
+        assert not self._running
+        if event_handler not in self._sniffers:
+            self._sniffers.append(event_handler)
 
     async def run(self, stop_signals: List[int] = [signal.SIGINT, signal.SIGTERM]):
         """Executes the event dispatch loop.
@@ -171,14 +182,18 @@ class EventDispatcher:
 
         # Dispatch events matching the desired datetime.
         event_handlers = []
+        sniffer_event_handlers = []
         for source, e in self._prefetched_events.items():
             if e is not None and e.when == next_dt:
                 # Collect event handlers for the event source.
                 event_handlers += [event_handler(e) for event_handler in self._event_handlers.get(source, [])]
+                # Sniffers handle all events, no matter what their source is.
+                sniffer_event_handlers += [event_handler(e) for event_handler in self._sniffers]
                 # Consume the event.
                 self._prefetched_events[source] = None
 
         self._current_event_dt = next_dt
+        event_handlers.extend(sniffer_event_handlers)
         await asyncio.gather(*event_handlers)
         self._current_event_dt = None
 

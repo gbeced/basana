@@ -214,3 +214,30 @@ def test_subscription_order_per_source():
         assert priorities == list(range(handler_count))
 
     asyncio.run(test_main())
+
+
+def test_sniffers():
+    d = dispatcher.backtesting_dispatcher()
+    events = []
+    sniffed_events = []
+
+    async def save_event(event):
+        events.append(event)
+
+    async def save_sniffed_event(event):
+        sniffed_events.append(event)
+
+    async def test_main():
+        src_count = 10
+
+        d.subscribe_all(save_sniffed_event)
+        for _ in range(src_count):
+            src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
+            d.subscribe(src, save_event)
+
+        await d.run()
+
+        assert len(events) == src_count
+        assert len(sniffed_events) == src_count
+
+    asyncio.run(test_main())
