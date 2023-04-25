@@ -20,10 +20,11 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union
+import abc
 
 from basana.backtesting.exchange import Exchange
-from basana.core import bar, helpers
+from basana.core import bar, event, helpers
 from basana.core.pair import Pair
 
 import plotly.graph_objects as go  # type: ignore
@@ -41,33 +42,94 @@ class TimeSeries:
         self._values[dt] = value
 
     def get_x_y(self):
-        return zip(*sorted(self._values.items()))
+        return zip(*sorted(self._values.items())) if self._values else ([], [])
 
 
-class LineChart:
-    """A line chart that shows the evolution of pair prices and account balances over time.
+class LineChart(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def get_title(self) -> str:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def add_traces(self, figure: go.Figure, row: int):
+        raise NotImplementedError()
+
+
+class PairLineChart(LineChart):
+    def __init__(self, pair: Pair, exchange: Exchange):
+        self._pair = pair
+        self._exchange = exchange
+        self._ts = TimeSeries()
+
+        exchange.subscribe_to_bar_events(pair, self._on_bar_event)
+
+    def get_title(self) -> str:
+        return str(self._pair)
+
+    def add_traces(self, figure: go.Figure, row: int):
+        # Add a trace with the pair values.
+        x, y = self._ts.get_x_y()
+        figure.add_trace(go.Scatter(x=x, y=y, name=str(self._pair)), row=row, col=1)
+
+        # Create a timeseries with buy prices and another one with sell prices.
+        buy_prices = TimeSeries()
+        sell_prices = TimeSeries()
+        for order in filter(lambda order: order.pair == self._pair, self._exchange._get_all_orders()):
+            for fill in order.fills:
+                base_amount = fill.balance_updates[order.pair.base_symbol]
+                quote_amount = fill.balance_updates[order.pair.quote_symbol]
+                price = -helpers.truncate_decimal(quote_amount / base_amount, 2)
+                fills = buy_prices if base_amount > 0 else sell_prices
+                fills.add_value(fill.when, helpers.truncate_decimal(price, 2))
+
+        # Add a trace with the buy prices and another one with the sell prices.
+        for fill_prices, name, symbol in (
+                (buy_prices, "Buy", "arrow-up"),
+                (sell_prices, "Sell", "arrow-down"),
+        ):
+            x, y = fill_prices.get_x_y()
+            figure.add_trace(
+                go.Scatter(x=x, y=y, name=name, mode="markers", marker=dict(symbol=symbol)),
+                row=row, col=1
+            )
+
+    async def _on_bar_event(self, bar_event: bar.BarEvent):
+        self._ts.add_value(bar_event.when, bar_event.bar.close)
+
+
+class AccountBalanceLineChart(LineChart):
+    def __init__(self, symbol: str, exchange: Exchange):
+        self._symbol = symbol
+        self._exchange = exchange
+        self._ts = TimeSeries()
+
+        # Initially I thought of having the exchange emit an event when any balance got updated, but I then realized
+        # that it would be too much overhead if charts are not used.
+        exchange._get_dispatcher().subscribe_all(self._on_any_event)
+
+    def get_title(self) -> str:
+        return f"{self._symbol} balance"
+
+    def add_traces(self, figure: go.Figure, row: int):
+        # Add a trace with the pair values.
+        x, y = self._ts.get_x_y()
+        figure.add_trace(go.Scatter(x=x, y=y, name=self._symbol), row=row, col=1)
+
+    async def _on_any_event(self, event: event.Event):
+        balance = await self._exchange.get_balance(self._symbol)
+        self._ts.add_value(event.when, balance.total)
+
+
+class LineCharts:
+    """A set of line charts that show the evolution of pair prices and account balances over time.
 
     :param exchange: The backtesting exchange.
     :param pairs: The trading pairs to include in the chart.
-    :param balances: The balances to include in the chart.
+    :param balance_symbols: The symbols for the balances to include in the chart.
     """
-    def __init__(self, exchange: Exchange, pairs: Sequence[Pair], balances: Sequence[str]):
-        self._exchange = exchange
-        self._pair_values: Dict[Pair, TimeSeries] = {pair: TimeSeries() for pair in pairs}
-        self._balance_values: Dict[str, TimeSeries] = {symbol: TimeSeries() for symbol in balances}
-
-        for pair in pairs:
-            exchange.subscribe_to_bar_events(pair, self._on_bar_event)
-
-    async def _add_balances(self, dt: datetime):
-        balances = await self._exchange.get_balances()
-        for symbol, balance in balances.items():
-            if symbol in self._balance_values:
-                self._balance_values[symbol].add_value(dt, balance.available)
-
-    async def _on_bar_event(self, bar_event: bar.BarEvent):
-        self._pair_values[bar_event.bar.pair].add_value(bar_event.when, bar_event.bar.close)
-        await self._add_balances(bar_event.when)
+    def __init__(self, exchange: Exchange, pairs: Sequence[Pair], balance_symbols: Sequence[str]):
+        self._charts: List[LineChart] = [PairLineChart(pair, exchange) for pair in pairs]
+        self._charts.extend([AccountBalanceLineChart(symbol, exchange) for symbol in balance_symbols])
 
     def show(self, show_legend: bool = True):  # pragma: no cover
         """Shows the chart using either the default renderer(s).
@@ -102,53 +164,16 @@ class LineChart:
         fig.write_image(path, width=width, height=height, scale=scale)
 
     def _build_figure(self, show_legend: bool = True) -> go.Figure:
-        # Organize fill prices by pair and datetime.
-        buy_prices: Dict[Pair, TimeSeries] = {}
-        sell_prices: Dict[Pair, TimeSeries] = {}
-        for order in self._exchange._get_all_orders():
-            for fill in order.fills:
-                base_amount = fill.balance_updates[order.pair.base_symbol]
-                quote_amount = fill.balance_updates[order.pair.quote_symbol]
-                price = -helpers.truncate_decimal(quote_amount / base_amount, 2)
-                fills = buy_prices if base_amount > 0 else sell_prices
-                fills.setdefault(order.pair, TimeSeries()).add_value(
-                    fill.when,
-                    helpers.truncate_decimal(price, 2)
-                )
-
-        # Create subplots.
-        subplot_titles = [str(pair) for pair in self._pair_values.keys()] + \
-            [f"{symbol} balance" for symbol in self._balance_values.keys()]
-        fig = plotly.subplots.make_subplots(
-            rows=len(self._pair_values) + len(self._balance_values), cols=1, shared_xaxes=True,
-            subplot_titles=subplot_titles
+        subplot_titles = [chart.get_title() for chart in self._charts]
+        figure = plotly.subplots.make_subplots(
+            rows=len(self._charts), cols=1, shared_xaxes=True, subplot_titles=subplot_titles
         )
 
         row = 1
-        # Add pair values along with order fills.
-        for pair, timeseries in self._pair_values.items():
-            # Add a trace with the pair values.
-            x, y = timeseries.get_x_y()
-            fig.add_trace(go.Scatter(x=x, y=y, name=str(pair)), row=row, col=1)
-            # Add a trace with the buy prices and another one with the sell prices.
-            for fill_prices, name, symbol in (
-                    (buy_prices, "Buy", "arrow-up"),
-                    (sell_prices, "Sell", "arrow-down"),
-            ):
-                x, y = fill_prices[pair].get_x_y()
-                fig.add_trace(
-                    go.Scatter(x=x, y=y, name=name, mode="markers", marker=dict(symbol=symbol)),
-                    row=row, col=1
-                )
+        for chart in self._charts:
+            chart.add_traces(figure, row)
             row += 1
 
-        # Add balances.
-        for symbol, timeseries in self._balance_values.items():
-            # Add a trace with the balance values.
-            x, y = timeseries.get_x_y()
-            fig.add_trace(go.Scatter(x=x, y=y, name=symbol), row=row, col=1)
-            row += 1
+        figure.layout.update(showlegend=show_legend)
 
-        fig.layout.update(showlegend=show_legend)
-
-        return fig
+        return figure

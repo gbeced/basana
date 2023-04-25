@@ -47,7 +47,7 @@ def test_save_line_chart(order_plan, backtesting_dispatcher):
         },
     )
     pair = Pair("ORCL", "USD")
-    chart = charts.LineChart(e, [pair], ["USD"])
+    chart = charts.LineCharts(e, [pair], ["USD"])
 
     async def on_bar(bar_event):
         order_requests = order_plan.get(bar_event.when.date(), [])

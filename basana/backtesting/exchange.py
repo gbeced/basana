@@ -525,3 +525,6 @@ class Exchange:
 
     def _get_all_orders(self) -> Sequence[orders.Order]:
         return self._orders.get_all_orders()
+
+    def _get_dispatcher(self) -> dispatcher.EventDispatcher:
+        return self._dispatcher
