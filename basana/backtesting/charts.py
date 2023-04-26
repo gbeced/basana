@@ -20,8 +20,9 @@
 
 from datetime import datetime
 from decimal import Decimal
-from typing import List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import abc
+import collections
 
 from basana.backtesting.exchange import Exchange
 from basana.core import bar, event, helpers
@@ -31,7 +32,7 @@ import plotly.graph_objects as go  # type: ignore
 import plotly.subplots  # type: ignore
 
 
-portfolio_key = "portfolio"
+IndicatorValueExtractor = Callable[[datetime], Optional[Decimal]]
 
 
 class TimeSeries:
@@ -60,6 +61,7 @@ class PairLineChart(LineChart):
         self._pair = pair
         self._exchange = exchange
         self._ts = TimeSeries()
+        self._indicators: Dict[str, Tuple[IndicatorValueExtractor, TimeSeries]] = {}
 
         exchange.subscribe_to_bar_events(pair, self._on_bar_event)
 
@@ -93,8 +95,25 @@ class PairLineChart(LineChart):
                 row=row, col=1
             )
 
+        # Add one trace per indicator.
+        for name, (_, ts) in self._indicators.items():
+            x, y = ts.get_x_y()
+            figure.add_trace(go.Scatter(x=x, y=y, name=name), row=row, col=1)
+
+    def add_indicator(self, name: str, value_extractor: IndicatorValueExtractor):
+        assert name not in self._indicators
+        self._indicators[name] = (value_extractor, TimeSeries())
+
     async def _on_bar_event(self, bar_event: bar.BarEvent):
-        self._ts.add_value(bar_event.when, bar_event.bar.close)
+        dt = bar_event.when
+        value = bar_event.bar.close
+        # Add the value to the main time series.
+        self._ts.add_value(dt, value)
+        # Add the value indicators
+        for extractor, ts in self._indicators.values():
+            indicator_value = extractor(dt)
+            if indicator_value is not None:
+                ts.add_value(dt, indicator_value)
 
 
 class AccountBalanceLineChart(LineChart):
@@ -120,6 +139,21 @@ class AccountBalanceLineChart(LineChart):
         self._ts.add_value(event.when, balance.total)
 
 
+class TailExtractor:
+    """Callable that returns the last value of a sequence if its not empty.
+
+    :param seq: The sequence that will be used to get the value.
+    """
+    def __init__(self, seq: Sequence[Any]):
+        self._seq = seq
+
+    def __call__(self, dt: datetime) -> Optional[Decimal]:
+        ret = None
+        if self._seq:
+            ret = self._seq[-1]
+        return Decimal(ret) if ret is not None else ret
+
+
 class LineCharts:
     """A set of line charts that show the evolution of pair prices and account balances over time.
 
@@ -128,8 +162,22 @@ class LineCharts:
     :param balance_symbols: The symbols for the balances to include in the chart.
     """
     def __init__(self, exchange: Exchange, pairs: Sequence[Pair], balance_symbols: Sequence[str]):
-        self._charts: List[LineChart] = [PairLineChart(pair, exchange) for pair in pairs]
-        self._charts.extend([AccountBalanceLineChart(symbol, exchange) for symbol in balance_symbols])
+        self._balance_charts: List[LineChart] = [
+            AccountBalanceLineChart(symbol, exchange) for symbol in balance_symbols
+        ]
+        self._pair_charts: Dict[Pair, PairLineChart] = collections.OrderedDict()
+        for pair in pairs:
+            self._pair_charts[pair] = PairLineChart(pair, exchange)
+
+    def add_pair_indicator(self, name: str, pair: Pair, value_extractor: IndicatorValueExtractor):
+        """Adds a technical indicator to a pair's chart.
+
+        :param name: The name of the indicator.
+        :param pair: The pair chart to add the indicator to.
+        :param value_extractor: A callable that will be used to extract a value on each bar.
+        """
+        assert pair in self._pair_charts
+        self._pair_charts[pair].add_indicator(name, value_extractor)
 
     def show(self, show_legend: bool = True):  # pragma: no cover
         """Shows the chart using either the default renderer(s).
@@ -157,20 +205,24 @@ class LineCharts:
 
         .. note::
 
-            * The Supported file formats are png, jpg/jpeg, webp, svg and pdf
+            * The Supported file formats are png, jpg/jpeg, webp, svg and pdf.
         """
 
         fig = self._build_figure(show_legend=show_legend)
         fig.write_image(path, width=width, height=height, scale=scale)
 
     def _build_figure(self, show_legend: bool = True) -> go.Figure:
-        subplot_titles = [chart.get_title() for chart in self._charts]
+        charts: List[LineChart] = []
+        charts.extend(self._pair_charts.values())
+        charts.extend(self._balance_charts)
+
+        subplot_titles = [chart.get_title() for chart in charts]
         figure = plotly.subplots.make_subplots(
-            rows=len(self._charts), cols=1, shared_xaxes=True, subplot_titles=subplot_titles
+            rows=len(charts), cols=1, shared_xaxes=True, subplot_titles=subplot_titles
         )
 
         row = 1
-        for chart in self._charts:
+        for chart in charts:
             chart.add_traces(figure, row)
             row += 1
 

@@ -47,7 +47,8 @@ def test_save_line_chart(order_plan, backtesting_dispatcher):
         },
     )
     pair = Pair("ORCL", "USD")
-    chart = charts.LineCharts(e, [pair], ["USD"])
+    line_charts = charts.LineCharts(e, [pair], ["USD"])
+    line_charts.add_pair_indicator("CONSTANT", pair, charts.TailExtractor([100]))
 
     async def on_bar(bar_event):
         order_requests = order_plan.get(bar_event.when.date(), [])
@@ -62,7 +63,7 @@ def test_save_line_chart(order_plan, backtesting_dispatcher):
         await backtesting_dispatcher.run()
 
         with helpers.temp_file_name(suffix=".png") as tmp_file_name:
-            chart.save(tmp_file_name)
+            line_charts.save(tmp_file_name)
             assert os.stat(tmp_file_name).st_size > 100
 
     asyncio.run(impl())
