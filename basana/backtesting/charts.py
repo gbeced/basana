@@ -161,7 +161,7 @@ class LineCharts:
     :param pairs: The trading pairs to include in the chart.
     :param balance_symbols: The symbols for the balances to include in the chart.
     """
-    def __init__(self, exchange: Exchange, pairs: Sequence[Pair], balance_symbols: Sequence[str]):
+    def __init__(self, exchange: Exchange, pairs: Sequence[Pair] = [], balance_symbols: Sequence[str] = []):
         self._balance_charts: List[LineChart] = [
             AccountBalanceLineChart(symbol, exchange) for symbol in balance_symbols
         ]
@@ -188,8 +188,8 @@ class LineCharts:
         :param show_legend: True if legends should be visible, False otherwise.
         """  # noqa: E501
 
-        fig = self._build_figure(show_legend=show_legend)
-        fig.show()
+        if fig := self._build_figure(show_legend=show_legend):
+            fig.show()
 
     def save(
             self, path: str, width: Optional[int] = None, height: Optional[int] = None,
@@ -208,24 +208,26 @@ class LineCharts:
             * The Supported file formats are png, jpg/jpeg, webp, svg and pdf.
         """
 
-        fig = self._build_figure(show_legend=show_legend)
-        fig.write_image(path, width=width, height=height, scale=scale)
+        if fig := self._build_figure(show_legend=show_legend):
+            fig.write_image(path, width=width, height=height, scale=scale)
 
-    def _build_figure(self, show_legend: bool = True) -> go.Figure:
+    def _build_figure(self, show_legend: bool = True) -> Optional[go.Figure]:
         charts: List[LineChart] = []
         charts.extend(self._pair_charts.values())
         charts.extend(self._balance_charts)
 
-        subplot_titles = [chart.get_title() for chart in charts]
-        figure = plotly.subplots.make_subplots(
-            rows=len(charts), cols=1, shared_xaxes=True, subplot_titles=subplot_titles
-        )
+        figure = None
+        if charts:
+            subplot_titles = [chart.get_title() for chart in charts]
+            figure = plotly.subplots.make_subplots(
+                rows=len(charts), cols=1, shared_xaxes=True, subplot_titles=subplot_titles
+            )
 
-        row = 1
-        for chart in charts:
-            chart.add_traces(figure, row)
-            row += 1
+            row = 1
+            for chart in charts:
+                chart.add_traces(figure, row)
+                row += 1
 
-        figure.layout.update(showlegend=show_legend)
+            figure.layout.update(showlegend=show_legend)
 
         return figure
