@@ -32,7 +32,7 @@ import plotly.graph_objects as go  # type: ignore
 import plotly.subplots  # type: ignore
 
 
-IndicatorValueExtractor = Callable[[datetime], Optional[Decimal]]
+ChartDataPointFn = Callable[[datetime], Optional[Decimal]]
 
 
 class TimeSeries:
@@ -61,7 +61,7 @@ class PairLineChart(LineChart):
         self._pair = pair
         self._exchange = exchange
         self._ts = TimeSeries()
-        self._indicators: Dict[str, Tuple[IndicatorValueExtractor, TimeSeries]] = {}
+        self._indicators: Dict[str, Tuple[ChartDataPointFn, TimeSeries]] = {}
 
         exchange.subscribe_to_bar_events(pair, self._on_bar_event)
 
@@ -100,9 +100,9 @@ class PairLineChart(LineChart):
             x, y = ts.get_x_y()
             figure.add_trace(go.Scatter(x=x, y=y, name=name), row=row, col=1)
 
-    def add_indicator(self, name: str, value_extractor: IndicatorValueExtractor):
+    def add_indicator(self, name: str, get_data_point: ChartDataPointFn):
         assert name not in self._indicators
-        self._indicators[name] = (value_extractor, TimeSeries())
+        self._indicators[name] = (get_data_point, TimeSeries())
 
     async def _on_bar_event(self, bar_event: bar.BarEvent):
         dt = bar_event.when
@@ -139,7 +139,7 @@ class AccountBalanceLineChart(LineChart):
         self._ts.add_value(event.when, balance.total)
 
 
-class TailExtractor:
+class DataPointFromSequence:
     """Callable that returns the last value of a sequence if its not empty.
 
     :param seq: The sequence that will be used to get the value.
@@ -169,15 +169,15 @@ class LineCharts:
         for pair in pairs:
             self._pair_charts[pair] = PairLineChart(pair, exchange)
 
-    def add_pair_indicator(self, name: str, pair: Pair, value_extractor: IndicatorValueExtractor):
+    def add_pair_indicator(self, name: str, pair: Pair, get_data_point: ChartDataPointFn):
         """Adds a technical indicator to a pair's chart.
 
         :param name: The name of the indicator.
         :param pair: The pair chart to add the indicator to.
-        :param value_extractor: A callable that will be used to extract a value on each bar.
+        :param get_data_point: A callable that will be used to get a data point on each bar.
         """
         assert pair in self._pair_charts
-        self._pair_charts[pair].add_indicator(name, value_extractor)
+        self._pair_charts[pair].add_indicator(name, get_data_point)
 
     def show(self, show_legend: bool = True):  # pragma: no cover
         """Shows the chart using either the default renderer(s).
