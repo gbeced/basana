@@ -26,6 +26,7 @@ import collections
 
 from basana.backtesting.exchange import Exchange
 from basana.core import bar, event, helpers
+from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
 import plotly.graph_objects as go  # type: ignore
@@ -57,8 +58,10 @@ class LineChart(metaclass=abc.ABCMeta):
 
 
 class PairLineChart(LineChart):
-    def __init__(self, pair: Pair, exchange: Exchange):
+    def __init__(self, pair: Pair, include_buys: bool, include_sells: bool, exchange: Exchange):
         self._pair = pair
+        self._include_buys = include_buys
+        self._include_sells = include_sells
         self._exchange = exchange
         self._ts = TimeSeries()
         self._indicators: Dict[str, Tuple[ChartDataPointFn, TimeSeries]] = {}
@@ -73,25 +76,19 @@ class PairLineChart(LineChart):
         x, y = self._ts.get_x_y()
         figure.add_trace(go.Scatter(x=x, y=y, name=str(self._pair)), row=row, col=1)
 
-        # Create a timeseries with buy prices and another one with sell prices.
-        buy_prices = TimeSeries()
-        sell_prices = TimeSeries()
-        for order in filter(lambda order: order.pair == self._pair, self._exchange._get_all_orders()):
-            for fill in order.fills:
-                base_amount = fill.balance_updates[order.pair.base_symbol]
-                quote_amount = fill.balance_updates[order.pair.quote_symbol]
-                price = -helpers.truncate_decimal(quote_amount / base_amount, 2)
-                fills = buy_prices if base_amount > 0 else sell_prices
-                fills.add_value(fill.when, helpers.truncate_decimal(price, 2))
-
-        # Add a trace with the buy prices and another one with the sell prices.
-        for fill_prices, name, symbol in (
-                (buy_prices, "Buy", "arrow-up"),
-                (sell_prices, "Sell", "arrow-down"),
-        ):
-            x, y = fill_prices.get_x_y()
+        # Add a trace with buy prices.
+        if self._include_buys:
+            x, y = self._get_order_fills(OrderOperation.BUY).get_x_y()
             figure.add_trace(
-                go.Scatter(x=x, y=y, name=name, mode="markers", marker=dict(symbol=symbol)),
+                go.Scatter(x=x, y=y, name="Buy", mode="markers", marker=dict(symbol="arrow-up")),
+                row=row, col=1
+            )
+
+        # Add a trace with sell prices.
+        if self._include_sells:
+            x, y = self._get_order_fills(OrderOperation.SELL).get_x_y()
+            figure.add_trace(
+                go.Scatter(x=x, y=y, name="Sell", mode="markers", marker=dict(symbol="arrow-down")),
                 row=row, col=1
             )
 
@@ -103,6 +100,20 @@ class PairLineChart(LineChart):
     def add_indicator(self, name: str, get_data_point: ChartDataPointFn):
         assert name not in self._indicators
         self._indicators[name] = (get_data_point, TimeSeries())
+
+    def _get_order_fills(self, op: OrderOperation) -> TimeSeries:
+        ret = TimeSeries()
+        orders = filter(
+            lambda order: order.pair == self._pair and order.operation == op,
+            self._exchange._get_all_orders()
+        )
+        for order in orders:
+            for fill in order.fills:
+                base_amount = fill.balance_updates[order.pair.base_symbol]
+                quote_amount = fill.balance_updates[order.pair.quote_symbol]
+                price = -helpers.truncate_decimal(quote_amount / base_amount, 2)
+                ret.add_value(fill.when, helpers.truncate_decimal(price, 2))
+        return ret
 
     async def _on_bar_event(self, bar_event: bar.BarEvent):
         dt = bar_event.when
@@ -158,16 +169,27 @@ class LineCharts:
     """A set of line charts that show the evolution of pair prices and account balances over time.
 
     :param exchange: The backtesting exchange.
-    :param pairs: The trading pairs to include in the chart.
-    :param balance_symbols: The symbols for the balances to include in the chart.
     """
-    def __init__(self, exchange: Exchange, pairs: Sequence[Pair] = [], balance_symbols: Sequence[str] = []):
-        self._balance_charts: List[LineChart] = [
-            AccountBalanceLineChart(symbol, exchange) for symbol in balance_symbols
-        ]
+    def __init__(self, exchange: Exchange):
+        self._exchange = exchange
+        self._balance_charts: Dict[str, AccountBalanceLineChart] = collections.OrderedDict()
         self._pair_charts: Dict[Pair, PairLineChart] = collections.OrderedDict()
-        for pair in pairs:
-            self._pair_charts[pair] = PairLineChart(pair, exchange)
+
+    def add_balance(self, symbol: str):
+        """Includes an account's balance in the chart.
+
+        :param symbol: The currency/instrument symbol.
+        """
+        self._balance_charts[symbol] = AccountBalanceLineChart(symbol, self._exchange)
+
+    def add_pair(self, pair: Pair, include_buys: bool = True, include_sells: bool = True):
+        """Includes a pair in the chart.
+
+        :param pair: The pair.
+        :param include_buys: True to include buy prices.
+        :param include_sells: True to include sell prices.
+        """
+        self._pair_charts[pair] = PairLineChart(pair, include_buys, include_sells, self._exchange)
 
     def add_pair_indicator(self, name: str, pair: Pair, get_data_point: ChartDataPointFn):
         """Adds a technical indicator to a pair's chart.
@@ -176,7 +198,7 @@ class LineCharts:
         :param pair: The pair chart to add the indicator to.
         :param get_data_point: A callable that will be used to get a data point on each bar.
         """
-        assert pair in self._pair_charts
+        assert pair in self._pair_charts, f"{pair} was not added"
         self._pair_charts[pair].add_indicator(name, get_data_point)
 
     def show(self, show_legend: bool = True):  # pragma: no cover
@@ -205,7 +227,7 @@ class LineCharts:
 
         .. note::
 
-            * The Supported file formats are png, jpg/jpeg, webp, svg and pdf.
+            * The supported file formats are png, jpg/jpeg, webp, svg and pdf.
         """
 
         if fig := self._build_figure(show_legend=show_legend):
@@ -214,7 +236,7 @@ class LineCharts:
     def _build_figure(self, show_legend: bool = True) -> Optional[go.Figure]:
         charts: List[LineChart] = []
         charts.extend(self._pair_charts.values())
-        charts.extend(self._balance_charts)
+        charts.extend(self._balance_charts.values())
 
         figure = None
         if charts:

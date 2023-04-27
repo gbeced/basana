@@ -47,7 +47,9 @@ def test_save_line_chart(order_plan, backtesting_dispatcher):
         },
     )
     pair = Pair("ORCL", "USD")
-    line_charts = charts.LineCharts(e, [pair], ["USD"])
+    line_charts = charts.LineCharts(e)
+    line_charts.add_pair(pair)
+    line_charts.add_balance("USD")
     line_charts.add_pair_indicator("CONSTANT", pair, charts.DataPointFromSequence([100]))
 
     async def on_bar(bar_event):
