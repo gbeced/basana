@@ -104,7 +104,7 @@ async def main():
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
 
     # Load bars from CSV files.
-    exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_min.csv", "1d"))
+    exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_min.csv", "1m"))
 
     # Run the backtest.
     await event_dispatcher.run()
