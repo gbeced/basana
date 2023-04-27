@@ -6,6 +6,7 @@ API
 
     basana
     backtesting_exchange
+    backtesting_charts
     backtesting_fees
     backtesting_liquidity
     binance_exchange
