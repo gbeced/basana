@@ -12,7 +12,7 @@ Basana requires Python 3.8.1 or above and to install the package you can use the
 
 .. code-block:: console
 
-   (.venv) $ pip install basana
+   (.venv) $ pip install basana[charts]
 
 As mentioned before, technical indicators are not included and the examples that follow take advantage of
 `TALIpp <https://github.com/nardew/talipp>`_ that you can install using the following command:
