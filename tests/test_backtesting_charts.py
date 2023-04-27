@@ -39,7 +39,7 @@ from basana.external.yahoo import bars
         ],
     },
 ])
-def test_save_line_chart(order_plan, backtesting_dispatcher):
+def test_save_line_chart(order_plan, backtesting_dispatcher, caplog):
     e = exchange.Exchange(
         backtesting_dispatcher,
         {
@@ -51,6 +51,8 @@ def test_save_line_chart(order_plan, backtesting_dispatcher):
     line_charts.add_pair(pair)
     line_charts.add_balance("USD")
     line_charts.add_pair_indicator("CONSTANT", pair, charts.DataPointFromSequence([100]))
+    line_charts.add_portfolio_value("USD")
+    line_charts.add_portfolio_value("INVALID")
 
     async def on_bar(bar_event):
         order_requests = order_plan.get(bar_event.when.date(), [])
@@ -64,6 +66,7 @@ def test_save_line_chart(order_plan, backtesting_dispatcher):
 
         await backtesting_dispatcher.run()
 
+        assert "Price missing" in caplog.text
         with helpers.temp_file_name(suffix=".png") as tmp_file_name:
             line_charts.save(tmp_file_name)
             assert os.stat(tmp_file_name).st_size > 100

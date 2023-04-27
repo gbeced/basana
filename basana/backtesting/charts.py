@@ -23,9 +23,10 @@ from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import abc
 import collections
+import logging
 
 from basana.backtesting.exchange import Exchange
-from basana.core import bar, event, helpers
+from basana.core import bar, event, logs, helpers
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
@@ -34,6 +35,7 @@ import plotly.subplots  # type: ignore
 
 
 ChartDataPointFn = Callable[[datetime], Optional[Decimal]]
+logger = logging.getLogger(__name__)
 
 
 class TimeSeries:
@@ -58,11 +60,12 @@ class LineChart(metaclass=abc.ABCMeta):
 
 
 class PairLineChart(LineChart):
-    def __init__(self, pair: Pair, include_buys: bool, include_sells: bool, exchange: Exchange):
+    def __init__(self, pair: Pair, include_buys: bool, include_sells: bool, exchange: Exchange, precision: int = 2):
         self._pair = pair
         self._include_buys = include_buys
         self._include_sells = include_sells
         self._exchange = exchange
+        self._precision = precision
         self._ts = TimeSeries()
         self._indicators: Dict[str, Tuple[ChartDataPointFn, TimeSeries]] = {}
 
@@ -111,8 +114,8 @@ class PairLineChart(LineChart):
             for fill in order.fills:
                 base_amount = fill.balance_updates[order.pair.base_symbol]
                 quote_amount = fill.balance_updates[order.pair.quote_symbol]
-                price = -helpers.truncate_decimal(quote_amount / base_amount, 2)
-                ret.add_value(fill.when, helpers.truncate_decimal(price, 2))
+                price = -helpers.truncate_decimal(quote_amount / base_amount, self._precision)
+                ret.add_value(fill.when, price)
         return ret
 
     async def _on_bar_event(self, bar_event: bar.BarEvent):
@@ -150,6 +153,41 @@ class AccountBalanceLineChart(LineChart):
         self._ts.add_value(event.when, balance.total)
 
 
+class PortfolioValueLineChart(LineChart):
+    def __init__(self, symbol: str, exchange: Exchange, precision: int = 2):
+        self._symbol = symbol
+        self._exchange = exchange
+        self._ts = TimeSeries()
+        self._precision = precision
+
+        # Initially I thought of having the exchange emit an event when any balance got updated, but I then realized
+        # that it would be too much overhead if charts are not used.
+        exchange._get_dispatcher().subscribe_all(self._on_any_event)
+
+    def get_title(self) -> str:
+        return f"Portfolio value in {self._symbol}"
+
+    def add_traces(self, figure: go.Figure, row: int):
+        # Add a trace with the portfolio values.
+        x, y = self._ts.get_x_y()
+        figure.add_trace(go.Scatter(x=x, y=y, name=f"Portfolio ({self._symbol})"), row=row, col=1)
+
+    async def _on_any_event(self, event: event.Event):
+        portfolio_value = Decimal(0)
+        balances = await self._exchange.get_balances()
+        for symbol, balance in balances.items():
+            rate: Optional[Decimal] = Decimal(1)
+            if symbol != self._symbol:
+                rate, _ = await self._exchange.get_bid_ask(Pair(symbol, self._symbol))
+
+            if rate:
+                portfolio_value += rate * balance.total
+            else:
+                logger.error(logs.StructuredMessage("Price missing", pair=Pair(symbol, self._symbol)))
+
+        self._ts.add_value(event.when, helpers.round_decimal(portfolio_value, self._precision))
+
+
 class DataPointFromSequence:
     """Callable that returns the last value of a sequence if its not empty.
 
@@ -174,13 +212,26 @@ class LineCharts:
         self._exchange = exchange
         self._balance_charts: Dict[str, AccountBalanceLineChart] = collections.OrderedDict()
         self._pair_charts: Dict[Pair, PairLineChart] = collections.OrderedDict()
+        self._portfolio_charts: Dict[str, PortfolioValueLineChart] = collections.OrderedDict()
 
     def add_balance(self, symbol: str):
         """Includes an account's balance in the chart.
 
-        :param symbol: The currency/instrument symbol.
+        :param symbol: The currency symbol.
         """
         self._balance_charts[symbol] = AccountBalanceLineChart(symbol, self._exchange)
+
+    def add_portfolio_value(self, symbol: str):
+        """Includes a chart with the portfolio value in a given currency.
+
+        :param symbol: The currency symbol.
+
+        .. note::
+
+            * If the portfolio value can't be calculated at any given point, for example because there is no price for
+              a given instrument, an error will be logged.
+        """
+        self._portfolio_charts[symbol] = PortfolioValueLineChart(symbol, self._exchange)
 
     def add_pair(self, pair: Pair, include_buys: bool = True, include_sells: bool = True):
         """Includes a pair in the chart.
@@ -237,6 +288,7 @@ class LineCharts:
         charts: List[LineChart] = []
         charts.extend(self._pair_charts.values())
         charts.extend(self._balance_charts.values())
+        charts.extend(self._portfolio_charts.values())
 
         figure = None
         if charts:
