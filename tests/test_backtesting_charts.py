@@ -53,6 +53,7 @@ def test_save_line_chart(order_plan, backtesting_dispatcher, caplog):
     line_charts.add_pair_indicator("CONSTANT", pair, charts.DataPointFromSequence([100]))
     line_charts.add_portfolio_value("USD")
     line_charts.add_portfolio_value("INVALID")
+    line_charts.add_custom("CUSTOM", "line_name", lambda _: 3)
 
     async def on_bar(bar_event):
         order_requests = order_plan.get(bar_event.when.date(), [])

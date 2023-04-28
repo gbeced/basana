@@ -38,6 +38,21 @@ ChartDataPointFn = Callable[[datetime], Optional[Decimal]]
 logger = logging.getLogger(__name__)
 
 
+class DataPointFromSequence:
+    """Callable that returns the last value of a sequence if its not empty.
+
+    :param seq: The sequence that will be used to get the value.
+    """
+    def __init__(self, seq: Sequence[Any]):
+        self._seq = seq
+
+    def __call__(self, dt: datetime) -> Optional[Decimal]:
+        ret = None
+        if self._seq:
+            ret = self._seq[-1]
+        return Decimal(ret) if ret is not None else ret
+
+
 class TimeSeries:
     def __init__(self):
         self._values = {}
@@ -123,9 +138,9 @@ class PairLineChart(LineChart):
         value = bar_event.bar.close
         # Add the value to the main time series.
         self._ts.add_value(dt, value)
-        # Add the value indicators
-        for extractor, ts in self._indicators.values():
-            indicator_value = extractor(dt)
+        # Add the custom indicator values.
+        for get_data_point, ts in self._indicators.values():
+            indicator_value = get_data_point(dt)
             if indicator_value is not None:
                 ts.add_value(dt, indicator_value)
 
@@ -188,19 +203,32 @@ class PortfolioValueLineChart(LineChart):
         self._ts.add_value(event.when, helpers.round_decimal(portfolio_value, self._precision))
 
 
-class DataPointFromSequence:
-    """Callable that returns the last value of a sequence if its not empty.
+class CustomLineChart(LineChart):
+    def __init__(self, name: str, exchange: Exchange):
+        self._name = name
+        self._exchange = exchange
+        self._data_point_fns: Dict[str, Tuple[ChartDataPointFn, TimeSeries]] = {}
 
-    :param seq: The sequence that will be used to get the value.
-    """
-    def __init__(self, seq: Sequence[Any]):
-        self._seq = seq
+        exchange._get_dispatcher().subscribe_all(self._on_any_event)
 
-    def __call__(self, dt: datetime) -> Optional[Decimal]:
-        ret = None
-        if self._seq:
-            ret = self._seq[-1]
-        return Decimal(ret) if ret is not None else ret
+    def get_title(self) -> str:
+        return self._name
+
+    def add_traces(self, figure: go.Figure, row: int):
+        for name, (_, ts) in self._data_point_fns.items():
+            x, y = ts.get_x_y()
+            figure.add_trace(go.Scatter(x=x, y=y, name=name), row=row, col=1)
+
+    def add_data_point_fn(self, name: str, get_data_point: ChartDataPointFn):
+        assert name not in self._data_point_fns
+        self._data_point_fns[name] = (get_data_point, TimeSeries())
+
+    async def _on_any_event(self, event: event.Event):
+        dt = event.when
+        for get_data_point, ts in self._data_point_fns.values():
+            value = get_data_point(dt)
+            if value is not None:
+                ts.add_value(dt, value)
 
 
 class LineCharts:
@@ -213,16 +241,17 @@ class LineCharts:
         self._balance_charts: Dict[str, AccountBalanceLineChart] = collections.OrderedDict()
         self._pair_charts: Dict[Pair, PairLineChart] = collections.OrderedDict()
         self._portfolio_charts: Dict[str, PortfolioValueLineChart] = collections.OrderedDict()
+        self._custom_charts: Dict[str, CustomLineChart] = collections.OrderedDict()
 
     def add_balance(self, symbol: str):
-        """Includes an account's balance in the chart.
+        """Adds a chart with an account's balance.
 
         :param symbol: The currency symbol.
         """
         self._balance_charts[symbol] = AccountBalanceLineChart(symbol, self._exchange)
 
     def add_portfolio_value(self, symbol: str):
-        """Includes a chart with the portfolio value in a given currency.
+        """Adds a chart with the portfolio value in a given currency.
 
         :param symbol: The currency symbol.
 
@@ -234,7 +263,7 @@ class LineCharts:
         self._portfolio_charts[symbol] = PortfolioValueLineChart(symbol, self._exchange)
 
     def add_pair(self, pair: Pair, include_buys: bool = True, include_sells: bool = True):
-        """Includes a pair in the chart.
+        """Adds a chart with the pair values.
 
         :param pair: The pair.
         :param include_buys: True to include buy prices.
@@ -247,10 +276,22 @@ class LineCharts:
 
         :param name: The name of the indicator.
         :param pair: The pair chart to add the indicator to.
-        :param get_data_point: A callable that will be used to get a data point on each bar.
+        :param get_data_point: A callable that will be used to get the data point on each bar.
         """
         assert pair in self._pair_charts, f"{pair} was not added"
         self._pair_charts[pair].add_indicator(name, get_data_point)
+
+    def add_custom(self, name: str, line: str, get_data_point: ChartDataPointFn):
+        """Adds a custom chart.
+
+        :param name: The name of the chart.
+        :param line: The name of the line.
+        :param get_data_point: A callable that will be used to get the line data points.
+        """
+        if (chart := self._custom_charts.get(name)) is None:
+            chart = CustomLineChart(name, self._exchange)
+            self._custom_charts[name] = chart
+        chart.add_data_point_fn(line, get_data_point)
 
     def show(self, show_legend: bool = True):  # pragma: no cover
         """Shows the chart using either the default renderer(s).
@@ -289,6 +330,7 @@ class LineCharts:
         charts.extend(self._pair_charts.values())
         charts.extend(self._balance_charts.values())
         charts.extend(self._portfolio_charts.values())
+        charts.extend(self._custom_charts.values())
 
         figure = None
         if charts:
