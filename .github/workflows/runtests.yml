@@ -44,7 +44,7 @@ jobs:
         pip install poetry
     - name: Initialize the virtual environment.
       run: |
-        poetry install --no-root
+        poetry install --no-root --all-extras
     - name: Static checks
       run: |
         poetry run -- mypy basana

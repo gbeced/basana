@@ -25,19 +25,19 @@ class Strategy(bs.TradingSignalSource):
         super().__init__(dispatcher)
         self._oversold_level = oversold_level
         self._overbought_level = overbought_level
-        self._rsi = RSI(period=period)
+        self.rsi = RSI(period=period)
 
     async def on_bar_event(self, bar_event: bs.BarEvent):
         # Feed the technical indicator.
-        self._rsi.add_input_value(float(bar_event.bar.close))
+        self.rsi.add_input_value(float(bar_event.bar.close))
 
         # Is the indicator ready ?
-        if len(self._rsi) < 2:
+        if len(self.rsi) < 2:
             return
 
         # RSI crossed below oversold level
-        if self._rsi[-2] >= self._oversold_level and self._rsi[-1] < self._oversold_level:
+        if self.rsi[-2] >= self._oversold_level and self.rsi[-1] < self._oversold_level:
             self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair))
         # RSI crossed above overbought level
-        elif self._rsi[-2] <= self._overbought_level and self._rsi[-1] > self._overbought_level:
+        elif self.rsi[-2] <= self._overbought_level and self.rsi[-1] > self._overbought_level:
             self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair))

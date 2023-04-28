@@ -31,7 +31,7 @@ class FeeStrategy(metaclass=abc.ABCMeta):
 
     def calculate_fees(
             self, order: orders.Order, balance_updates: Dict[str, Decimal]
-    ) -> Dict[str, Decimal]:  # pragma: no cover
+    ) -> Dict[str, Decimal]:
         """TODO."""
         raise NotImplementedError()
 

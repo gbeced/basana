@@ -12,7 +12,7 @@ Basana requires Python 3.8.1 or above and to install the package you can use the
 
 .. code-block:: console
 
-   (.venv) $ pip install basana
+   (.venv) $ pip install basana[charts]
 
 As mentioned before, technical indicators are not included and the examples that follow take advantage of
 `TALIpp <https://github.com/nardew/talipp>`_ that you can install using the following command:
@@ -50,12 +50,12 @@ At a high level this is how this strategy will work:
 
 We'll be using market orders to keep this example short, but you'll probably want to use limit orders when writing your own position managers.
 
-The first thing we'll need in order to execute the backtest is historical data. Use the following command to download minute bars from Binance
-for January 2021:
+The first thing we'll need in order to execute the backtest is historical data. Use the following command to download daily bars from Binance
+for year 2021:
 
 .. code-block:: console
 
-    (.venv) $ python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1m -s 2021-01-01 -e 2021-01-31 > binance_btcusdt_min.csv
+    (.venv) $ python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2021-01-01 -e 2021-12-31 > binance_btcusdt_day.csv
 
 Next, save the following strategy code as *bbands.py*:
 
@@ -74,6 +74,10 @@ and execute the backtest like this:
 .. code-block:: console
 
     (.venv) $ python backtesting_bbands.py
+
+A chart similar to this one should open in a browser:
+
+.. image:: _static/backtesting_bbands.png
 
 .. _quickstart_livetrading:
 

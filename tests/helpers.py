@@ -15,8 +15,10 @@
 # limitations under the License.
 
 import asyncio
+import contextlib
 import json
 import os
+import tempfile
 import time
 
 from basana.core import helpers
@@ -53,3 +55,16 @@ def assert_expected_attrs(object, expected):
     for key, expected_value in expected.items():
         actual_value = getattr(object, key)
         assert actual_value == expected_value, "Mismatch in {}. {} != {}".format(key, actual_value, expected_value)
+
+
+@contextlib.contextmanager
+def temp_file_name(suffix: str = None, delete: bool = True) -> str:
+    # On Windows the name can't used to open the file a second time. That is why we're using this only to generate
+    # the file name.
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp_file:
+        pass
+    try:
+        yield tmp_file.name
+    finally:
+        if delete:
+            os.remove(tmp_file.name)

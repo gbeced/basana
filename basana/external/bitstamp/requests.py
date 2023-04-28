@@ -53,7 +53,7 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
         return self._operation
 
     @abc.abstractmethod
-    async def create_order(self, cli: client.APIClient) -> dict:  # pragma: no cover
+    async def create_order(self, cli: client.APIClient) -> dict:
         raise NotImplementedError()
 
 

@@ -15,13 +15,14 @@
 # limitations under the License.
 
 # Bars can be downloaded using this command:
-# python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1m -s 2021-01-01 -e 2021-01-31 > \
-# binance_btcusdt_min.csv
+# python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2021-01-01 -e 2021-12-31 > \
+# binance_btcusdt_day.csv
 
 from decimal import Decimal
 import asyncio
 import logging
 
+from basana.backtesting import charts
 from basana.external.binance import csv
 import basana as bs
 import basana.backtesting.exchange as backtesting_exchange
@@ -71,7 +72,7 @@ async def main():
     exchange.set_pair_info(pair, bs.PairInfo(8, 2))
 
     # Connect the strategy to the bar events from the exchange.
-    strategy = bbands.Strategy(event_dispatcher, 20, 1.5)
+    strategy = bbands.Strategy(event_dispatcher, 10, 1.5)
     exchange.subscribe_to_bar_events(pair, strategy.on_bar_event)
 
     # Connect the position manager to the strategy signals.
@@ -79,7 +80,15 @@ async def main():
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
 
     # Load bars from CSV files.
-    exchange.add_bar_source(csv.BarSource(pair, "binance_btcusdt_min.csv", "1m"))
+    exchange.add_bar_source(csv.BarSource(pair, "binance_btcusdt_day.csv", "1d"))
+
+    # Setup chart.
+    chart = charts.LineCharts(exchange)
+    chart.add_pair(pair)
+    chart.add_pair_indicator("Upper", pair, lambda _: strategy.bb[-1].ub if len(strategy.bb) else None)
+    chart.add_pair_indicator("Central", pair, lambda _: strategy.bb[-1].cb if len(strategy.bb) else None)
+    chart.add_pair_indicator("Lower", pair, lambda _: strategy.bb[-1].lb if len(strategy.bb) else None)
+    chart.add_portfolio_value("USDT")
 
     # Run the backtest.
     await event_dispatcher.run()
@@ -88,6 +97,8 @@ async def main():
     balances = await exchange.get_balances()
     for currency, balance in balances.items():
         logging.info("%s balance: %s", currency, balance.available)
+
+    chart.show()
 
 
 if __name__ == "__main__":

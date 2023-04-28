@@ -21,7 +21,7 @@
 The examples use [TALIpp](https://github.com/nardew/talipp) for the technical indicators, so we need to install talipp as well.
 
 ```
-$ pip install basana talipp
+$ pip install basana[charts] talipp
 ```
 
 ### Download historical data for backtesting
@@ -39,6 +39,7 @@ import logging
 
 from talipp.indicators import SMA
 
+from basana.backtesting import charts
 from basana.external.binance import csv
 import basana as bs
 import basana.backtesting.exchange as backtesting_exchange
@@ -48,26 +49,26 @@ import basana.backtesting.exchange as backtesting_exchange
 class SMA_Strategy(bs.TradingSignalSource):
     def __init__(self, dispatcher: bs.EventDispatcher, period: int):
         super().__init__(dispatcher)
-        self._sma = SMA(period)
+        self.sma = SMA(period)
         self._values = (None, None)
 
     async def on_bar_event(self, bar_event: bs.BarEvent):
         # Feed the technical indicator.
         value = float(bar_event.bar.close)
-        self._sma.add_input_value(value)
+        self.sma.add_input_value(value)
 
         # Keep a small window of values to check if there is a crossover.
         self._values = (self._values[-1], value)
 
         # Is the indicator ready ?
-        if len(self._sma) < 2:
+        if len(self.sma) < 2:
             return
 
         # Price crossed below SMA ?
-        if self._values[-2] >= self._sma[-2] and self._values[-1] < self._sma[-1]:
+        if self._values[-2] >= self.sma[-2] and self._values[-1] < self.sma[-1]:
             self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair))
         # Price crossed above SMA ?
-        elif self._values[-2] <= self._sma[-2] and self._values[-1] > self._sma[-1]:
+        elif self._values[-2] <= self.sma[-2] and self._values[-1] > self.sma[-1]:
             self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair))
 
 
@@ -125,6 +126,12 @@ async def main():
     # Load bars from CSV files.
     exchange.add_bar_source(csv.BarSource(pair, "binance_btcusdt_day.csv", "1d"))
 
+    # Setup the chart.
+    chart = charts.LineCharts(exchange)
+    chart.add_pair(pair)
+    chart.add_pair_indicator("SMA", pair, charts.DataPointFromSequence(strategy.sma))
+    chart.add_portfolio_value("USDT")
+
     # Run the backtest.
     await event_dispatcher.run()
 
@@ -133,10 +140,13 @@ async def main():
     for currency, balance in balances.items():
         logging.info("%s balance: %s", currency, balance.available)
 
+    chart.show()
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
+
+![./docs/_static/readme_sma.png](./docs/_static/readme_sma.png)
 
 The Basana repository comes with a number of [examples](./samples) you can experiment with or use as a template for your own projects.
 Note that these are provided for educational purposes only. Use at your own risk.

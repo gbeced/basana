@@ -34,18 +34,18 @@ class LiquidityStrategy(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def on_bar(self, bar: bar.Bar):  # pragma: no cover
+    def on_bar(self, bar: bar.Bar):
         """Called when a new bar is available."""
         raise NotImplementedError()
 
     @property
     @abc.abstractmethod
-    def available_liquidity(self) -> Decimal:  # pragma: no cover
+    def available_liquidity(self) -> Decimal:
         """Returns the available liquidity."""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def take_liquidity(self, amount: Decimal) -> Decimal:  # pragma: no cover
+    def take_liquidity(self, amount: Decimal) -> Decimal:
         """Takes/consumes available liquidity.
 
         :param amount: The amount of liquidity to take. It must be <= available liquidity.
@@ -54,12 +54,12 @@ class LiquidityStrategy(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def calculate_price_impact(self, amount: Decimal) -> Decimal:  # pragma: no cover
+    def calculate_price_impact(self, amount: Decimal) -> Decimal:
         """A read-only version of :meth:`take_liquidity`."""
         raise NotImplementedError()
 
     @abc.abstractmethod
-    def calculate_amount(self, price_impact: Decimal) -> Decimal:  # pragma: no cover
+    def calculate_amount(self, price_impact: Decimal) -> Decimal:
         """Returns the amount of liquidity that can be taken with an impact <= price_impact."""
         raise NotImplementedError()
 

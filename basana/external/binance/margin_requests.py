@@ -35,7 +35,7 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
         self._kwargs = kwargs
 
     @abc.abstractmethod
-    async def create_order(self, margin_account_cli) -> dict:  # pragma: no cover
+    async def create_order(self, margin_account_cli) -> dict:
         raise NotImplementedError()
 
 

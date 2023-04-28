@@ -16,8 +16,8 @@
 
 from decimal import Decimal
 
-from basana.core import pair
 from basana.backtesting import account_balances, orders
+from basana.core import dt, pair
 
 
 def test_order_gets_completed():
@@ -113,13 +113,13 @@ def test_symbols():
     balances.order_accepted(order, {"USD": Decimal("2100")})
     assert balances.get_symbols() == ["USD"]
 
-    order.add_fill({"BTC": Decimal("0.05"), "USD": Decimal("-5000")}, {})
+    order.add_fill(dt.utc_now(), {"BTC": Decimal("0.05"), "USD": Decimal("-5000")}, {})
     balances.order_updated(order, {"BTC": Decimal("0.05"), "USD": Decimal("-5000")})
     symbols = balances.get_symbols()
     symbols.sort()
     assert symbols == ["BTC", "USD"]
 
-    order.add_fill({"BTC": Decimal("0.05"), "USD": Decimal("-5000")}, {})
+    order.add_fill(dt.utc_now(), {"BTC": Decimal("0.05"), "USD": Decimal("-5000")}, {})
     balances.order_updated(order, {"BTC": Decimal("0.05"), "USD": Decimal("-5000")})
     symbols = balances.get_symbols()
     symbols.sort()

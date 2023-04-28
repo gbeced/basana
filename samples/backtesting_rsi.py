@@ -15,13 +15,14 @@
 # limitations under the License.
 
 # Bars can be downloaded using this command:
-# python -m basana.external.bitstamp.tools.download_bars -c BTC/USD -p 1m -s 2021-01-01 -e 2021-01-31 > \
-# bitstamp_btcusd_min.csv
+# python -m basana.external.bitstamp.tools.download_bars -c BTC/USD -p 1d -s 2021-01-01 -e 2021-12-31 > \
+# bitstamp_btcusd_day.csv
 
 from decimal import Decimal
 import asyncio
 import logging
 
+from basana.backtesting import charts
 from basana.external.bitstamp import csv
 import basana as bs
 import basana.backtesting.exchange as backtesting_exchange
@@ -96,7 +97,9 @@ async def main():
     exchange.set_pair_info(pair, bs.PairInfo(8, 2))
 
     # Connect the strategy to the bar events from the exchange.
-    strategy = rsi.Strategy(event_dispatcher, 20, 30, 70)
+    oversold_level = 30
+    overbought_level = 70
+    strategy = rsi.Strategy(event_dispatcher, 20, oversold_level, overbought_level)
     exchange.subscribe_to_bar_events(pair, strategy.on_bar_event)
 
     # Connect the position manager to the strategy signals.
@@ -104,7 +107,15 @@ async def main():
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
 
     # Load bars from CSV files.
-    exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_min.csv", "1m"))
+    exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_day.csv", "1d"))
+
+    # Setup chart.
+    chart = charts.LineCharts(exchange)
+    chart.add_pair(pair)
+    chart.add_portfolio_value("USD")
+    chart.add_custom("RSI", "RSI", charts.DataPointFromSequence(strategy.rsi))
+    chart.add_custom("RSI", "Overbought", lambda _: overbought_level)
+    chart.add_custom("RSI", "Oversold", lambda _: oversold_level)
 
     # Run the backtest.
     await event_dispatcher.run()
@@ -113,6 +124,8 @@ async def main():
     balances = await exchange.get_balances()
     for currency, balance in balances.items():
         logging.info("%s balance: %s", currency, balance.available)
+
+    chart.show()
 
 
 if __name__ == "__main__":

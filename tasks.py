@@ -32,8 +32,11 @@ def test(c, html_report=False):
 
 
 @task
-def create_virtualenv(c):
-    c.run("poetry install", pty=True)
+def create_virtualenv(c, all_extras=True):
+    cmd = ["poetry", "install"]
+    if all_extras:
+        cmd.append("--all-extras")
+    c.run(" ".join(cmd), pty=True)
 
 
 @task

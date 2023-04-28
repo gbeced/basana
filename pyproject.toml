@@ -13,6 +13,12 @@ packages = [{include = "basana"}]
 python = "^3.8.1"
 aiohttp = {extras = ["speedups"], version = "^3.8.4"}
 python-dateutil = "^2.8.2"
+# Optional dependencies, some of which are included in the below `extras`. They can be opted into by apps.
+plotly = {version = "^5.14.1", optional = true}
+kaleido = {version = "0.2.1", optional = true}
+
+[tool.poetry.extras]
+charts = ["plotly", "kaleido"]
 
 [tool.poetry.group.dev.dependencies]
 aioresponses = "^0.7.4"

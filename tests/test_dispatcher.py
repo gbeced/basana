@@ -174,3 +174,70 @@ def test_out_of_order_events_are_skipped():
         assert len(events) == 2
 
     asyncio.run(asyncio.wait_for(test_main(), 2))
+
+
+def test_duplicate_subscription_is_ignored():
+    d = dispatcher.backtesting_dispatcher()
+    events = []
+
+    async def save_events(event):
+        events.append(event)
+
+    async def test_main():
+        src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
+        d.subscribe(src, save_events)
+        d.subscribe(src, save_events)
+
+        await d.run()
+
+        assert len(events) == 1
+
+    asyncio.run(test_main())
+
+
+def test_subscription_order_per_source():
+    d = dispatcher.backtesting_dispatcher()
+    priorities = []
+
+    async def test_main():
+        src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
+
+        handler_count = 100
+        for i in range(handler_count):
+            async def handler(e, i=i):
+                priorities.append(i)
+            d.subscribe(src, handler)
+
+        await d.run()
+
+        assert len(priorities) == handler_count
+        assert priorities == list(range(handler_count))
+
+    asyncio.run(test_main())
+
+
+def test_sniffers():
+    d = dispatcher.backtesting_dispatcher()
+    events = []
+    sniffed_events = []
+
+    async def save_event(event):
+        events.append(event)
+
+    async def save_sniffed_event(event):
+        sniffed_events.append(event)
+
+    async def test_main():
+        src_count = 10
+
+        d.subscribe_all(save_sniffed_event)
+        for _ in range(src_count):
+            src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
+            d.subscribe(src, save_event)
+
+        await d.run()
+
+        assert len(events) == src_count
+        assert len(sniffed_events) == src_count
+
+    asyncio.run(test_main())
