@@ -29,6 +29,7 @@ Contents
 
    quickstart
    api
+   help
 
 Indices and tables
 ------------------

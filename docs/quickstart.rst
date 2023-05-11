@@ -106,5 +106,7 @@ Next, start live trading using the following command:
 Next steps
 ----------
 
-The examples presented here, and many others, can be found at the `examples folder <https://github.com/gbeced/basana/tree/master/samples>`_.
+The examples presented here, and many others, can be found at the 
+`examples folder <https://github.com/gbeced/basana/tree/master/samples>`_ at 
+`GitHub <https://github.com/gbeced/basana/>`_.
 
