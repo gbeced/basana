@@ -191,6 +191,9 @@ class PortfolioValueLineChart(LineChart):
         portfolio_value = Decimal(0)
         balances = await self._exchange.get_balances()
         for symbol, balance in balances.items():
+            if balance.total == 0:
+                continue
+
             rate: Optional[Decimal] = Decimal(1)
             if symbol != self._symbol:
                 rate, _ = await self._exchange.get_bid_ask(Pair(symbol, self._symbol))

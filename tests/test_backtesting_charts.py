@@ -44,6 +44,7 @@ def test_save_line_chart(order_plan, backtesting_dispatcher, caplog):
         backtesting_dispatcher,
         {
             "USD": Decimal("1e6"),
+            "BTC": Decimal("0"),
         },
     )
     pair = Pair("ORCL", "USD")
