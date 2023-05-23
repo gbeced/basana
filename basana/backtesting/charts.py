@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
