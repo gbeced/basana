@@ -18,7 +18,7 @@ from decimal import Decimal
 from typing import Dict, List
 import copy
 
-from basana.backtesting import orders
+from basana.backtesting import lending, orders
 from basana.backtesting.helpers import add_amounts
 
 
@@ -28,6 +28,7 @@ class AccountBalances:
         # Balances that are reserved to be used as the order gets filled.
         self._holds_by_symbol: Dict[str, Decimal] = {}
         self._holds_by_order: Dict[str, Dict[str, Decimal]] = {}
+        self._loans_by_symbol: Dict[str, List[lending.Loan]] = {}
 
     def get_symbols(self) -> List[str]:
         symbols = set(self._balances.keys())
@@ -39,6 +40,10 @@ class AccountBalances:
 
     def get_balance_on_hold(self, symbol: str) -> Decimal:
         return self._holds_by_symbol.get(symbol, Decimal(0))
+
+    def get_borrowed_balance(self, symbol: str) -> Decimal:
+        loan_amounts = map(lambda loan: loan.amount, self._loans_by_symbol.get(symbol, []))
+        return Decimal(sum(loan_amounts))
 
     def get_balance_on_hold_for_order(self, order_id: str, symbol: str) -> Decimal:
         return self._holds_by_order.get(order_id, {}).get(symbol, Decimal(0))
@@ -77,6 +82,18 @@ class AccountBalances:
 
         # Update holds for the symbol.
         self._holds_by_symbol = add_amounts(self._holds_by_symbol, hold_updates)
+
+    def loan_accepted(self, loan: lending.Loan):
+        loans = self._loans_by_symbol.setdefault(loan.symbol, [])
+        assert loan not in loans
+        self._balances = add_amounts(self._balances, {loan.symbol: loan.amount})
+        loans.append(loan)
+
+    def loan_updated(self, loan: lending.Loan):
+        loans = self._loans_by_symbol.setdefault(loan.symbol, [])
+        assert loan in loans
+        self._balances = add_amounts(self._balances, {loan.symbol: -loan.amount})
+        loans.remove(loan)
 
 
 def get_hold_symbol(order: orders.Order):

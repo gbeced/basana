@@ -22,7 +22,7 @@ import decimal
 import logging
 import uuid
 
-from basana.backtesting import account_balances, errors, fees, liquidity, orders, requests
+from basana.backtesting import account_balances, errors, fees, lending, liquidity, orders, requests
 from basana.backtesting import helpers as bt_helpers
 from basana.core import bar, dispatcher, enums, event, logs
 from basana.core import helpers as core_helpers
@@ -34,6 +34,7 @@ logger = logging.getLogger(__name__)
 BarEventHandler = Callable[[bar.BarEvent], Awaitable[Any]]
 Error = errors.Error
 LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
+Loan = lending.Loan
 OrderInfo = orders.OrderInfo
 OrderOperation = enums.OrderOperation
 
@@ -143,20 +144,22 @@ class Exchange:
             liquidity_strategy_factory: LiquidityStrategyFactory = liquidity.VolumeShareImpact,
             fee_strategy: fees.FeeStrategy = fees.NoFee(),
             default_pair_info: PairInfo = PairInfo(base_precision=0, quote_precision=2),
-            bid_ask_spread: Decimal = Decimal("0.5")
+            bid_ask_spread: Decimal = Decimal("0.5"),
+            lending_strategy: lending.LendingStrategy = lending.NoLoans()
     ):
         self._dispatcher = dispatcher
         self._balances = account_balances.AccountBalances(initial_balances)
         self._liquidity_strategy_factory = liquidity_strategy_factory
         self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
         self._fee_strategy = fee_strategy
+        self._lending_strategy = lending_strategy
         self._orders = OrderIndex()
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
         self._pairs_info: Dict[Pair, PairInfo] = {}
         self._default_pair_info = default_pair_info
         self._last_bars: Dict[Pair, bar.Bar] = {}
         self._bid_ask_spread = bid_ask_spread
-        self._skip_balance_check = False
+        self._loans: Dict[str, Loan] = {}
 
     async def get_balance(self, symbol: str) -> Balance:
         """Returns the balance for a specific currency/symbol/etc..
@@ -370,6 +373,33 @@ class Exchange:
         """
         self._pairs_info[pair] = pair_info
 
+    async def can_lend(self, symbol: str, amount: Decimal) -> bool:
+        return self._lending_strategy.can_lend(symbol, amount)
+
+    async def create_loan(self, symbol: str, amount: Decimal) -> Loan:
+        # Create and save the loan.
+        loan = self._lending_strategy.create_loan(symbol, amount)
+        self._loans[loan.id] = loan
+        # Update balances.
+        self._balances.loan_accepted(loan)
+        return loan
+
+    async def get_loans(self) -> List[Loan]:
+        return list(self._loans.values())
+
+    async def repay_loan(self, loan_id: str):
+        loan = self._loans.get(loan_id)
+        if not loan:
+            raise Error("Loan not found")
+
+        # Check balances.
+        required_balances = {loan.symbol: loan.amount}
+        self._check_available_balance(required_balances)
+        # Update balances.
+        self._balances.loan_updated(loan)
+        # Delete loan from self._loans_by_symbol
+        del self._loans[loan_id]
+
     def _get_pair_info(self, pair: Pair) -> PairInfo:
         ret = self._pairs_info.get(pair)
         if ret is None:
@@ -572,6 +602,7 @@ class Exchange:
     def _get_balance(self, symbol: str) -> Balance:
         available = self._balances.get_available_balance(symbol)
         hold = self._balances.get_balance_on_hold(symbol)
+        borrowed = self._balances.get_borrowed_balance(symbol)
         return Balance(
-            available=max(Decimal(0), available), hold=hold, borrowed=max(Decimal(0), -available), interest=Decimal(0)
+            available=available, hold=hold, borrowed=borrowed, interest=Decimal(0)
         )

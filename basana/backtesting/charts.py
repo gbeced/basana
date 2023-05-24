@@ -161,7 +161,7 @@ class AccountBalanceLineChart(LineChart):
 
     async def _on_any_event(self, event: event.Event):
         balance = await self._exchange.get_balance(self._symbol)
-        self._ts.add_value(event.when, balance.total)
+        self._ts.add_value(event.when, balance.total - balance.borrowed)
 
 
 class PortfolioValueLineChart(LineChart):
@@ -187,7 +187,8 @@ class PortfolioValueLineChart(LineChart):
         portfolio_value = Decimal(0)
         balances = await self._exchange.get_balances()
         for symbol, balance in balances.items():
-            if balance.total == 0:
+            net_balance = balance.total - balance.borrowed
+            if net_balance == 0:
                 continue
 
             rate: Optional[Decimal] = Decimal(1)
@@ -195,7 +196,7 @@ class PortfolioValueLineChart(LineChart):
                 rate, _ = await self._exchange.get_bid_ask(Pair(symbol, self._symbol))
 
             if rate:
-                portfolio_value += rate * balance.total
+                portfolio_value += rate * net_balance
             else:
                 logger.error(logs.StructuredMessage("Price missing", pair=Pair(symbol, self._symbol)))
 
