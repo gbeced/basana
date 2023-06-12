@@ -114,11 +114,12 @@ class APIClient:
         return await self._make_request("GET", f"/api/v2/ticker/{currency_pair}/", False)
 
     async def get_ohlc_data(
-            self, currency_pair: str, step: int, limit: int, start: Optional[int] = None, end: Optional[int] = None
+            self, currency_pair: str, step: int, limit: int, start: Optional[int] = None, end: Optional[int] = None,
+            exclude_current_candle: bool = False
     ) -> dict:
         assert start is None or end is None, "both start and end should not be set"
 
-        params = {
+        params: Dict[str, Any] = {
             "step": step,
             "limit": limit,
         }
@@ -126,6 +127,8 @@ class APIClient:
             params["start"] = start
         if end:
             params["end"] = end
+        if exclude_current_candle:
+            params["exclude_current_candle"] = "true"
         return await self._make_request("GET", f"/api/v2/ohlc/{currency_pair}/", False, qs_params=params)
 
     async def get_websocket_auth_token(self) -> dict:

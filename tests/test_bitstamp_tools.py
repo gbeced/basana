@@ -15,6 +15,7 @@
 # limitations under the License.
 
 import asyncio
+import re
 
 import aioresponses
 import pytest
@@ -25,7 +26,7 @@ from basana.external.bitstamp.tools import download_bars
 @pytest.fixture()
 def bitstamp_http_api_mock():
     with aioresponses.aioresponses() as m:
-        m.get("http://bitstamp.mock/api/v2/ohlc/btcusd/?limit=1000&start=1451606400&step=86400", status=200, payload={
+        m.get(re.compile(r'http://bitstamp.mock/api/v2/ohlc/btcusd/.*'), status=200, payload={
             "data": {
                 "ohlc": [
                     {

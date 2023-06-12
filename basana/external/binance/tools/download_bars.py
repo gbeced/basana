@@ -21,7 +21,7 @@ import datetime
 import aiohttp
 import asyncio
 
-from basana.core import token_bucket
+from basana.core import dt, token_bucket
 from basana.external.binance import client, helpers
 
 
@@ -59,6 +59,7 @@ class Candlestick:
         self.low = candlestick[3]
         self.close = candlestick[4]
         self.volume = candlestick[5]
+        self.close_timestamp = candlestick[6]
 
 
 def to_binance_currency_pair(currency_pair: str):
@@ -106,6 +107,7 @@ async def main(params: Optional[List[str]] = None, config_overrides: dict = {}):
     step = step * 1000
 
     tb = token_bucket.TokenBucketLimiter(10, 1)
+    now_ts = helpers.datetime_to_timestamp(dt.utc_now())
     writer = CSVWriter()
     async with aiohttp.ClientSession() as session:
         cli = client.APIClient(session=session, tb=tb, config_overrides=config_overrides)
@@ -120,7 +122,7 @@ async def main(params: Optional[List[str]] = None, config_overrides: dict = {}):
                 eof = False
                 candlestick = Candlestick(candlestick)
                 start_ts = max(start_ts, candlestick.open_timestamp)
-                if candlestick.open_timestamp >= past_the_end_ts:
+                if candlestick.open_timestamp >= past_the_end_ts or candlestick.close_timestamp >= now_ts:
                     continue
                 writer.write_candlestick(candlestick)
             if not eof:

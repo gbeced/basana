@@ -110,7 +110,7 @@ async def main(params: Optional[List[str]] = None, config_overrides: dict = {}):
         eof = False
         currency_pair = to_bitstamp_currency_pair(args.currency_pair)
         while not eof:
-            response = await cli.get_ohlc_data(currency_pair, step, 1000, start=start_ts)
+            response = await cli.get_ohlc_data(currency_pair, step, 1000, start=start_ts, exclude_current_candle=True)
             eof = True
             for ohlc in response["data"]["ohlc"]:
                 eof = False
