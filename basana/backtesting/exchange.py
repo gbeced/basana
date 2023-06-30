@@ -377,6 +377,9 @@ class Exchange:
         return self._lending_strategy.can_lend(symbol, amount)
 
     async def create_loan(self, symbol: str, amount: Decimal) -> Loan:
+        if amount <= 0:
+            raise Error("Invalid amount")
+
         # Create and save the loan.
         loan = self._lending_strategy.create_loan(symbol, amount)
         self._loans[loan.id] = loan
