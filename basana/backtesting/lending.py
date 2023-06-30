@@ -16,16 +16,20 @@
 
 from decimal import Decimal
 import abc
+import dataclasses
 import uuid
 
 
+@dataclasses.dataclass
 class Loan:
-    def __init__(self, id: str, symbol: str, amount: Decimal):
-        assert amount > Decimal(0)
-
-        self.id = id
-        self.symbol = symbol
-        self.amount = amount
+    #: The loan id.
+    id: str
+    #: The symbol being borrowed.
+    symbol: str
+    #: The loan amount.
+    amount: Decimal
+    #: True if the loan is open, False otherwise.
+    is_open: bool
 
 
 class LendingStrategy(metaclass=abc.ABCMeta):
@@ -62,4 +66,4 @@ class UnlimitedLoans(LendingStrategy):
         return True
 
     def create_loan(self, symbol: str, amount: Decimal) -> Loan:
-        return Loan(uuid.uuid4().hex, symbol, amount)
+        return Loan(id=uuid.uuid4().hex, symbol=symbol, amount=amount, is_open=True)

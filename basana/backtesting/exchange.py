@@ -156,13 +156,13 @@ class Exchange:
         self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
         self._fee_strategy = fee_strategy
         self._lending_strategy = lending_strategy
-        self._orders = IndexImpl[orders.Order](lambda o: o.id, lambda o: o.is_open)
+        self._orders = IndexImpl[orders.Order](lambda order: order.id, lambda order: order.is_open)
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
         self._pairs_info: Dict[Pair, PairInfo] = {}
         self._default_pair_info = default_pair_info
         self._last_bars: Dict[Pair, bar.Bar] = {}
         self._bid_ask_spread = bid_ask_spread
-        self._loans: Dict[str, Loan] = {}
+        self._loans = IndexImpl[Loan](lambda loan: loan.id, lambda loan: loan.is_open)
 
     async def get_balance(self, symbol: str) -> Balance:
         """Returns the balance for a specific currency/symbol/etc..
@@ -385,26 +385,31 @@ class Exchange:
 
         # Create and save the loan.
         loan = self._lending_strategy.create_loan(symbol, amount)
-        self._loans[loan.id] = loan
+        self._loans.add(loan)
         # Update balances.
         self._balances.loan_accepted(loan)
         return loan
 
-    async def get_loans(self) -> List[Loan]:
-        return list(self._loans.values())
+    async def get_open_loans(self) -> List[Loan]:
+        return list(self._loans.get_open())
+
+    async def get_loan(self, id: str) -> Optional[Loan]:
+        return self._loans.get(id)
 
     async def repay_loan(self, loan_id: str):
         loan = self._loans.get(loan_id)
         if not loan:
             raise Error("Loan not found")
+        if not loan.is_open:
+            raise Error("Loan is not open")
 
         # Check balances.
         required_balances = {loan.symbol: loan.amount}
         self._check_available_balance(required_balances)
         # Update balances.
         self._balances.loan_updated(loan)
-        # Delete loan from self._loans_by_symbol
-        del self._loans[loan_id]
+        # Close the loan.
+        loan.is_open = False
 
     def _get_pair_info(self, pair: Pair) -> PairInfo:
         ret = self._pairs_info.get(pair)

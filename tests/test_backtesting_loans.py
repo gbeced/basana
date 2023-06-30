@@ -37,8 +37,7 @@ def test_no_loans(backtesting_dispatcher):
 
 def test_unlimited_loans(backtesting_dispatcher):
     async def impl():
-        e = exchange.Exchange(backtesting_dispatcher, {})
-        e._lending_strategy = lending.UnlimitedLoans()
+        e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending.UnlimitedLoans())
 
         symbol = "USD"
         amount = Decimal(10000)
@@ -49,7 +48,7 @@ def test_unlimited_loans(backtesting_dispatcher):
         assert balance.borrowed == 0
         assert balance.total == 0
 
-        loans = await e.get_loans()
+        loans = await e.get_open_loans()
         assert loans == []
 
         loan = await e.create_loan(symbol, amount)
@@ -59,11 +58,13 @@ def test_unlimited_loans(backtesting_dispatcher):
         assert balance.borrowed == amount
         assert balance.total == amount
 
-        loans = await e.get_loans()
+        loans = await e.get_open_loans()
         assert loans == [loan]
 
+        assert await e.get_loan(loan.id) == loan
+
         await e.repay_loan(loan.id)
-        with pytest.raises(Exception, match="Loan not found"):
+        with pytest.raises(Exception, match="Loan is not open"):
             await e.repay_loan(loan.id)
 
         balance = await e.get_balance(symbol)
@@ -71,16 +72,25 @@ def test_unlimited_loans(backtesting_dispatcher):
         assert balance.borrowed == 0
         assert balance.total == 0
 
-        loans = await e.get_loans()
+        loans = await e.get_open_loans()
         assert loans == []
 
     asyncio.run(impl())
 
 
-def test_invalid_loan_amount(backtesting_dispatcher):
+def test_repay_inexistent(backtesting_dispatcher):
     async def impl():
-        e = exchange.Exchange(backtesting_dispatcher, {})
-        e._lending_strategy = lending.UnlimitedLoans()
+        e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending.UnlimitedLoans())
+
+        with pytest.raises(Exception, match="Loan not found"):
+            await e.repay_loan("inexistent")
+
+    asyncio.run(impl())
+
+
+def test_invalid_amount(backtesting_dispatcher):
+    async def impl():
+        e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending.UnlimitedLoans())
 
         with pytest.raises(Exception, match="Invalid amount"):
             await e.create_loan("USD", Decimal(-10000))
