@@ -15,7 +15,8 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Any, Awaitable, Callable, Dict, Generator, List, Optional, Sequence, Tuple
+from typing import cast, Any, Awaitable, Callable, Dict, Generator, Generic, Iterable, List, Optional, Sequence, \
+    Tuple, TypeVar
 import copy
 import dataclasses
 import decimal
@@ -37,6 +38,7 @@ LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
 Loan = lending.Loan
 OrderInfo = orders.OrderInfo
 OrderOperation = enums.OrderOperation
+T = TypeVar("T")
 
 
 def assert_has_value(balance_updates: Dict[str, Decimal], symbol: str, sign: Decimal):
@@ -46,40 +48,41 @@ def assert_has_value(balance_updates: Dict[str, Decimal], symbol: str, sign: Dec
     assert bt_helpers.get_sign(value) == sign, f"{symbol} sign is wrong. It should be {sign}"
 
 
-class OrderIndex:
-    def __init__(self):
-        self._orders = {}
-        self._open_orders = []
+class IndexImpl(Generic[T]):
+    def __init__(self, id_fun: Callable[[T], str], is_open_fun: Callable[[T], bool]):
+        self._id_fun = id_fun
+        self._is_open_fun = is_open_fun
+        self._items: Dict[str, T] = {}  # Items by id.
+        self._open_items: List[T] = []
         self._reindex_every = 50
         self._reindex_counter = 0
 
-    def add_order(self, order: orders.Order):
-        assert order.id not in self._orders
+    def add(self, item: T):
+        assert self._id_fun(item) not in self._items
+        self._items[self._id_fun(item)] = item
+        if self._is_open_fun(item):
+            self._open_items.append(item)
 
-        self._orders[order.id] = order
-        if order.is_open:
-            self._open_orders.append(order)
+    def get(self, id: str) -> Optional[T]:
+        return self._items.get(id)
 
-    def get_order(self, id: str) -> Optional[orders.Order]:
-        return self._orders.get(id)
-
-    def get_open_orders(self) -> Generator[orders.Order, None, None]:
+    def get_open(self) -> Generator[T, None, None]:
         self._reindex_counter += 1
-        new_open_orders: Optional[List[orders.Order]] = None
+        new_open_items: Optional[List[T]] = None
         if self._reindex_counter % self._reindex_every == 0:
-            new_open_orders = []
+            new_open_items = []
 
-        for order in self._open_orders:
-            if order.is_open:
-                yield order
-                if new_open_orders is not None and order.is_open:
-                    new_open_orders.append(order)
+        for item in self._open_items:
+            if self._is_open_fun(item):
+                yield item
+                if new_open_items is not None and self._is_open_fun(item):
+                    new_open_items.append(item)
 
-        if new_open_orders is not None:
-            self._open_orders = new_open_orders
+        if new_open_items is not None:
+            self._open_items = new_open_items
 
-    def get_all_orders(self) -> Sequence[orders.Order]:
-        return self._orders.values()
+    def get_all(self) -> Iterable[T]:
+        return self._items.values()
 
 
 @dataclasses.dataclass
@@ -153,7 +156,7 @@ class Exchange:
         self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
         self._fee_strategy = fee_strategy
         self._lending_strategy = lending_strategy
-        self._orders = OrderIndex()
+        self._orders = IndexImpl[orders.Order](lambda o: o.id, lambda o: o.is_open)
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
         self._pairs_info: Dict[Pair, PairInfo] = {}
         self._default_pair_info = default_pair_info
@@ -206,7 +209,7 @@ class Exchange:
 
         # Create and accept the order.
         order = order_request.create_order(uuid.uuid4().hex)
-        self._orders.add_order(order)
+        self._orders.add(order)
         logger.debug(logs.StructuredMessage("Request accepted", order_id=order.id))
 
         # Update/hold balances.
@@ -297,7 +300,7 @@ class Exchange:
 
         :param order_id: The order id.
         """
-        order = self._orders.get_order(order_id)
+        order = self._orders.get(order_id)
         if order is None:
             raise Error("Order not found")
         if not order.is_open:
@@ -314,7 +317,7 @@ class Exchange:
 
         :param order_id: The order id.
         """
-        order = self._orders.get_order(order_id)
+        order = self._orders.get(order_id)
         if not order:
             raise Error("Order not found")
         return order.get_order_info()
@@ -332,7 +335,7 @@ class Exchange:
                 amount=order.amount,
                 amount_filled=order.amount_filled
             )
-            for order in self._orders.get_open_orders()
+            for order in self._orders.get_open()
             if pair is None or order.pair == pair
         ]
 
@@ -510,7 +513,7 @@ class Exchange:
         if (liquidity_strategy := self._liquidity_strategies.get(bar_event.bar.pair)) is None:
             liquidity_strategy = self._liquidity_strategy_factory()
         liquidity_strategy.on_bar(bar_event.bar)
-        for order in filter(lambda o: o.pair == bar_event.bar.pair, self._orders.get_open_orders()):
+        for order in filter(lambda o: o.pair == bar_event.bar.pair, self._orders.get_open()):
             self._process_order(order, bar_event, liquidity_strategy)
 
     async def _on_bar_event(self, event: event.Event):
@@ -597,7 +600,7 @@ class Exchange:
         return {symbol: -amount for symbol, amount in estimated_balance_updates.items() if amount < Decimal(0)}
 
     def _get_all_orders(self) -> Sequence[orders.Order]:
-        return self._orders.get_all_orders()
+        return list(self._orders.get_all())
 
     def _get_dispatcher(self) -> dispatcher.EventDispatcher:
         return self._dispatcher

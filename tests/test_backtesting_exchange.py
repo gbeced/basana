@@ -57,21 +57,22 @@ def test_account_balances(backtesting_dispatcher):
 
 
 def test_order_index():
-    idx = exchange.OrderIndex()
+    idx = exchange.IndexImpl[orders.Order](lambda o: o.id, lambda o: o.is_open)
+
     for i in range(1, 3):
-        idx.add_order(
+        idx.add(
             orders.MarketOrder(
                 str(i), orders.OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), orders.OrderState.OPEN
             )
         )
-    assert "1" in [o.id for o in idx.get_open_orders()]
-    idx.get_order("1").cancel()
-    assert "1" not in [o.id for o in idx.get_open_orders()]
-    assert "2" in [o.id for o in idx.get_open_orders()]
-    assert len(idx._open_orders) == 2
+    assert "1" in [o.id for o in idx.get_open()]
+    idx.get("1").cancel()
+    assert "1" not in [o.id for o in idx.get_open()]
+    assert "2" in [o.id for o in idx.get_open()]
+    assert len(idx._open_items) == 2
     for _ in range(50 - 2):
-        assert "2" in [o.id for o in idx.get_open_orders()]
-    assert len(idx._open_orders) == 1
+        assert "2" in [o.id for o in idx.get_open()]
+    assert len(idx._open_items) == 1
 
 
 def test_create_get_and_cancel_order(backtesting_dispatcher):
