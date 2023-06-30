@@ -75,3 +75,14 @@ def test_unlimited_loans(backtesting_dispatcher):
         assert loans == []
 
     asyncio.run(impl())
+
+
+def test_invalid_loan_amount(backtesting_dispatcher):
+    async def impl():
+        e = exchange.Exchange(backtesting_dispatcher, {})
+        e._lending_strategy = lending.UnlimitedLoans()
+
+        with pytest.raises(Exception, match="Invalid amount"):
+            await e.create_loan("USD", Decimal(-10000))
+
+    asyncio.run(impl())
