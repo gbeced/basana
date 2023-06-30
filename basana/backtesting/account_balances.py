@@ -84,6 +84,7 @@ class AccountBalances:
         self._holds_by_symbol = add_amounts(self._holds_by_symbol, hold_updates)
 
     def loan_accepted(self, loan: lending.Loan):
+        assert loan.is_open, "The loan is not open"
         loans = self._loans_by_symbol.setdefault(loan.symbol, [])
         assert loan not in loans
         self._balances = add_amounts(self._balances, {loan.symbol: loan.amount})
