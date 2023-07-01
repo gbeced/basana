@@ -150,7 +150,7 @@ class APIClient:
     async def get_candlestick_data(
             self, symbol: str, interval: str, start_time: Optional[int] = None, end_time: Optional[int] = None,
             limit: Optional[int] = None
-    ) -> dict:
+    ) -> list:
         params: Dict[str, Any] = {
             "symbol": symbol,
             "interval": interval,
