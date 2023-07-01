@@ -17,7 +17,8 @@
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from . import client, common, helpers, spot_requests
+from . import common, helpers, spot_requests
+from .client import spot as spot_client
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
@@ -77,7 +78,7 @@ class OpenOrder(common.OpenOrder):
 
 class Account:
     """Spot account."""
-    def __init__(self, cli: client.SpotAccount):
+    def __init__(self, cli: spot_client.SpotAccount):
         self._cli = cli
 
     async def get_balances(self) -> Dict[str, Balance]:

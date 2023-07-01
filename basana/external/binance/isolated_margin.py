@@ -17,7 +17,8 @@
 from decimal import Decimal
 from typing import Dict
 
-from . import client, helpers, margin
+from . import helpers, margin
+from .client import margin as margin_client
 from basana.core.pair import Pair
 
 
@@ -48,11 +49,11 @@ class IsolatedBalance:
 
 class Account(margin.Account):
     """Isolated margin account."""
-    def __init__(self, cli: client.IsolatedMarginAccount):
+    def __init__(self, cli: margin_client.IsolatedMarginAccount):
         self._cli = cli
 
     @property
-    def client(self) -> client.IsolatedMarginAccount:
+    def client(self) -> margin_client.IsolatedMarginAccount:
         return self._cli
 
     async def get_balances(self) -> Dict[Pair, IsolatedBalance]:
