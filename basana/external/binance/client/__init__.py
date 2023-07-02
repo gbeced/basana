@@ -50,7 +50,7 @@ class APIClient:
         return margin.CrossMarginAccount(self._client)
 
     @property
-    def isolated_margin_account(self) -> "margin.IsolatedMarginAccount":
+    def isolated_margin_account(self) -> margin.IsolatedMarginAccount:
         return margin.IsolatedMarginAccount(self._client)
 
     async def get_order_book(self, symbol: str, limit: Optional[int] = None) -> dict:
