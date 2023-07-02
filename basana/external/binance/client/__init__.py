@@ -67,10 +67,9 @@ class APIClient:
             "symbol": symbol,
             "interval": interval,
         }
-        if start_time is not None:
-            params["startTime"] = start_time
-        if end_time is not None:
-            params["endTime"] = end_time
-        if limit is not None:
-            params["limit"] = limit
+        base.set_optional_params(params, (
+            ("startTime", start_time),
+            ("endTime", end_time),
+            ("limit", limit),
+        ))
         return await self._client.make_request("GET", "/api/v3/klines", qs_params=params)

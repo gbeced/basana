@@ -37,28 +37,22 @@ class MarginAccount(metaclass=abc.ABCMeta):
             price: Optional[Decimal] = None, stop_price: Optional[Decimal] = None,
             new_client_order_id: Optional[str] = None, side_effect_type: Optional[str] = None, **kwargs: Dict[str, Any]
     ) -> dict:
-        params: Dict[str, Any] = {}
-        params.update(kwargs)
-        params.update({
+        params: Dict[str, Any] = {
             "symbol": symbol,
             "side": side,
             "isIsolated": self.is_isolated,
             "type": type,
-        })
-        for name, value in {
-            "timeInForce": time_in_force,
-            "quantity": quantity,
-            "quoteOrderQty": quote_order_qty,
-            "price": price,
-            "stopPrice": stop_price,
-            "newClientOrderId": new_client_order_id,
-            "sideEffectType": side_effect_type,
-        }.items():
-            if value is None:
-                continue
-            if isinstance(value, Decimal):
-                value = str(value)
-            params[name] = value
+        }
+        base.set_optional_params(params, (
+            ("timeInForce", time_in_force),
+            ("quantity", quantity),
+            ("quoteOrderQty", quote_order_qty),
+            ("price", price),
+            ("stopPrice", stop_price),
+            ("newClientOrderId", new_client_order_id),
+            ("sideEffectType", side_effect_type),
+        ))
+        params.update(kwargs)
         return await self._client.make_request("POST", "/sapi/v1/margin/order", data=params, send_sig=True)
 
     async def query_order(
@@ -71,10 +65,10 @@ class MarginAccount(metaclass=abc.ABCMeta):
             "symbol": symbol,
             "isIsolated": json.dumps(self.is_isolated),
         }
-        if order_id is not None:
-            params["orderId"] = order_id
-        if orig_client_order_id:
-            params["origClientOrderId"] = orig_client_order_id
+        base.set_optional_params(params, (
+            ("orderId", order_id),
+            ("origClientOrderId", orig_client_order_id),
+        ))
         return await self._client.make_request("GET", "/sapi/v1/margin/order", qs_params=params, send_sig=True)
 
     async def get_open_orders(
@@ -95,10 +89,10 @@ class MarginAccount(metaclass=abc.ABCMeta):
             "symbol": symbol,
             "isIsolated": json.dumps(self.is_isolated),
         }
-        if order_id is not None:
-            params["orderId"] = order_id
-        if orig_client_order_id:
-            params["origClientOrderId"] = orig_client_order_id
+        base.set_optional_params(params, (
+            ("orderId", order_id),
+            ("origClientOrderId", orig_client_order_id),
+        ))
         return await self._client.make_request("DELETE", "/sapi/v1/margin/order", qs_params=params, send_sig=True)
 
     async def get_trades(self, symbol: str, order_id: Optional[int] = None) -> List[dict]:
@@ -117,30 +111,23 @@ class MarginAccount(metaclass=abc.ABCMeta):
             limit_client_order_id: Optional[str] = None, stop_client_order_id: Optional[str] = None,
             **kwargs: Dict[str, Any]
     ) -> dict:
-        params: Dict[str, Any] = {}
-        params.update(kwargs)
-        params.update({
+        params: Dict[str, Any] = {
             "symbol": symbol,
             "side": side,
-            "quantity": quantity,
-            "price": price,
-            "stopPrice": stop_price,
+            "quantity": str(quantity),
+            "price": str(price),
+            "stopPrice": str(stop_price),
             "isIsolated": self.is_isolated,
-        })
-        for name, value in {
-            "listClientOrderId": list_client_order_id,
-            "stopLimitPrice": stop_limit_price,
-            "stopLimitTimeInForce": stop_limit_time_in_force,
-            "sideEffectType": side_effect_type,
-            "limitClientOrderId": limit_client_order_id,
-            "stopClientOrderId": stop_client_order_id,
-
-        }.items():
-            if value is None:
-                continue
-            if isinstance(value, Decimal):
-                value = str(value)
-            params[name] = value
+        }
+        base.set_optional_params(params, (
+            ("listClientOrderId", list_client_order_id),
+            ("stopLimitPrice", stop_limit_price),
+            ("stopLimitTimeInForce", stop_limit_time_in_force),
+            ("sideEffectType", side_effect_type),
+            ("limitClientOrderId", limit_client_order_id),
+            ("stopClientOrderId", stop_client_order_id),
+        ))
+        params.update(kwargs)
         return await self._client.make_request("POST", "/sapi/v1/margin/order/oco", data=params, send_sig=True)
 
     async def query_oco_order(
@@ -152,10 +139,10 @@ class MarginAccount(metaclass=abc.ABCMeta):
         params: Dict[str, Any] = {
             "isIsolated": json.dumps(self.is_isolated),
         }
-        if order_list_id is not None:
-            params["orderListId"] = order_list_id
-        if client_order_list_id:
-            params["origClientOrderId"] = client_order_list_id
+        base.set_optional_params(params, (
+            ("orderListId", order_list_id),
+            ("origClientOrderId", client_order_list_id),
+        ))
         return await self._client.make_request("GET", "/sapi/v1/margin/orderList", qs_params=params, send_sig=True)
 
     async def cancel_oco_order(
@@ -168,10 +155,10 @@ class MarginAccount(metaclass=abc.ABCMeta):
             "symbol": symbol,
             "isIsolated": json.dumps(self.is_isolated),
         }
-        if order_list_id is not None:
-            params["orderListId"] = order_list_id
-        if client_order_list_id:
-            params["origClientOrderId"] = client_order_list_id
+        base.set_optional_params(params, (
+            ("orderListId", order_list_id),
+            ("origClientOrderId", client_order_list_id),
+        ))
         return await self._client.make_request("DELETE", "/sapi/v1/margin/orderList", data=params, send_sig=True)
 
 
@@ -209,7 +196,7 @@ class IsolatedMarginAccount(MarginAccount):
         params: Dict[str, Any] = {
             "asset": asset,
             "symbol": symbol,
-            "amount": amount,
+            "amount": str(amount),
             "transFrom": "SPOT",
             "transTo": "ISOLATED_MARGIN",
         }
@@ -219,7 +206,7 @@ class IsolatedMarginAccount(MarginAccount):
         params: Dict[str, Any] = {
             "asset": asset,
             "symbol": symbol,
-            "amount": amount,
+            "amount": str(amount),
             "transFrom": "ISOLATED_MARGIN",
             "transTo": "SPOT",
         }

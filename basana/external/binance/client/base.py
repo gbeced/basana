@@ -14,7 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional
+from decimal import Decimal
+from typing import Any, Dict, Optional, Sequence, Tuple
 from urllib.parse import urljoin
 import asyncio
 import copy
@@ -113,9 +114,18 @@ class BaseClient:
 
             form_data = None if not data else aiohttp.FormData(data)
             async with session_method(url, headers=headers, params=qs_params, data=form_data, timeout=timeout) as resp:
+                # print(await resp.text())
                 json_response = None
                 if (ct := resp.headers.get("Content-Type")) and ct.lower().find("application/json") == 0:
                     json_response = await resp.json()
                 raise_for_error(resp, json_response)
-                # print(await resp.text())
                 return json_response
+
+
+def set_optional_params(params: Dict[str, Any], tuples: Sequence[Tuple[str, Any]]):
+    for k, v in tuples:
+        if v is None:
+            continue
+        if isinstance(v, Decimal):
+            v = str(v)
+        params[k] = v

@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
 from urllib.parse import urlparse, urljoin
 import asyncio
 
@@ -123,10 +123,10 @@ class APIClient:
             "step": step,
             "limit": limit,
         }
-        if start:
-            params["start"] = start
-        if end:
-            params["end"] = end
+        set_optional_params(params, (
+            ("start", start),
+            ("end", end),
+        ))
         if exclude_current_candle:
             params["exclude_current_candle"] = "true"
         return await self._make_request("GET", f"/api/v2/ohlc/{currency_pair}/", False, qs_params=params)
@@ -197,9 +197,18 @@ class APIClient:
         data: Dict[str, Any] = {
             "amount": str(amount),
         }
-        if client_order_id:
-            data["client_order_id"] = client_order_id
-        if amount_in_counter:
-            data["amount_in_counter"] = amount_in_counter
+        set_optional_params(data, (
+            ("client_order_id", client_order_id),
+            ("amount_in_counter", amount_in_counter),
+        ))
         data.update(kwargs)
         return await self._make_request("POST", f"/api/v2/{action}/instant/{currency_pair}/", True, data=data)
+
+
+def set_optional_params(params: Dict[str, Any], tuples: Sequence[Tuple[str, Any]]):
+    for k, v in tuples:
+        if v is None:
+            continue
+        # if isinstance(v, Decimal):
+        #     v = str(v)
+        params[k] = v
