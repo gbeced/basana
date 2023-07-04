@@ -17,16 +17,17 @@
 from decimal import Decimal
 from typing import Dict
 
-from . import client, margin
+from . import margin
+from .client import margin as margin_client
 
 
 class Account(margin.Account):
     """Cross margin account."""
-    def __init__(self, cli: client.CrossMarginAccount):
+    def __init__(self, cli: margin_client.CrossMarginAccount):
         self._cli = cli
 
     @property
-    def client(self) -> client.CrossMarginAccount:
+    def client(self) -> margin_client.CrossMarginAccount:
         return self._cli
 
     async def get_balances(self) -> Dict[str, margin.Balance]:

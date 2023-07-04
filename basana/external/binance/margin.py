@@ -18,7 +18,8 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 import abc
 
-from . import client, common, helpers, margin_requests
+from . import common, helpers, margin_requests
+from .client import margin as margin_client
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
@@ -77,7 +78,7 @@ class CreatedOrder(common.CreatedOrder):
 class Account(metaclass=abc.ABCMeta):
     @property
     @abc.abstractmethod
-    def client(self) -> client.MarginAccount:
+    def client(self) -> margin_client.MarginAccount:
         raise NotImplementedError()
 
     async def create_order(self, order_request: margin_requests.ExchangeOrder) -> CreatedOrder:
