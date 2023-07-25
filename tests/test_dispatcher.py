@@ -19,6 +19,7 @@ import datetime
 
 import pytest
 
+from . import helpers
 from basana.core import dispatcher, dt, event
 
 
@@ -239,5 +240,52 @@ def test_sniffers():
 
         assert len(events) == src_count
         assert len(sniffed_events) == src_count
+
+    asyncio.run(test_main())
+
+
+@pytest.mark.parametrize("schedule_dates", [
+    [
+        datetime.datetime(2000, 1, 1, 0, 0, 1),
+    ],
+    [
+        datetime.datetime(1999, 1, 1, 0, 0, 0),
+        datetime.datetime(2000, 1, 2, 0, 0, 0),
+        datetime.datetime(2001, 1, 2, 0, 0, 0),
+        datetime.datetime(2002, 1, 2, 0, 0, 0),
+        dt.local_now(),
+        dt.utc_now(),
+    ],
+])
+def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
+    datetimes = []
+
+    def scheduled_job_factory(when):
+        async def scheduled_job():
+            datetimes.append(when)
+        return scheduled_job
+
+    async def proces_event(event):
+        datetimes.append(event.when)
+
+    async def test_main():
+        src = event.FifoQueueEventSource()
+        event_datetimes = [
+            datetime.datetime(2000, 1, 1),
+            datetime.datetime(2001, 1, 1),
+            datetime.datetime(2002, 1, 1),
+        ]
+        for when in event_datetimes:
+            src.push(event.Event(when.replace(tzinfo=datetime.timezone.utc)))
+        backtesting_dispatcher.subscribe(src, proces_event)
+
+        for schedule_date in schedule_dates:
+            schedule_date = schedule_date.replace(tzinfo=datetime.timezone.utc)
+            backtesting_dispatcher.schedule(schedule_date, scheduled_job_factory(schedule_date))
+
+        await backtesting_dispatcher.run()
+
+        assert helpers.is_sorted(datetimes)
+        assert len(datetimes) == len(schedule_dates) + 3
 
     asyncio.run(test_main())

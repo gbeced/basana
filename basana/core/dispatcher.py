@@ -14,19 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Awaitable, Any, Callable, Dict, List, Set, Optional
+from typing import cast, Any, Awaitable, Callable, Dict, List, Optional, Set, Tuple
 import asyncio
+import contextlib
 import datetime
+import heapq
 import logging
 import platform
 import signal
 
-from . import event, helpers, logs
+from . import dt, event, helpers, logs
 
 
 logger = logging.getLogger(__name__)
 EventHandler = Callable[[event.Event], Awaitable[Any]]
 IdleHandler = Callable[[], Awaitable[Any]]
+SchedulerJob = Callable[[], Awaitable[Any]]
 
 
 class EventDispatcher:
@@ -49,14 +52,16 @@ class EventDispatcher:
         self._prefetched_events: Dict[event.EventSource, Optional[event.Event]] = {}
         self._prev_events: Dict[event.EventSource, datetime.datetime] = {}
         self._idle_handlers: List[IdleHandler] = []
-        self._sniffers: List[EventHandler] = []
+        self._sniffers_pre: List[EventHandler] = []
+        self._sniffers_post: List[EventHandler] = []
         self._producers: Set[event.Producer] = set()
         self._open_task_group: Optional[helpers.TaskGroup] = None
         self._strict_order = strict_order
         self._stop_when_idle = stop_when_idle
         self._running = False
         self._stopped = False
-        self._current_event_dt = None
+        self._current_event_dt: Optional[datetime.datetime] = None
+        self.idle_sleep = 0.01
 
     @property
     def current_event_dt(self) -> Optional[datetime.datetime]:
@@ -75,6 +80,8 @@ class EventDispatcher:
         :param idle_handler: An async callable that receives no arguments.
         """
 
+        assert not self._running, "Subscribing once we're running is not currently supported."
+
         if idle_handler not in self._idle_handlers:
             self._idle_handlers.append(idle_handler)
 
@@ -85,22 +92,26 @@ class EventDispatcher:
         :param event_handler: An async callable that receives an event.
         """
 
-        assert not self._running
+        assert not self._running, "Subscribing once we're running is not currently supported."
+
         handlers = self._event_handlers.setdefault(source, [])
         if event_handler not in handlers:
             handlers.append(event_handler)
         if source.producer:
             self._producers.add(source.producer)
 
-    def subscribe_all(self, event_handler: EventHandler):
+    def subscribe_all(self, event_handler: EventHandler, front_run: bool = False):
         """Registers an async callable that will be called for all events.
 
         :param event_handler: An async callable that receives an event.
+        :param front_run: True to front run all other handlers, False otherwise.
         """
 
-        assert not self._running
-        if event_handler not in self._sniffers:
-            self._sniffers.append(event_handler)
+        assert not self._running, "Subscribing once we're running is not currently supported."
+
+        sniffers = self._sniffers_pre if front_run else self._sniffers_post
+        if event_handler not in sniffers:
+            sniffers.append(event_handler)
 
     async def run(self, stop_signals: List[int] = [signal.SIGINT, signal.SIGTERM]):
         """Executes the event dispatch loop.
@@ -114,7 +125,7 @@ class EventDispatcher:
         #. Call :meth:`basana.Producer.finalize` on all producers.
         """
 
-        assert not self._running, "Running or already ran"
+        assert not self._running, "Can't run twice."
         assert self._open_task_group is None
 
         # This block has coverage on all platforms except on Windows.
@@ -146,6 +157,18 @@ class EventDispatcher:
 
     def on_error(self, error: Any):
         logger.error(error)
+
+    @contextlib.contextmanager
+    def _current_event_cm(self, current_event_dt: datetime.datetime):
+        prev_dt = self.current_event_dt
+        try:
+            self._current_event_dt = current_event_dt
+            yield
+        finally:
+            self._current_event_dt = prev_dt
+
+    async def _before_idle_stop(self):
+        pass
 
     def _prefetch(self):
         sources_to_pop = [
@@ -180,22 +203,32 @@ class EventDispatcher:
         assert ge_or_assert is None or next_dt is None or next_dt >= ge_or_assert, \
             f"{next_dt} can't be dispatched after {ge_or_assert}"
 
-        # Dispatch events matching the desired datetime.
-        event_handlers = []
-        sniffer_event_handlers = []
-        for source, e in self._prefetched_events.items():
-            if e is not None and e.when == next_dt:
-                # Collect event handlers for the event source.
+        # Collect and dispatch events matching the desired datetime.
+        if next_dt:
+            def event_matches(t: Tuple[event.EventSource, Optional[event.Event]]) -> bool:
+                event = t[1]
+                return True if event and event.when == next_dt else False
+
+            sniffers_pre = []
+            event_handlers = []
+            sniffers_post = []
+            for source, e in filter(event_matches, self._prefetched_events.items()):
+                e = cast(event.Event, e)  # No longer Optional after being filtered.
+                # Sniffers that should run before other event handlers.
+                sniffers_pre += [event_handler(e) for event_handler in self._sniffers_pre]
+                # Collect event handlers for this particular event source.
                 event_handlers += [event_handler(e) for event_handler in self._event_handlers.get(source, [])]
-                # Sniffers handle all events, no matter what their source is.
-                sniffer_event_handlers += [event_handler(e) for event_handler in self._sniffers]
+                # Sniffers that should run after other event handlers.
+                sniffers_post += [event_handler(e) for event_handler in self._sniffers_post]
                 # Consume the event.
                 self._prefetched_events[source] = None
 
-        self._current_event_dt = next_dt
-        event_handlers.extend(sniffer_event_handlers)
-        await asyncio.gather(*event_handlers)
-        self._current_event_dt = None
+            with self._current_event_cm(next_dt):
+                if sniffers_pre:
+                    await asyncio.gather(*sniffers_pre)
+                await asyncio.gather(*event_handlers)
+                if sniffers_post:
+                    await asyncio.gather(*sniffers_post)
 
         return next_dt
 
@@ -206,23 +239,72 @@ class EventDispatcher:
             dispatched_dt = await self._dispatch_next(last_dt if self._strict_order else None)
             if dispatched_dt is None:
                 if self._stop_when_idle:
+                    await self._before_idle_stop()
                     self.stop()
                 elif self._idle_handlers:
                     await asyncio.gather(*[event_handler() for event_handler in self._idle_handlers])
                 else:
                     # Otherwise we'll monopolize the event loop.
-                    await asyncio.sleep(0.01)
+                    await asyncio.sleep(self.idle_sleep)
             else:
                 last_dt = dispatched_dt
+
+
+class BacktestingScheduler:
+    def __init__(self):
+        self._queue = []
+
+    def schedule(self, when: datetime.datetime, job: SchedulerJob):
+        assert not dt.is_naive(when), f"{when} should have timezone information set"
+        heapq.heappush(self._queue, (when, job))
+
+    def peek(self) -> Optional[datetime.datetime]:
+        ret = None
+        if self._queue:
+            ret = self._queue[0][0]
+        return ret
+
+    async def call(self, scheduled_at: datetime.datetime):
+        assert not dt.is_naive(scheduled_at), f"{scheduled_at} should have timezone information set"
+        coros: List[Awaitable[Any]] = []
+        while self._queue and self._queue[0][0] == scheduled_at:
+            when, job = heapq.heappop(self._queue)
+            assert when == scheduled_at
+            coros.append(job())
+        await asyncio.gather(*coros)
 
 
 class BacktestingDispatcher(EventDispatcher):
     def __init__(self):
         super().__init__(strict_order=True, stop_when_idle=True)
+        self._scheduler = BacktestingScheduler()
+        self.subscribe_all(self._before_event, front_run=True)
+
+    def schedule(self, when: datetime.datetime, job: SchedulerJob):
+        self._scheduler.schedule(when, job)
 
     async def run(self, stop_signals: List[int] = [signal.SIGINT, signal.SIGTERM]):
         with logs.backtesting_log_mode(self):
             await super().run(stop_signals=stop_signals)
+
+    async def _before_idle_stop(self):
+        next_scheduled_dt = self._scheduler.peek()
+        while next_scheduled_dt:
+            with self._current_event_cm(next_scheduled_dt):
+                await self._scheduler.call(next_scheduled_dt)
+            next_scheduled_dt = self._scheduler.peek()
+
+    async def _before_event(self, event: event.Event):
+        next_scheduled_dt = self._scheduler.peek()
+        while next_scheduled_dt and next_scheduled_dt < event.when:
+            with self._current_event_cm(next_scheduled_dt):
+                await self._scheduler.call(next_scheduled_dt)
+            next_scheduled_dt = self._scheduler.peek()
+
+
+class RealtimeDispatcher(EventDispatcher):
+    def __init__(self):
+        super().__init__(strict_order=False, stop_when_idle=False)
 
 
 async def await_no_raise(coro: Awaitable[Any], message: str = "Unhandled exception"):
@@ -232,7 +314,7 @@ async def await_no_raise(coro: Awaitable[Any], message: str = "Unhandled excepti
 
 def realtime_dispatcher() -> EventDispatcher:
     """Creates an event dispatcher suitable for live trading."""
-    return EventDispatcher(strict_order=False, stop_when_idle=False)
+    return RealtimeDispatcher()
 
 
 def backtesting_dispatcher() -> EventDispatcher:
