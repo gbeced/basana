@@ -289,3 +289,18 @@ def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
         assert len(datetimes) == len(schedule_dates) + 3
 
     asyncio.run(test_main())
+
+
+@pytest.mark.parametrize("delta_seconds, timeout", [
+    (0.5, 1),
+    (0.8, 1),
+])
+def test_realtime_scheduler(delta_seconds, timeout, realtime_dispatcher):
+    async def scheduled_job():
+        realtime_dispatcher.stop()
+
+    async def test_main():
+        realtime_dispatcher.schedule(dt.utc_now() + datetime.timedelta(seconds=delta_seconds), scheduled_job)
+        await asyncio.wait_for(realtime_dispatcher.run(), timeout=timeout)
+
+    asyncio.run(test_main())

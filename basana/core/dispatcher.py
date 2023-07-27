@@ -32,6 +32,31 @@ IdleHandler = Callable[[], Awaitable[Any]]
 SchedulerJob = Callable[[], Awaitable[Any]]
 
 
+class JobScheduler:
+    def __init__(self):
+        self._queue = []
+
+    def schedule(self, when: datetime.datetime, job: SchedulerJob):
+        assert not dt.is_naive(when), f"{when} should have timezone information set"
+        heapq.heappush(self._queue, (when, job))
+
+    def peek(self) -> Optional[datetime.datetime]:
+        ret = None
+        if self._queue:
+            ret = self._queue[0][0]
+        return ret
+
+    async def run(self, now: datetime.datetime):
+        """
+        Execute jobs scheduled before a certain date and time.
+        """
+        coros: List[Awaitable[Any]] = []
+        while self._queue and self._queue[0][0] <= now:
+            _, job = heapq.heappop(self._queue)
+            coros.append(job())
+        await asyncio.gather(*coros)
+
+
 class EventDispatcher:
     """Responsible for connecting event sources to event handlers and dispatching events in the right order.
 
@@ -61,12 +86,18 @@ class EventDispatcher:
         self._running = False
         self._stopped = False
         self._current_event_dt: Optional[datetime.datetime] = None
+        self._scheduler = JobScheduler()
         self.idle_sleep = 0.01
 
     @property
     def current_event_dt(self) -> Optional[datetime.datetime]:
         """The datetime of the event that is currently being processed."""
         return self._current_event_dt
+
+    @property
+    def stopped(self) -> bool:
+        """Returns True if stop was called, False otherwise."""
+        return self._stopped
 
     def stop(self):
         """Requests the event dispatcher to stop the event processing loop."""
@@ -112,6 +143,14 @@ class EventDispatcher:
         sniffers = self._sniffers_pre if front_run else self._sniffers_post
         if event_handler not in sniffers:
             sniffers.append(event_handler)
+
+    def schedule(self, when: datetime.datetime, job: SchedulerJob):
+        """TODO
+
+        :param when: TODO.
+        :param job: TODO.
+        """
+        self._scheduler.schedule(when, job)
 
     async def run(self, stop_signals: List[int] = [signal.SIGINT, signal.SIGTERM]):
         """Executes the event dispatch loop.
@@ -242,6 +281,8 @@ class EventDispatcher:
                     await self._before_idle_stop()
                     self.stop()
                 elif self._idle_handlers:
+                    # TODO: Should we put some throttling here ?
+                    # TokenBucket to limit idle calls to no more than 100 / s ?
                     await asyncio.gather(*[event_handler() for event_handler in self._idle_handlers])
                 else:
                     # Otherwise we'll monopolize the event loop.
@@ -249,62 +290,50 @@ class EventDispatcher:
             else:
                 last_dt = dispatched_dt
 
-
-class BacktestingScheduler:
-    def __init__(self):
-        self._queue = []
-
-    def schedule(self, when: datetime.datetime, job: SchedulerJob):
-        assert not dt.is_naive(when), f"{when} should have timezone information set"
-        heapq.heappush(self._queue, (when, job))
-
-    def peek(self) -> Optional[datetime.datetime]:
-        ret = None
-        if self._queue:
-            ret = self._queue[0][0]
-        return ret
-
-    async def call(self, scheduled_at: datetime.datetime):
-        assert not dt.is_naive(scheduled_at), f"{scheduled_at} should have timezone information set"
-        coros: List[Awaitable[Any]] = []
-        while self._queue and self._queue[0][0] == scheduled_at:
-            when, job = heapq.heappop(self._queue)
-            assert when == scheduled_at
-            coros.append(job())
-        await asyncio.gather(*coros)
+    async def _run_scheduler(self, now: datetime.datetime):
+        with self._current_event_cm(now):
+            await self._scheduler.run(now)
 
 
 class BacktestingDispatcher(EventDispatcher):
     def __init__(self):
         super().__init__(strict_order=True, stop_when_idle=True)
-        self._scheduler = BacktestingScheduler()
         self.subscribe_all(self._before_event, front_run=True)
-
-    def schedule(self, when: datetime.datetime, job: SchedulerJob):
-        self._scheduler.schedule(when, job)
 
     async def run(self, stop_signals: List[int] = [signal.SIGINT, signal.SIGTERM]):
         with logs.backtesting_log_mode(self):
             await super().run(stop_signals=stop_signals)
 
-    async def _before_idle_stop(self):
+    async def _before_event(self, event: event.Event):
+        # Execute jobs that were scheduled to run before this event.
         next_scheduled_dt = self._scheduler.peek()
-        while next_scheduled_dt:
-            with self._current_event_cm(next_scheduled_dt):
-                await self._scheduler.call(next_scheduled_dt)
+        while next_scheduled_dt and next_scheduled_dt <= event.when:
+            await self._run_scheduler(next_scheduled_dt)
             next_scheduled_dt = self._scheduler.peek()
 
-    async def _before_event(self, event: event.Event):
+    async def _before_idle_stop(self):
+        # Drain the job queue.
         next_scheduled_dt = self._scheduler.peek()
-        while next_scheduled_dt and next_scheduled_dt < event.when:
-            with self._current_event_cm(next_scheduled_dt):
-                await self._scheduler.call(next_scheduled_dt)
+        while next_scheduled_dt:
+            await self._run_scheduler(next_scheduled_dt)
             next_scheduled_dt = self._scheduler.peek()
 
 
 class RealtimeDispatcher(EventDispatcher):
     def __init__(self):
         super().__init__(strict_order=False, stop_when_idle=False)
+        self.scheduler_tick = 0.01
+
+    async def run(self, stop_signals: List[int] = [signal.SIGINT, signal.SIGTERM]):
+        await asyncio.gather(
+            super().run(stop_signals=stop_signals),
+            self._scheduler_service_loop()
+        )
+
+    async def _scheduler_service_loop(self):
+        while not self.stopped:
+            await asyncio.sleep(self.scheduler_tick)
+            await self._run_scheduler(dt.utc_now())
 
 
 async def await_no_raise(coro: Awaitable[Any], message: str = "Unhandled exception"):
