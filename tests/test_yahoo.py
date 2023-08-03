@@ -22,7 +22,7 @@ from dateutil import tz
 import pytest
 
 from . import helpers
-from basana.core import dispatcher, pair, bar
+from basana.core import pair, bar
 from basana.core.helpers import round_decimal
 from basana.external.yahoo import bars
 
@@ -81,8 +81,7 @@ bars_to_sanitize = [
 ]
 
 
-def test_multiple_sources():
-    d = dispatcher.EventDispatcher()
+def test_multiple_sources(backtesting_dispatcher):
     events = []
 
     async def add_bar(event: bar.BarEvent):
@@ -96,10 +95,10 @@ def test_multiple_sources():
         pair.Pair("ORCL", "USD"), helpers.abs_data_path("orcl-2001-yahoo.csv"), adjust_ohlc=True
     )
 
-    d.subscribe(src_1, add_bar)
-    d.subscribe(src_2, add_bar)
+    backtesting_dispatcher.subscribe(src_1, add_bar)
+    backtesting_dispatcher.subscribe(src_2, add_bar)
 
-    asyncio.run(d.run())
+    asyncio.run(backtesting_dispatcher.run())
 
     assert events[0].bar.datetime == datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
     assert events[0].bar.pair.base_symbol == "ORCL"

@@ -20,7 +20,7 @@ import datetime
 import pytest
 
 from . import helpers
-from basana.core import dispatcher, dt, event
+from basana.core import dt, event
 
 
 class Error(Exception):
@@ -75,8 +75,7 @@ class FailingProducer(event.Producer):
             raise Error("Error during finalize")
 
 
-def test_producers_and_events():
-    d = dispatcher.EventDispatcher(strict_order=False, stop_when_idle=False)
+def test_producers_and_events(realtime_dispatcher):
     shared_producer = Producer()
     event_sources = [
         event.FifoQueueEventSource(), event.FifoQueueEventSource(),
@@ -88,7 +87,7 @@ def test_producers_and_events():
     async def stop_dispatcher():
         while len(events) < len(event_sources):
             await asyncio.sleep(0.1)
-        d.stop()
+        realtime_dispatcher.stop()
 
     async def save_events(event):
         events.append(event)
@@ -96,9 +95,9 @@ def test_producers_and_events():
     async def test_main():
         for event_source in event_sources:
             event_source.push(event.Event(dt.utc_now()))
-            d.subscribe(event_source, save_events)
+            realtime_dispatcher.subscribe(event_source, save_events)
 
-        await asyncio.gather(d.run(), stop_dispatcher())
+        await asyncio.gather(realtime_dispatcher.run(), stop_dispatcher())
 
         assert len(events) == len(event_sources)
         for event_source in event_sources:
@@ -116,8 +115,9 @@ def test_producers_and_events():
     (FailingProducer(False, True, False), True, True, True, True),
     (FailingProducer(False, True, True), True, True, True, True),
 ])
-def test_exceptions_in_producers(failing_producer, other_initialized, other_ran, other_stopped, other_finalized):
-    d = dispatcher.EventDispatcher(strict_order=False, stop_when_idle=False)
+def test_exceptions_in_producers(
+    failing_producer, other_initialized, other_ran, other_stopped, other_finalized, realtime_dispatcher
+):
     shared_producer = Producer()
     event_sources = [
         event.FifoQueueEventSource(producer=failing_producer),
@@ -133,10 +133,10 @@ def test_exceptions_in_producers(failing_producer, other_initialized, other_ran,
     async def test_main():
         for event_source in event_sources:
             event_source.push(event.Event(dt.utc_now()))
-            d.subscribe(event_source, save_events)
+            realtime_dispatcher.subscribe(event_source, save_events)
 
         with pytest.raises(Error):
-            await d.run()
+            await realtime_dispatcher.run()
 
         # If the other sources run, there might be events, otherwise there shouldn't be events.
         assert other_ran or len(events) == 0
@@ -150,14 +150,13 @@ def test_exceptions_in_producers(failing_producer, other_initialized, other_ran,
     asyncio.run(asyncio.wait_for(test_main(), 2))
 
 
-def test_out_of_order_events_are_skipped():
-    d = dispatcher.realtime_dispatcher()
+def test_out_of_order_events_are_skipped(realtime_dispatcher):
     events = []
 
     async def stop_dispatcher():
         while len(events) < 2:
             await asyncio.sleep(0.1)
-        d.stop()
+        realtime_dispatcher.stop()
 
     async def save_events(event):
         events.append(event)
@@ -168,17 +167,16 @@ def test_out_of_order_events_are_skipped():
             event.Event(dt.utc_now() - datetime.timedelta(hours=1)),
             event.Event(dt.utc_now() + datetime.timedelta(hours=1)),
         ])
-        d.subscribe(src, save_events)
+        realtime_dispatcher.subscribe(src, save_events)
 
-        await asyncio.gather(d.run(), stop_dispatcher())
+        await asyncio.gather(realtime_dispatcher.run(), stop_dispatcher())
 
         assert len(events) == 2
 
     asyncio.run(asyncio.wait_for(test_main(), 2))
 
 
-def test_duplicate_subscription_is_ignored():
-    d = dispatcher.backtesting_dispatcher()
+def test_duplicate_subscription_is_ignored(backtesting_dispatcher):
     events = []
 
     async def save_events(event):
@@ -186,18 +184,17 @@ def test_duplicate_subscription_is_ignored():
 
     async def test_main():
         src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
-        d.subscribe(src, save_events)
-        d.subscribe(src, save_events)
+        backtesting_dispatcher.subscribe(src, save_events)
+        backtesting_dispatcher.subscribe(src, save_events)
 
-        await d.run()
+        await backtesting_dispatcher.run()
 
         assert len(events) == 1
 
     asyncio.run(test_main())
 
 
-def test_subscription_order_per_source():
-    d = dispatcher.backtesting_dispatcher()
+def test_subscription_order_per_source(backtesting_dispatcher):
     priorities = []
 
     async def test_main():
@@ -207,9 +204,9 @@ def test_subscription_order_per_source():
         for i in range(handler_count):
             async def handler(e, i=i):
                 priorities.append(i)
-            d.subscribe(src, handler)
+            backtesting_dispatcher.subscribe(src, handler)
 
-        await d.run()
+        await backtesting_dispatcher.run()
 
         assert len(priorities) == handler_count
         assert priorities == list(range(handler_count))
@@ -217,8 +214,7 @@ def test_subscription_order_per_source():
     asyncio.run(test_main())
 
 
-def test_sniffers():
-    d = dispatcher.backtesting_dispatcher()
+def test_sniffers(backtesting_dispatcher):
     events = []
     sniffed_events = []
 
@@ -231,12 +227,12 @@ def test_sniffers():
     async def test_main():
         src_count = 10
 
-        d.subscribe_all(save_sniffed_event)
+        backtesting_dispatcher.subscribe_all(save_sniffed_event)
         for _ in range(src_count):
             src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
-            d.subscribe(src, save_event)
+            backtesting_dispatcher.subscribe(src, save_event)
 
-        await d.run()
+        await backtesting_dispatcher.run()
 
         assert len(events) == src_count
         assert len(sniffed_events) == src_count
@@ -304,3 +300,24 @@ def test_realtime_scheduler(delta_seconds, timeout, realtime_dispatcher):
         await asyncio.wait_for(realtime_dispatcher.run(), timeout=timeout)
 
     asyncio.run(test_main())
+
+
+def test_stop_dispatcher_when_idle(realtime_dispatcher):
+    event_count = 0
+
+    async def on_event(event):
+        nonlocal event_count
+        event_count += 1
+
+    async def on_idle():
+        realtime_dispatcher.stop()
+
+    src = event.FifoQueueEventSource(events=[
+        event.Event(datetime.datetime(2000, 1, 1).replace(tzinfo=datetime.timezone.utc)),
+        event.Event(datetime.datetime(2000, 1, 2).replace(tzinfo=datetime.timezone.utc)),
+    ])
+    realtime_dispatcher.subscribe(src, on_event)
+    realtime_dispatcher.subscribe_idle(on_idle)
+    asyncio.run(realtime_dispatcher.run())
+
+    assert event_count == 2

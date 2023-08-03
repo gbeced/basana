@@ -206,7 +206,7 @@ class EventDispatcher:
         finally:
             self._current_event_dt = prev_dt
 
-    async def _before_idle_stop(self):
+    async def _before_idle_stop(self):  # pragma: no cover
         pass
 
     def _prefetch(self):

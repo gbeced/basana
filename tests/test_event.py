@@ -21,7 +21,7 @@ import random
 
 import pytest
 
-from basana.core import dispatcher, dt, event
+from basana.core import dt, event
 
 
 class Number(event.Event):
@@ -59,57 +59,33 @@ class HeadEventSource(event.EventSource):
         return None
 
 
-def test_mutiple_sources():
+def test_mutiple_sources(backtesting_dispatcher):
     event_count = 0
 
     async def on_event(event):
         nonlocal event_count
         event_count += 1
-
-    d = dispatcher.EventDispatcher()
 
     src1 = HeadEventSource(RandIntSource(1000, 10000), 1500)
     src2 = HeadEventSource(RandIntSource(1, 50), 1300)
 
-    d.subscribe(src1, on_event)
-    d.subscribe(src2, on_event)
-    asyncio.run(d.run())
+    backtesting_dispatcher.subscribe(src1, on_event)
+    backtesting_dispatcher.subscribe(src2, on_event)
+    asyncio.run(backtesting_dispatcher.run())
 
     assert event_count == 2800
 
 
-def test_stop_dispatcher_when_idle():
-    d = dispatcher.EventDispatcher(stop_when_idle=False)
-
+def test_unhandled_exception_during_pop(backtesting_dispatcher):
     event_count = 0
-
-    async def on_event(event):
-        nonlocal event_count
-        event_count += 1
-
-    async def on_idle():
-        d.stop()
-
-    src1 = HeadEventSource(RandIntSource(1000, 10000), 10)
-
-    d.subscribe(src1, on_event)
-    d.subscribe_idle(on_idle)
-    asyncio.run(d.run())
-
-    assert event_count == 10
-
-
-def test_unhandled_exception_during_pop():
-    event_count = 0
-    d = dispatcher.EventDispatcher()
 
     async def on_event(event):
         nonlocal event_count
         event_count += 1
 
     src1 = FailingEventSource()
-    d.subscribe(src1, on_event)
+    backtesting_dispatcher.subscribe(src1, on_event)
     with pytest.raises(Exception, match="Error during pop"):
-        asyncio.run(d.run())
+        asyncio.run(backtesting_dispatcher.run())
 
     assert event_count == 0

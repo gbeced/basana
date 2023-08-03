@@ -21,7 +21,7 @@ import json
 import aiohttp
 import websockets
 
-from basana.core import dispatcher, dt, event
+from basana.core import dt, event
 import basana.core.websockets as core_ws
 
 
@@ -52,8 +52,7 @@ class WebSocketClient(core_ws.WebSocketClient):
         return ret
 
 
-def test_add_channels():
-    mdtr = dispatcher.EventDispatcher(stop_when_idle=False)
+def test_add_channels(realtime_dispatcher):
     event_source = None
     ws = None
     subscriptions = 0
@@ -73,7 +72,7 @@ def test_add_channels():
             if message["channel"] == "channel1":
                 ws.set_channel_event_source("channel2", event_source)
             elif message["channel"] == "channel2":
-                mdtr.stop()
+                realtime_dispatcher.stop()
 
     async def test_main():
         nonlocal event_source
@@ -84,16 +83,15 @@ def test_add_channels():
             ws = WebSocketClient(ws_uri)
             event_source = ChannelEventSource(producer=ws)
             ws.set_channel_event_source("channel1", event_source)
-            mdtr.subscribe(event_source, on_event)
+            realtime_dispatcher.subscribe(event_source, on_event)
 
-            await mdtr.run()
+            await realtime_dispatcher.run()
             assert subscriptions == 2
 
     asyncio.run(asyncio.wait_for(test_main(), 5))
 
 
-def test_schedule_reconnection():
-    mdtr = dispatcher.EventDispatcher(stop_when_idle=False)
+def test_schedule_reconnection(realtime_dispatcher):
     event_source = None
     subscriptions = 0
     ws = None
@@ -117,7 +115,7 @@ def test_schedule_reconnection():
         if subscriptions == 2:
             ws.schedule_reconnection()
         elif subscriptions == 4:
-            mdtr.stop()
+            realtime_dispatcher.stop()
 
     async def test_main():
         nonlocal event_source
@@ -130,9 +128,9 @@ def test_schedule_reconnection():
             event_source = ChannelEventSource(producer=ws)
             for channel in ["channel1", "channel2"]:
                 ws.set_channel_event_source(channel, event_source)
-            mdtr.subscribe(event_source, on_event)
+            realtime_dispatcher.subscribe(event_source, on_event)
 
-            await mdtr.run()
+            await realtime_dispatcher.run()
             assert subscriptions == 4
 
     asyncio.run(asyncio.wait_for(test_main(), 5))
