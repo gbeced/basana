@@ -20,6 +20,7 @@ import asyncio
 import contextlib
 import decimal
 import logging
+import warnings
 
 import aiohttp
 
@@ -31,7 +32,7 @@ class TaskGroup:
         self._tasks = []
         self._exiting = False
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "TaskGroup":
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
@@ -53,9 +54,11 @@ class TaskGroup:
                 task.cancel()
         return pending
 
-    def create_task(self, coro):
+    def create_task(self, coro) -> asyncio.Task:
         assert not self._exiting
-        self._tasks.append(asyncio.create_task(coro))
+        ret = asyncio.create_task(coro)
+        self._tasks.append(ret)
+        return ret
 
     def cancel(self):
         self._cancel()
@@ -99,3 +102,7 @@ def truncate_decimal(value: Decimal, precision: int) -> Decimal:
     :returns: The truncated value.
     """
     return round_decimal(value, precision, rounding=decimal.ROUND_DOWN)
+
+
+def deprecation(message: str):
+    warnings.warn(message, DeprecationWarning, stacklevel=2)

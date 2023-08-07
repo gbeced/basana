@@ -165,7 +165,7 @@ def test_out_of_order_events_are_skipped(realtime_dispatcher):
         src = event.FifoQueueEventSource(events=[
             event.Event(dt.utc_now()),
             event.Event(dt.utc_now() - datetime.timedelta(hours=1)),
-            event.Event(dt.utc_now() + datetime.timedelta(hours=1)),
+            event.Event(dt.utc_now() + datetime.timedelta(milliseconds=250)),
         ])
         realtime_dispatcher.subscribe(src, save_events)
 
@@ -296,7 +296,9 @@ def test_realtime_scheduler(delta_seconds, timeout, realtime_dispatcher):
         realtime_dispatcher.stop()
 
     async def test_main():
-        realtime_dispatcher.schedule(dt.utc_now() + datetime.timedelta(seconds=delta_seconds), scheduled_job)
+        realtime_dispatcher.schedule(
+            realtime_dispatcher.now() + datetime.timedelta(seconds=delta_seconds), scheduled_job
+        )
         await asyncio.wait_for(realtime_dispatcher.run(), timeout=timeout)
 
     asyncio.run(test_main())
