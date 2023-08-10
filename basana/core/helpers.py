@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Optional
+from typing import Any, Coroutine, List, Optional, Set, Union
 import asyncio
 import contextlib
 import decimal
@@ -47,7 +47,7 @@ class TaskGroup:
                 # Don't raise exceptions since we're waiting for tasks to finish.
                 await asyncio.gather(*pending, return_exceptions=True)
 
-    def _cancel(self):
+    def _cancel(self) -> List[asyncio.Task]:
         pending = [task for task in self._tasks if not task.done()]
         for task in pending:
             if not task.done():
@@ -62,6 +62,41 @@ class TaskGroup:
 
     def cancel(self):
         self._cancel()
+
+
+class TaskPool:
+    def __init__(self, size: int):
+        assert size > 0, "Invalid size"
+        self._max_size = size
+        self._tasks: Set[asyncio.Task] = set()
+
+    async def push(self, coroutine: Coroutine[Any, Any, Any]):
+        # Wait for some task to complete if there is no more room.
+        while len(self._tasks) >= self._max_size:
+            await self._wait_impl(timeout=None, return_when=asyncio.FIRST_COMPLETED)
+        self._tasks.add(asyncio.create_task(coroutine))
+
+    def cancel(self) -> List[asyncio.Task]:
+        pending = [task for task in self._tasks if not task.done()]
+        for task in pending:
+            if not task.done():
+                task.cancel()
+        return pending
+
+    # async def wait_one(self, timeout: Optional[Union[int, float]] = None) -> bool:
+    #     if self._tasks:
+    #         await self._wait_impl(timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
+    #     return not self._tasks
+
+    async def wait_all(self, timeout: Optional[Union[int, float]] = None) -> bool:
+        if self._tasks:
+            await self._wait_impl(timeout=timeout, return_when=asyncio.ALL_COMPLETED)
+        return not self._tasks
+
+    async def _wait_impl(self, timeout: Optional[Union[int, float]], return_when: str):
+        done, _ = await asyncio.wait(self._tasks, timeout=timeout, return_when=return_when)
+        for task in done:
+            self._tasks.remove(task)
 
 
 @contextlib.contextmanager

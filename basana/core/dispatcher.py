@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import cast, Any, Awaitable, Callable, Dict, List, Optional, Set, Tuple
+from typing import cast, Any, Awaitable, Callable, Dict, Generator, List, Optional, Set, Tuple
 import abc
 import asyncio
 import dataclasses
@@ -75,28 +75,35 @@ class EventMultiplexer:
         self._prefetch()
 
         next_dt = None
-        prefetched_events = [e for e in self._prefetched_events.values() if e]
+        prefetched_events = [evnt for evnt in self._prefetched_events.values() if evnt]
         if prefetched_events:
-            next_dt = min(map(lambda e: e.when, prefetched_events))
+            next_dt = min(map(lambda evnt: evnt.when, prefetched_events))
         return next_dt
 
-    def pop(self, max_dt: datetime.datetime) -> List[Tuple[event.EventSource, event.Event]]:
-        def event_matches(t: Tuple[event.EventSource, Optional[event.Event]]) -> bool:
-            event = t[1]
-            return True if event and event.when <= max_dt else False
+    def pop(self, max_dt: datetime.datetime) -> Tuple[Optional[event.EventSource], Optional[event.Event]]:
+        ret_source: Optional[event.EventSource] = None
+        ret_event: Optional[event.Event] = None
 
-        self._prefetch()
+        # Find the next event to return, this is, the oldest one that is <= max_dt.
+        for source, evnt in self._prefetched_events.items():
+            # Prefetch the event for sorting purposes.
+            if evnt is None:
+                evnt = source.pop()
+                self._prefetched_events[source] = evnt
+            # If the event matches the filter, check if the next one to return.
+            if evnt and evnt.when <= max_dt and (ret_event is None or evnt.when < ret_event.when):
+                ret_source = source
+                ret_event = evnt
 
-        # Collect from prefetched.
-        ret: List[Tuple[event.EventSource, event.Event]] = []
-        for source, e in filter(event_matches, self._prefetched_events.items()):
-            e = cast(event.Event, e)  # No longer Optional after being filtered.
-            ret.append((source, e))
-        # Consume the events.
-        for source, _ in ret:
-            self._prefetched_events[source] = None
+        # Consume the event.
+        if ret_source:
+            self._prefetched_events[ret_source] = None
 
-        return ret
+        return (ret_source, ret_event)
+
+    def pop_while(self, max_dt: datetime.datetime) -> Generator[Tuple[event.EventSource, event.Event], None, None]:
+        while None not in (src_and_event := self.pop(max_dt)):
+            yield (cast(event.EventSource, src_and_event[0]), cast(event.Event, src_and_event[1]))
 
     def _prefetch(self):
         sources_to_pop = [
@@ -110,6 +117,8 @@ class EventMultiplexer:
 class EventDispatcher(metaclass=abc.ABCMeta):
     """Responsible for connecting event sources to event handlers and dispatching events in the right order.
 
+    :param max_concurrent: The maximum number of events to process concurrently.
+
     .. note::
 
         The following helper functions are provided to build event dispatchers suitable for backtesting or for live
@@ -119,7 +128,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         * :func:`basana.realtime_dispatcher`
     """
 
-    def __init__(self):
+    def __init__(self, max_concurrent: int):
         self._event_handlers: Dict[event.EventSource, List[EventHandler]] = {}
         self._idle_handlers: List[IdleHandler] = []
         self._sniffers_pre: List[EventHandler] = []
@@ -130,6 +139,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._stopped = False
         self._scheduler = JobScheduler()
         self._event_mux = EventMultiplexer()
+        self._event_task_pool = helpers.TaskPool(max_concurrent)
 
     @property
     def current_event_dt(self) -> Optional[datetime.datetime]:
@@ -147,9 +157,11 @@ class EventDispatcher(metaclass=abc.ABCMeta):
 
     def stop(self):
         """Requests the event dispatcher to stop the event processing loop."""
+        logger.debug("Stop requested")
         self._stopped = True
         if self._active_tasks:
             self._active_tasks.cancel()
+        self._event_task_pool.cancel()
 
     def subscribe_idle(self, idle_handler: IdleHandler):
         """Registers an async callable that will be called when there are no events to dispatch.
@@ -235,6 +247,9 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         except asyncio.CancelledError:
             pass
         finally:
+            # Cancel any pending task in the event pool.
+            self._event_task_pool.cancel()
+            await self._event_task_pool.wait_all()
             # No more cancelation at this point.
             self._active_tasks = None
             # Finalize producers.
@@ -273,8 +288,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
 
 
 class BacktestingDispatcher(EventDispatcher):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, max_concurrent: int):
+        super().__init__(max_concurrent=max_concurrent)
         self.subscribe_all(self._before_event, front_run=True)
         self._last_event_dt: Optional[datetime.datetime] = None
 
@@ -296,19 +311,13 @@ class BacktestingDispatcher(EventDispatcher):
                 assert self._last_event_dt is None or next_dt >= self._last_event_dt, \
                     f"{next_dt} can't be dispatched after {self._last_event_dt}"
 
-                # Collect events to dispatch.
-                to_dispatch = []
-                for source, evnt in self._event_mux.pop(next_dt):
-                    to_dispatch.append(EventDispatch(event=evnt, handlers=self._event_handlers.get(source)))
-                    logger.debug(logs.StructuredMessage(
-                        "Collected event to dispatch", when=evnt.when, type=type(evnt), source_type=type(source)
-                    ))
-
+                # Push events to dispatch and wait those to finish executing.
                 self._last_event_dt = next_dt
-                await asyncio.gather(
-                    *[self._dispatch_event(event_dispatch) for event_dispatch in to_dispatch],
-                    return_exceptions=True
-                )
+                for source, evnt in self._event_mux.pop_while(next_dt):
+                    await self._event_task_pool.push(
+                        self._dispatch_event(EventDispatch(event=evnt, handlers=self._event_handlers.get(source)))
+                    )
+                await self._event_task_pool.wait_all()
             else:
                 await self._run_pending_scheduled()
                 self.stop()
@@ -329,11 +338,12 @@ class BacktestingDispatcher(EventDispatcher):
 
 
 class RealtimeDispatcher(EventDispatcher):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, max_concurrent: int):
+        super().__init__(max_concurrent=max_concurrent)
         self._prev_events: Dict[event.EventSource, datetime.datetime] = {}
-        self.scheduler_tick = 0.01
+        self.scheduler_sleep = 0.1
         self.idle_sleep = 0.01
+        self._wait_all_timeout: Optional[float] = 0.01
 
     async def run(self, stop_signals: List[int] = [signal.SIGINT, signal.SIGTERM]):
         await asyncio.gather(
@@ -346,40 +356,37 @@ class RealtimeDispatcher(EventDispatcher):
 
     async def _dispatch_loop(self):
         while not self._stopped:
-            # Collect events to dispatch.
-            to_dispatch = []
-            for source, evnt in self._event_mux.pop(dt.utc_now()):
+            # Pop events and feed the pool.
+            for source, evnt in self._event_mux.pop_while(dt.utc_now()):
                 # Check that events from the same source are returned in order.
                 prev_event = self._prev_events.get(source)
                 if prev_event is not None and evnt.when < prev_event.when:
                     self.on_error(logs.StructuredMessage(
-                        "Events returned out of order", source=source, previous=prev_event.when, current=evnt.when
+                        "Events returned out of order", source=type(source), previous=prev_event.when, current=evnt.when
                     ))
                     # TODO: Not ignoring out-of-order events should be an option.
                     continue
-
                 self._prev_events[source] = evnt
-                to_dispatch.append(EventDispatch(event=evnt, handlers=self._event_handlers.get(source)))
-                logger.debug(logs.StructuredMessage(
-                    "Collected event to dispatch", when=evnt.when, type=type(evnt), source_type=type(source)
-                ))
 
-            if to_dispatch:
-                await asyncio.gather(
-                    *[self._dispatch_event(event_dispatch) for event_dispatch in to_dispatch],
-                    return_exceptions=True
+                # Push event into the pool for processing.
+                await self._event_task_pool.push(
+                    self._dispatch_event(EventDispatch(event=evnt, handlers=self._event_handlers.get(source)))
                 )
-            elif self._idle_handlers:
-                # TODO: Should we put some throttling here ?
-                # Maybe TokenBucket to limit idle calls to no more than 100 / s ?
-                await asyncio.gather(*[event_handler() for event_handler in self._idle_handlers])
-            else:
-                # Otherwise we'll monopolize the event loop.
-                await asyncio.sleep(self.idle_sleep)
+
+            idle = await self._event_task_pool.wait_all(timeout=self._wait_all_timeout)
+            if idle:
+                if self._idle_handlers:
+                    # TODO: Should put some throttling here. Maybe tokenbucket to limit idle calls to no x / s ?
+                    await asyncio.gather(
+                        *[event_handler() for event_handler in self._idle_handlers], return_exceptions=True
+                    )
+                else:
+                    # Otherwise we'll monopolize the event loop.
+                    await asyncio.sleep(self.idle_sleep)
 
     async def _scheduler_service_loop(self):
         while not self.stopped:
-            await asyncio.sleep(self.scheduler_tick)
+            await asyncio.sleep(self.scheduler_sleep)
             await self._run_scheduler(dt.utc_now())
 
 
@@ -388,11 +395,17 @@ async def await_no_raise(coro: Awaitable[Any], message: str = "Unhandled excepti
         await coro
 
 
-def realtime_dispatcher() -> EventDispatcher:
-    """Creates an event dispatcher suitable for live trading."""
-    return RealtimeDispatcher()
+def realtime_dispatcher(max_concurrent: int = 50) -> EventDispatcher:
+    """Creates an event dispatcher suitable for live trading.
+
+    :param max_concurrent: The maximum number of events to process concurrently.
+    """
+    return RealtimeDispatcher(max_concurrent=max_concurrent)
 
 
-def backtesting_dispatcher() -> EventDispatcher:
-    """Creates an event dispatcher suitable for backtesting."""
-    return BacktestingDispatcher()
+def backtesting_dispatcher(max_concurrent: int = 50) -> EventDispatcher:
+    """Creates an event dispatcher suitable for backtesting.
+
+    :param max_concurrent: The maximum number of events to process concurrently.
+    """
+    return BacktestingDispatcher(max_concurrent=max_concurrent)
