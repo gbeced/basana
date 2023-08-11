@@ -26,7 +26,7 @@ import re
 import websockets
 
 from .helpers import wait_caplog
-from basana.core import dispatcher, pair
+from basana.core import pair
 from basana.external.bitstamp import exchange, order_book
 
 
@@ -192,24 +192,19 @@ def test_reconnect_request(realtime_dispatcher, caplog):
     asyncio.run(asyncio.wait_for(test_main(6), 5))
 
 
-def test_poll_ok_with_custom_session(bitstamp_http_api_mock):
+def test_poll_ok_with_custom_session(bitstamp_http_api_mock, realtime_dispatcher):
     p = pair.Pair("BTC", "USD")
     last_ob = None
-    mdtr = None
 
     async def on_order_book_event(order_book_event):
         nonlocal last_ob
-        nonlocal mdtr
 
         last_ob = order_book_event.order_book
-        mdtr.stop()
+        realtime_dispatcher.stop()
 
     async def test_main():
-        nonlocal mdtr
-
         async with aiohttp.ClientSession() as session:
-            mdtr = dispatcher.EventDispatcher(stop_when_idle=False)
-            mdtr.subscribe(
+            realtime_dispatcher.subscribe(
                 order_book.PollOrderBook(
                     p, 0.5, group=1, session=session,
                     config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
@@ -217,7 +212,7 @@ def test_poll_ok_with_custom_session(bitstamp_http_api_mock):
                 on_order_book_event
             )
 
-            await mdtr.run()
+            await realtime_dispatcher.run()
 
     asyncio.run(asyncio.wait_for(test_main(), 2))
 
@@ -233,20 +228,20 @@ def test_poll_ok_with_custom_session(bitstamp_http_api_mock):
 @pytest.mark.parametrize("response_status, response_body", [
     (500, {}),
 ])
-def test_unhandled_exception_during_poll(response_status, response_body, bitstamp_http_api_mock, caplog):
+def test_unhandled_exception_during_poll(
+    response_status, response_body, bitstamp_http_api_mock, realtime_dispatcher, caplog
+):
     caplog.set_level(logging.INFO)
     bitstamp_http_api_mock.get(
         "http://bitstamp.mock/api/v2/order_book/btcpax/", status=response_status, payload=response_body
     )
-
-    mdtr = dispatcher.EventDispatcher(stop_when_idle=False)
 
     async def on_order_book_event(*args, **kwargs):
         assert False
 
     async def on_error(poller, error):
         await order_book.PollOrderBook.on_error(poller, error)
-        mdtr.stop()
+        realtime_dispatcher.stop()
 
     async def test_main():
         async with aiohttp.ClientSession() as session:
@@ -255,9 +250,9 @@ def test_unhandled_exception_during_poll(response_status, response_body, bitstam
                 config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
             )
             poller.on_error = lambda error: on_error(poller, error)
-            mdtr.subscribe(poller, on_order_book_event)
+            realtime_dispatcher.subscribe(poller, on_order_book_event)
 
-            await mdtr.run()
+            await realtime_dispatcher.run()
             assert "Error polling order book" in caplog.text
 
     asyncio.run(asyncio.wait_for(test_main(), 5))

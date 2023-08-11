@@ -57,6 +57,10 @@ def assert_expected_attrs(object, expected):
         assert actual_value == expected_value, "Mismatch in {}. {} != {}".format(key, actual_value, expected_value)
 
 
+def is_sorted(seq):
+    return all(seq[i] <= seq[i + 1] for i in range(len(seq) - 1))
+
+
 @contextlib.contextmanager
 def temp_file_name(suffix: str = None, delete: bool = True) -> str:
     # On Windows the name can't used to open the file a second time. That is why we're using this only to generate

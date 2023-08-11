@@ -191,7 +191,11 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
         e.add_bar_source(bars.CSVBarSource(p, abs_data_path("orcl-2001-yahoo.csv"), sort=True))
         e.subscribe_to_bar_events(p, on_bar)
 
+        diff = (backtesting_dispatcher.now() - dt.utc_now())
+        assert abs(diff.total_seconds()) < 1
         await backtesting_dispatcher.run()
+        diff = (backtesting_dispatcher.now() - dt.utc_now())
+        assert abs(diff.total_seconds()) > 60
 
         assert bar_events[0].when == datetime.datetime(
             2001, 1, 2, hour=23, minute=59, second=59, microsecond=999999, tzinfo=tz.tzlocal()
@@ -386,7 +390,7 @@ def test_order_requests(order_plan, backtesting_dispatcher):
         e.add_bar_source(bars.CSVBarSource(p, abs_data_path("orcl-2000-yahoo-sorted.csv")))
 
         # These are for testing scenarios where fills take place in multiple bars.
-        bs = event.FifoQueueEventSource(events=[
+        src = event.FifoQueueEventSource(events=[
             bar.BarEvent(
                 dt.local_datetime(2001, 1, 2, 23, 59, 59),
                 bar.Bar(
@@ -412,7 +416,7 @@ def test_order_requests(order_plan, backtesting_dispatcher):
                 )
             ),
         ])
-        e.add_bar_source(bs)
+        e.add_bar_source(src)
 
         e.subscribe_to_bar_events(p, on_bar)
 
