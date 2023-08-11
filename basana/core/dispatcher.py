@@ -47,7 +47,7 @@ class ScheduledJob:
 
 class SchedulerQueue:
     def __init__(self):
-        self._queue: List[ScheduledJob] = []
+        self._queue = []
 
     def push(self, when: datetime.datetime, job: SchedulerJob):
         assert not dt.is_naive(when), f"{when} should have timezone information set"
@@ -254,8 +254,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             # No more cancelation at this point.
             self._active_tasks = None
             # Finalize producers.
-            coros = [await_no_raise(producer.finalize()) for producer in self._producers]
-            await asyncio.gather(*coros)
+            await gather_no_raise(*[producer.finalize() for producer in self._producers])
 
     def on_error(self, error: Any):
         logger.error(error)
@@ -269,19 +268,16 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             "Dispatching event", when=event_dispatch.event.when, type=type(event_dispatch.event)
         ))
         if self._sniffers_pre:
-            await asyncio.gather(
-                *[event_handler(event_dispatch.event) for event_handler in self._sniffers_pre],
-                return_exceptions=True
+            await gather_no_raise(
+                *[event_handler(event_dispatch.event) for event_handler in self._sniffers_pre]
             )
         if event_dispatch.handlers:
-            await asyncio.gather(
-                *[event_handler(event_dispatch.event) for event_handler in event_dispatch.handlers],
-                return_exceptions=True
+            await gather_no_raise(
+                *[event_handler(event_dispatch.event) for event_handler in event_dispatch.handlers]
             )
         if self._sniffers_post:
-            await asyncio.gather(
-                *[event_handler(event_dispatch.event) for event_handler in self._sniffers_post],
-                return_exceptions=True
+            await gather_no_raise(
+                *[event_handler(event_dispatch.event) for event_handler in self._sniffers_post]
             )
 
     async def _execute_scheduled(self, dt: datetime.datetime, job: SchedulerJob):
@@ -368,7 +364,7 @@ class RealtimeDispatcher(EventDispatcher):
 
     async def _on_idle(self):
         if self._idle_handlers:
-            await asyncio.gather(*[
+            await gather_no_raise(*[
                 self._task_pool.push(idle_handler()) for idle_handler in self._idle_handlers
             ])
         else:
@@ -401,6 +397,10 @@ class RealtimeDispatcher(EventDispatcher):
                     handlers=self._event_handlers.get(source, [])
                 ))
             )
+
+
+async def gather_no_raise(*awaitables):
+    await asyncio.gather(*[await_no_raise(awaitable) for awaitable in awaitables])
 
 
 async def await_no_raise(coro: Awaitable[Any], message: str = "Unhandled exception"):
