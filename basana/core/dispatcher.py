@@ -39,23 +39,30 @@ class EventDispatch:
     handlers: List[EventHandler]
 
 
+@dataclasses.dataclass(order=True)
+class ScheduledJob:
+    when: datetime.datetime
+    job: SchedulerJob = dataclasses.field(compare=False)  # Comparing function objects fails on Win32
+
+
 class SchedulerQueue:
     def __init__(self):
-        self._queue = []
+        self._queue: List[ScheduledJob] = []
 
     def push(self, when: datetime.datetime, job: SchedulerJob):
         assert not dt.is_naive(when), f"{when} should have timezone information set"
-        heapq.heappush(self._queue, (when, job))
+        heapq.heappush(self._queue, ScheduledJob(when=when, job=job))
 
     def peek_next_event_dt(self) -> Optional[datetime.datetime]:
         ret = None
         if self._queue:
-            ret = self._queue[0][0]
+            ret = self._queue[0].when
         return ret
 
     def pop(self) -> Tuple[datetime.datetime, SchedulerJob]:
         assert self._queue
-        return heapq.heappop(self._queue)
+        scheduled_job = heapq.heappop(self._queue)
+        return scheduled_job.when, scheduled_job.job
 
 
 class EventMultiplexer:
