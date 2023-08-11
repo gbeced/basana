@@ -215,27 +215,27 @@ def test_subscription_order_per_source(backtesting_dispatcher):
 
 
 def test_sniffers(backtesting_dispatcher):
-    events = []
-    sniffed_events = []
+    handlers = []
 
-    async def save_event(event):
-        events.append(event)
+    async def event_handler(event):
+        handlers.append(2)
 
-    async def save_sniffed_event(event):
-        sniffed_events.append(event)
+    async def all_event_handler(event):
+        handlers.append(3)
+
+    async def all_event_front_runner(event):
+        handlers.append(1)
 
     async def test_main():
-        src_count = 10
+        src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
 
-        backtesting_dispatcher.subscribe_all(save_sniffed_event)
-        for _ in range(src_count):
-            src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
-            backtesting_dispatcher.subscribe(src, save_event)
+        backtesting_dispatcher.subscribe_all(all_event_handler)
+        backtesting_dispatcher.subscribe(src, event_handler)
+        backtesting_dispatcher.subscribe_all(all_event_front_runner, front_run=True)
 
         await backtesting_dispatcher.run()
-
-        assert len(events) == src_count
-        assert len(sniffed_events) == src_count
+        assert len(handlers) == 3
+        assert helpers.is_sorted(handlers)
 
     asyncio.run(test_main())
 
@@ -248,7 +248,7 @@ def test_sniffers(backtesting_dispatcher):
         datetime.datetime(1999, 1, 1, 0, 0, 0),
         datetime.datetime(2000, 1, 2, 0, 0, 0),
         datetime.datetime(2001, 1, 2, 0, 0, 0),
-        datetime.datetime(2002, 1, 2, 0, 0, 0),
+        datetime.datetime(2002, 1, 1, 0, 0, 0),
         dt.local_now(),
         dt.utc_now(),
     ],
@@ -282,16 +282,17 @@ def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
         await backtesting_dispatcher.run()
 
         assert helpers.is_sorted(datetimes)
-        assert len(datetimes) == len(schedule_dates) + 3
+        assert len(datetimes) == len(schedule_dates) + len(event_datetimes)
 
     asyncio.run(test_main())
 
 
-@pytest.mark.parametrize("delta_seconds, timeout", [
-    (0.5, 1),
-    (0.8, 1),
+@pytest.mark.parametrize("delta_seconds", [
+    0.5,
+    1,
+    -0.5,
 ])
-def test_realtime_scheduler(delta_seconds, timeout, realtime_dispatcher):
+def test_realtime_scheduler(delta_seconds, realtime_dispatcher):
     async def scheduled_job():
         realtime_dispatcher.stop()
 
@@ -299,9 +300,9 @@ def test_realtime_scheduler(delta_seconds, timeout, realtime_dispatcher):
         realtime_dispatcher.schedule(
             realtime_dispatcher.now() + datetime.timedelta(seconds=delta_seconds), scheduled_job
         )
-        await asyncio.wait_for(realtime_dispatcher.run(), timeout=timeout)
+        await realtime_dispatcher.run()
 
-    asyncio.run(test_main())
+    asyncio.run(asyncio.wait_for(test_main(), 5))
 
 
 def test_stop_dispatcher_when_idle(realtime_dispatcher):

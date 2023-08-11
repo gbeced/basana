@@ -39,29 +39,23 @@ class EventDispatch:
     handlers: List[EventHandler]
 
 
-class JobScheduler:
+class SchedulerQueue:
     def __init__(self):
         self._queue = []
 
-    def schedule(self, when: datetime.datetime, job: SchedulerJob):
+    def push(self, when: datetime.datetime, job: SchedulerJob):
         assert not dt.is_naive(when), f"{when} should have timezone information set"
         heapq.heappush(self._queue, (when, job))
 
-    def peek(self) -> Optional[datetime.datetime]:
+    def peek_next_event_dt(self) -> Optional[datetime.datetime]:
         ret = None
         if self._queue:
             ret = self._queue[0][0]
         return ret
 
-    async def run(self, now: datetime.datetime):
-        """
-        Execute jobs scheduled before a certain date and time.
-        """
-        coros: List[Awaitable[Any]] = []
-        while self._queue and self._queue[0][0] <= now:
-            _, job = heapq.heappop(self._queue)
-            coros.append(job())
-        await asyncio.gather(*coros)
+    def pop(self) -> Tuple[datetime.datetime, SchedulerJob]:
+        assert self._queue
+        return heapq.heappop(self._queue)
 
 
 class EventMultiplexer:
@@ -137,9 +131,9 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._active_tasks: Optional[helpers.TaskGroup] = None
         self._running = False
         self._stopped = False
-        self._scheduler = JobScheduler()
+        self._scheduler_queue = SchedulerQueue()
         self._event_mux = EventMultiplexer()
-        self._event_task_pool = helpers.TaskPool(max_concurrent)
+        self._task_pool = helpers.TaskPool(max_concurrent)
 
     @property
     def current_event_dt(self) -> Optional[datetime.datetime]:
@@ -161,7 +155,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._stopped = True
         if self._active_tasks:
             self._active_tasks.cancel()
-        self._event_task_pool.cancel()
+        self._task_pool.cancel()
 
     def subscribe_idle(self, idle_handler: IdleHandler):
         """Registers an async callable that will be called when there are no events to dispatch.
@@ -204,12 +198,12 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             sniffers.append(event_handler)
 
     def schedule(self, when: datetime.datetime, job: SchedulerJob):
-        """TODO
+        """Schedules a function to be executed at a given time.
 
-        :param when: TODO.
-        :param job: TODO.
+        :param when: The datetime when the function should be execution.
+        :param job: The function to executee.
         """
-        self._scheduler.schedule(when, job)
+        self._scheduler_queue.push(when, job)
 
     async def run(self, stop_signals: List[int] = [signal.SIGINT, signal.SIGTERM]):
         """Executes the event dispatch loop.
@@ -248,8 +242,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             pass
         finally:
             # Cancel any pending task in the event pool.
-            self._event_task_pool.cancel()
-            await self._event_task_pool.wait_all()
+            self._task_pool.cancel()
+            await self._task_pool.wait_all()
             # No more cancelation at this point.
             self._active_tasks = None
             # Finalize producers.
@@ -283,97 +277,85 @@ class EventDispatcher(metaclass=abc.ABCMeta):
                 return_exceptions=True
             )
 
-    async def _run_scheduler(self, now: datetime.datetime):
-        await self._scheduler.run(now)
+    async def _execute_scheduled(self, dt: datetime.datetime, job: SchedulerJob):
+        logger.debug(logs.StructuredMessage("Executing scheduled job", scheduled=dt))
+        await job()
 
 
 class BacktestingDispatcher(EventDispatcher):
     def __init__(self, max_concurrent: int):
         super().__init__(max_concurrent=max_concurrent)
-        self.subscribe_all(self._before_event, front_run=True)
-        self._last_event_dt: Optional[datetime.datetime] = None
+        self._last_dt: Optional[datetime.datetime] = None
 
     async def run(self, stop_signals: List[int] = [signal.SIGINT, signal.SIGTERM]):
         with logs.backtesting_log_mode(self):
             await super().run(stop_signals=stop_signals)
 
     def now(self) -> datetime.datetime:
-        ret = self._last_event_dt
+        ret = self._last_dt
         if ret is None:
             ret = dt.utc_now()
         return ret
 
     async def _dispatch_loop(self):
-        while not self._stopped:
+        while not self.stopped:
             next_dt = self._event_mux.peek_next_event_dt()
             if next_dt:
                 # Check that events are processed in ascending order.
-                assert self._last_event_dt is None or next_dt >= self._last_event_dt, \
-                    f"{next_dt} can't be dispatched after {self._last_event_dt}"
+                assert self._last_dt is None or next_dt >= self._last_dt, \
+                    f"{next_dt} can't be dispatched after {self._last_dt}"
 
-                # Push events to dispatch and wait those to finish executing.
-                self._last_event_dt = next_dt
-                for source, evnt in self._event_mux.pop_while(next_dt):
-                    await self._event_task_pool.push(
-                        self._dispatch_event(EventDispatch(event=evnt, handlers=self._event_handlers.get(source)))
-                    )
-                await self._event_task_pool.wait_all()
+                await self._dispatch_scheduled(next_dt)
+                await self._dispatch_events(next_dt)
             else:
-                await self._run_pending_scheduled()
+                await self._dispatch_scheduled(dt.utc_now())  # Dispatch all past events.
                 self.stop()
 
-    async def _before_event(self, event: event.Event):
-        # Execute jobs that were scheduled to run before this event.
-        next_scheduled_dt = self._scheduler.peek()
-        while next_scheduled_dt and next_scheduled_dt <= event.when:
-            await self._run_scheduler(next_scheduled_dt)
-            next_scheduled_dt = self._scheduler.peek()
+    async def _dispatch_scheduled(self, dt: datetime.datetime):
+        # Execute jobs that were scheduled to run before dt.
+        next_scheduled_dt = self._scheduler_queue.peek_next_event_dt()
+        while next_scheduled_dt and next_scheduled_dt <= dt:
+            # If self._last_dt is already set in the future, don't move it backwards in time.
+            next_scheduled_dt, job = self._scheduler_queue.pop()
+            if self._last_dt is None or next_scheduled_dt > self._last_dt:
+                self._last_dt = next_scheduled_dt
 
-    async def _run_pending_scheduled(self):
-        # Drain the job queue.
-        next_scheduled_dt = self._scheduler.peek()
-        while next_scheduled_dt:
-            await self._run_scheduler(next_scheduled_dt)
-            next_scheduled_dt = self._scheduler.peek()
+            await self._task_pool.push(self._execute_scheduled(next_scheduled_dt, job))
+            # Waiting here and not outside of the loop to prevent executing distant scheduled jobs at the same time.
+            await self._task_pool.wait_all()
+
+            next_scheduled_dt = self._scheduler_queue.peek_next_event_dt()
+
+    async def _dispatch_events(self, dt: datetime.datetime):
+        # Pop events, push them into the task pool, and wait those to finish executing.
+        self._last_dt = dt
+        for source, evnt in self._event_mux.pop_while(dt):
+            await self._task_pool.push(
+                self._dispatch_event(EventDispatch(event=evnt, handlers=self._event_handlers.get(source, [])))
+            )
+        await self._task_pool.wait_all()
 
 
 class RealtimeDispatcher(EventDispatcher):
     def __init__(self, max_concurrent: int):
         super().__init__(max_concurrent=max_concurrent)
-        self._prev_events: Dict[event.EventSource, datetime.datetime] = {}
-        self.scheduler_sleep = 0.1
+        self._prev_event_dt: Dict[event.EventSource, datetime.datetime] = {}
         self.idle_sleep = 0.01
         self._wait_all_timeout: Optional[float] = 0.01
-
-    async def run(self, stop_signals: List[int] = [signal.SIGINT, signal.SIGTERM]):
-        await asyncio.gather(
-            super().run(stop_signals=stop_signals),
-            self._scheduler_service_loop()
-        )
 
     def now(self) -> datetime.datetime:
         return dt.utc_now()
 
     async def _dispatch_loop(self):
-        while not self._stopped:
-            # Pop events and feed the pool.
-            for source, evnt in self._event_mux.pop_while(dt.utc_now()):
-                # Check that events from the same source are returned in order.
-                prev_event = self._prev_events.get(source)
-                if prev_event is not None and evnt.when < prev_event.when:
-                    self.on_error(logs.StructuredMessage(
-                        "Events returned out of order", source=type(source), previous=prev_event.when, current=evnt.when
-                    ))
-                    # TODO: Not ignoring out-of-order events should be an option.
-                    continue
-                self._prev_events[source] = evnt
-
-                # Push event into the pool for processing.
-                await self._event_task_pool.push(
-                    self._dispatch_event(EventDispatch(event=evnt, handlers=self._event_handlers.get(source)))
-                )
-
-            idle = await self._event_task_pool.wait_all(timeout=self._wait_all_timeout)
+        while not self.stopped:
+            now = dt.utc_now()
+            # Feed the task pool with scheduled jobs and events that are ready for processing.
+            await asyncio.gather(
+                self._push_scheduled(now),
+                self._push_events(now),
+            )
+            # Give some time for tasks to execute, and keep on pushing tasks.
+            idle = await self._task_pool.wait_all(timeout=self._wait_all_timeout)
             if idle:
                 if self._idle_handlers:
                     # TODO: Should put some throttling here. Maybe tokenbucket to limit idle calls to no x / s ?
@@ -384,10 +366,32 @@ class RealtimeDispatcher(EventDispatcher):
                     # Otherwise we'll monopolize the event loop.
                     await asyncio.sleep(self.idle_sleep)
 
-    async def _scheduler_service_loop(self):
-        while not self.stopped:
-            await asyncio.sleep(self.scheduler_sleep)
-            await self._run_scheduler(dt.utc_now())
+    async def _push_scheduled(self, dt: datetime.datetime):
+        while (next_scheduled_dt := self._scheduler_queue.peek_next_event_dt()) and next_scheduled_dt <= dt:
+            next_scheduled_dt, job = self._scheduler_queue.pop()
+            # Push scheduled job into the task pool for processing.
+            await self._task_pool.push(self._execute_scheduled(next_scheduled_dt, job))
+
+    async def _push_events(self, dt: datetime.datetime):
+        # Pop events and feed the pool.
+        for source, evnt in self._event_mux.pop_while(dt):
+            # Check that events from the same source are returned in order.
+            prev_event_dt = self._prev_event_dt.get(source)
+            if prev_event_dt is not None and evnt.when < prev_event_dt:
+                self.on_error(logs.StructuredMessage(
+                    "Events returned out of order", source=type(source), previous=prev_event_dt, current=evnt.when
+                ))
+                # TODO: Not ignoring out-of-order events should be an option.
+                continue
+            self._prev_event_dt[source] = evnt.when
+
+            # Push event into the task pool for processing.
+            await self._task_pool.push(
+                self._dispatch_event(EventDispatch(
+                    event=evnt,
+                    handlers=self._event_handlers.get(source, [])
+                ))
+            )
 
 
 async def await_no_raise(coro: Awaitable[Any], message: str = "Unhandled exception"):
