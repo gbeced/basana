@@ -357,14 +357,16 @@ class RealtimeDispatcher(EventDispatcher):
             # Give some time for tasks to execute, and keep on pushing tasks.
             idle = await self._task_pool.wait_all(timeout=self._wait_all_timeout)
             if idle:
-                if self._idle_handlers:
-                    # TODO: Should put some throttling here. Maybe tokenbucket to limit idle calls to no x / s ?
-                    await asyncio.gather(
-                        *[event_handler() for event_handler in self._idle_handlers], return_exceptions=True
-                    )
-                else:
-                    # Otherwise we'll monopolize the event loop.
-                    await asyncio.sleep(self.idle_sleep)
+                await self._on_idle()
+
+    async def _on_idle(self):
+        if self._idle_handlers:
+            await asyncio.gather(*[
+                self._task_pool.push(idle_handler()) for idle_handler in self._idle_handlers
+            ])
+        else:
+            # Otherwise we'll monopolize the event loop.
+            await asyncio.sleep(self.idle_sleep)
 
     async def _push_scheduled(self, dt: datetime.datetime):
         while (next_scheduled_dt := self._scheduler_queue.peek_next_event_dt()) and next_scheduled_dt <= dt:
