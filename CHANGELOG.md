@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.0 - TBD
+
+* Support for scheduling functions that will be executed at a given date and time.
+* Improved dispatcher concurrency, specially for the realtime dispatcher.
+
 ## 1.3.2 - July 30, 2023
 
 * Bug fix in download_bars.
