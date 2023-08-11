@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0 - TBD
+## 1.4.0 - Aug 11, 2023
 
 * Support for scheduling functions that will be executed at a given date and time.
 * Improved dispatcher concurrency, specially for the realtime dispatcher.
