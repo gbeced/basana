@@ -25,6 +25,12 @@ you define. Take a look at the :doc:`quickstart` section for examples on how to 
     :members:
 .. autoclass:: basana.EventDispatcher
     :members:
+.. autoclass:: basana.BacktestingDispatcher
+    :show-inheritance:
+    :members:
+.. autoclass:: basana.RealtimeDispatcher
+    :show-inheritance:
+    :members:
 .. autofunction:: basana.backtesting_dispatcher
 .. autofunction:: basana.realtime_dispatcher
 

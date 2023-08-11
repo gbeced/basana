@@ -131,7 +131,6 @@ class EventDispatcher(metaclass=abc.ABCMeta):
 
     def __init__(self, max_concurrent: int):
         self._event_handlers: Dict[event.EventSource, List[EventHandler]] = {}
-        self._idle_handlers: List[IdleHandler] = []
         self._sniffers_pre: List[EventHandler] = []
         self._sniffers_post: List[EventHandler] = []
         self._producers: Set[event.Producer] = set()
@@ -163,17 +162,6 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         if self._active_tasks:
             self._active_tasks.cancel()
         self._task_pool.cancel()
-
-    def subscribe_idle(self, idle_handler: IdleHandler):
-        """Registers an async callable that will be called when there are no events to dispatch.
-
-        :param idle_handler: An async callable that receives no arguments.
-        """
-
-        assert not self._running, "Subscribing once we're running is not currently supported."
-
-        if idle_handler not in self._idle_handlers:
-            self._idle_handlers.append(idle_handler)
 
     def subscribe(self, source: event.EventSource, event_handler: EventHandler):
         """Registers an async callable that will be called when an event source has new events.
@@ -286,6 +274,11 @@ class EventDispatcher(metaclass=abc.ABCMeta):
 
 
 class BacktestingDispatcher(EventDispatcher):
+    """Event dispatcher for backtesting.
+
+    :param max_concurrent: The maximum number of events to process concurrently.
+    """
+
     def __init__(self, max_concurrent: int):
         super().__init__(max_concurrent=max_concurrent)
         self._last_dt: Optional[datetime.datetime] = None
@@ -340,14 +333,31 @@ class BacktestingDispatcher(EventDispatcher):
 
 
 class RealtimeDispatcher(EventDispatcher):
+    """Event dispatcher for live trading.
+
+    :param max_concurrent: The maximum number of events to process concurrently.
+    """
+
     def __init__(self, max_concurrent: int):
         super().__init__(max_concurrent=max_concurrent)
         self._prev_event_dt: Dict[event.EventSource, datetime.datetime] = {}
         self.idle_sleep = 0.01
         self._wait_all_timeout: Optional[float] = 0.01
+        self._idle_handlers: List[IdleHandler] = []
 
     def now(self) -> datetime.datetime:
         return dt.utc_now()
+
+    def subscribe_idle(self, idle_handler: IdleHandler):
+        """Registers an async callable that will be called when there are no events to dispatch.
+
+        :param idle_handler: An async callable that receives no arguments.
+        """
+
+        assert not self._running, "Subscribing once we're running is not currently supported."
+
+        if idle_handler not in self._idle_handlers:
+            self._idle_handlers.append(idle_handler)
 
     async def _dispatch_loop(self):
         while not self.stopped:

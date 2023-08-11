@@ -23,6 +23,8 @@ from .core.bar import (
 
 from .core.dispatcher import (
     EventDispatcher,
+    BacktestingDispatcher,
+    RealtimeDispatcher,
     backtesting_dispatcher,
     realtime_dispatcher,
 )
