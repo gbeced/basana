@@ -27,7 +27,7 @@ $ pip install basana[charts] talipp
 ### Download historical data for backtesting
 
 ```
-$ python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2014-01-01 -e 2021-01-31 > binance_btcusdt_day.csv
+$ python -m basana.external.bitstamp.tools.download_bars -c BTC/USD -p 1d -s 2014-01-01 -e 2021-01-31 > bitstamp_btcusd_day.csv
 ```
 
 ### Backtesting using SMA and market orders
@@ -40,7 +40,7 @@ import logging
 from talipp.indicators import SMA
 
 from basana.backtesting import charts
-from basana.external.binance import csv
+from basana.external.bitstamp import csv
 import basana as bs
 import basana.backtesting.exchange as backtesting_exchange
 
@@ -108,10 +108,10 @@ async def main():
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
 
     event_dispatcher = bs.backtesting_dispatcher()
-    pair = bs.Pair("BTC", "USDT")
+    pair = bs.Pair("BTC", "USD")
     exchange = backtesting_exchange.Exchange(
         event_dispatcher,
-        initial_balances={"BTC": Decimal(0), "USDT": Decimal(10000)}
+        initial_balances={"BTC": Decimal(0), "USD": Decimal(10000)}
     )
     exchange.set_pair_info(pair, bs.PairInfo(8, 2))
 
@@ -124,13 +124,13 @@ async def main():
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
 
     # Load bars from CSV files.
-    exchange.add_bar_source(csv.BarSource(pair, "binance_btcusdt_day.csv", "1d"))
+    exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_day.csv", "1d"))
 
     # Setup the chart.
     chart = charts.LineCharts(exchange)
     chart.add_pair(pair)
     chart.add_pair_indicator("SMA", pair, charts.DataPointFromSequence(strategy.sma))
-    chart.add_portfolio_value("USDT")
+    chart.add_portfolio_value("USD")
 
     # Run the backtest.
     await event_dispatcher.run()
