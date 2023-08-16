@@ -65,6 +65,25 @@ def test_order_gets_completed():
     assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(0)
 
 
+def test_negative_balances():
+    balances = account_balances.AccountBalances({"USD": Decimal(0)})
+    order = orders.MarketOrder(
+        "1", orders.OrderOperation.BUY, pair.Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN
+    )
+
+    balances.order_accepted(order, {"USD": Decimal("1000")})
+    assert balances.get_available_balance("USD") == Decimal(-1000)
+    assert balances.get_balance_on_hold("USD") == Decimal(1000)
+
+    balances.order_updated(order, {"BTC": Decimal("0.08"), "USD": Decimal("-900")})
+    assert balances.get_available_balance("USD") == Decimal(-1000)
+    assert balances.get_balance_on_hold("USD") == Decimal(100)
+
+    balances.order_updated(order, {"BTC": Decimal("0.02"), "USD": Decimal("-200")})
+    assert balances.get_available_balance("USD") == Decimal(-1100)
+    assert balances.get_balance_on_hold("USD") == Decimal(0)
+
+
 def test_order_gets_canceled():
     balances = account_balances.AccountBalances({"USD": Decimal(10000)})
 
