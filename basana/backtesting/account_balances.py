@@ -35,7 +35,7 @@ class AccountBalances:
         return list(symbols)
 
     def get_available_balance(self, symbol: str) -> Decimal:
-        return self._balances.get(symbol, Decimal(0)) - self.get_balance_on_hold(symbol)
+        return self._balances.get(symbol, Decimal(0)) - self._holds_by_symbol.get(symbol, Decimal(0))
 
     def get_balance_on_hold(self, symbol: str) -> Decimal:
         return self._holds_by_symbol.get(symbol, Decimal(0))
