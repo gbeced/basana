@@ -14,11 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import decimal
 from decimal import Decimal
 from typing import cast, Any, Awaitable, Callable, Dict, Generator, List, Optional, Sequence, Tuple
 import copy
 import dataclasses
+import decimal
 import logging
 import uuid
 
@@ -83,9 +83,9 @@ class OrderIndex:
 
 @dataclasses.dataclass
 class Balance:
-    #: The available balance.
+    #: The available balance (the total balance - reserved/hold).
     available: Decimal
-    #: The total balance (available + reserved).
+    #: The total balance (available + reserved/hold).
     total: Decimal
 
 
@@ -191,9 +191,9 @@ class Exchange:
         pair_info = await self.get_pair_info(order_request.pair)
         order_request.validate(pair_info)
 
-        # Check balances.
+        # Check balances before accepting the order.
         required_balances = await self._estimate_required_balances(order_request)
-        self._check_available_balance(required_balances)
+        self._check_balance_requirements(required_balances, order_request=order_request, raise_if_short=True)
 
         # Create and accept the order.
         order = order_request.create_order(uuid.uuid4().hex)
@@ -442,20 +442,11 @@ class Exchange:
         final_updates = bt_helpers.remove_empty_amounts(final_updates)
 
         # Check if we're short on any balance.
-        balances_short = False
-        for symbol, balance_update in final_updates.items():
-            available_balance = self._balances.get_available_balance(symbol) + \
-                                self._balances.get_balance_on_hold_for_order(order.id, symbol)
-            final_balance = available_balance + balance_update
-            if final_balance < Decimal(0):
-                balances_short = True
-                logger.debug(logs.StructuredMessage(
-                    "Balance short processing order", order_id=order.id, symbol=symbol, short=final_balance
-                ))
-                break
+        required_balances = {symbol: -amount for symbol, amount in final_updates.items() if amount < 0}
+        balance_ok = self._check_balance_requirements(required_balances, order=order)
 
         # Update, or fail.
-        if not balances_short:
+        if balance_ok:
             # Update the liquidity strategy.
             liquidity_strategy.take_liquidity(abs(balance_updates[bar_event.bar.pair.base_symbol]))
             # Update the order.
@@ -485,14 +476,45 @@ class Exchange:
         if event_source:
             event_source.push(event)
 
-    def _check_available_balance(self, required_balance: Dict[str, Decimal]):
-        for symbol, required in required_balance.items():
+    def _check_balance_requirements(
+            self, required_balances: Dict[str, Decimal],
+            order: Optional[orders.Order] = None, order_request: Optional[requests.ExchangeOrder] = None,
+            raise_if_short: bool = False
+    ) -> bool:
+        ret = True
+        assert (order is not None) ^ (order_request is not None)
+
+        for symbol, required in required_balances.items():
             assert required > Decimal(0), f"Invalid required balance {required} for {symbol}"
+
             available_balance = self._balances.get_available_balance(symbol)
-            if available_balance < required:
+            if order:
+                available_balance += self._balances.get_balance_on_hold_for_order(order.id, symbol)
+
+            balance_short = min(available_balance - required, Decimal(0))
+            if not balance_short:
+                continue
+
+            ret = False
+
+            # Debug log.
+            if order:
+                param_type = "order"
+                param_props = {"order_id": order.id}
+            else:
+                param_type = "order request"
+                param_props = {}
+            logger.debug(logs.StructuredMessage(
+                f"Balance short processing {param_type}", symbol=symbol, short=balance_short, **param_props
+            ))
+
+            # Fail if required.
+            if raise_if_short:
                 raise errors.Error("Not enough {} available. {} are required and {} are available".format(
                     symbol, required, available_balance
                 ))
+
+        return ret
 
     async def _get_last_price(self, pair: Pair) -> Optional[Decimal]:
         last_bar = self._last_bars.get(pair)
