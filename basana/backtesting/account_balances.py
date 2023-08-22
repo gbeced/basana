@@ -49,7 +49,7 @@ class AccountBalances:
 
         # When an order gets accepted we need to hold any required balance that will be debited as the order gets
         # filled.
-        symbol = self._get_hold_symbol(order)
+        symbol = get_hold_symbol(order)
         hold_amount = required_balance.get(symbol, Decimal(0))
         assert hold_amount >= Decimal(0), f"Invalid hold amount {hold_amount}"
         holds = {symbol: hold_amount}
@@ -63,7 +63,7 @@ class AccountBalances:
         self._balances = add_amounts(self._balances, balance_updates)
 
         # Update holds for the order.
-        symbol = self._get_hold_symbol(order)
+        symbol = get_hold_symbol(order)
         if order.is_open:
             # Release whatever was spent, but no more than what was on hold for this order.
             amount_on_hold = self._holds_by_order[order.id][symbol]
@@ -78,10 +78,11 @@ class AccountBalances:
         # Update holds for the symbol.
         self._holds_by_symbol = add_amounts(self._holds_by_symbol, hold_updates)
 
-    def _get_hold_symbol(self, order: orders.Order):
-        if order.operation == orders.OrderOperation.BUY:
-            symbol = order.pair.quote_symbol
-        else:
-            assert order.operation == orders.OrderOperation.SELL
-            symbol = order.pair.base_symbol
-        return symbol
+
+def get_hold_symbol(order: orders.Order):
+    if order.operation == orders.OrderOperation.BUY:
+        symbol = order.pair.quote_symbol
+    else:
+        assert order.operation == orders.OrderOperation.SELL
+        symbol = order.pair.base_symbol
+    return symbol
