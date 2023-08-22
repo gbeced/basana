@@ -147,6 +147,7 @@ class Exchange:
         self._default_pair_info = default_pair_info
         self._last_bars: Dict[Pair, bar.Bar] = {}
         self._bid_ask_spread = bid_ask_spread
+        self._skip_balance_check = False
 
     async def get_balance(self, symbol: str) -> Balance:
         """Returns the balance for a specific currency/symbol/etc..
@@ -198,6 +199,7 @@ class Exchange:
         # Create and accept the order.
         order = order_request.create_order(uuid.uuid4().hex)
         self._orders.add_order(order)
+        logger.debug(logs.StructuredMessage("Request accepted", order_id=order.id))
 
         # Update/hold balances.
         self._balances.order_accepted(order, required_balances)
@@ -481,6 +483,10 @@ class Exchange:
             order: Optional[orders.Order] = None, order_request: Optional[requests.ExchangeOrder] = None,
             raise_if_short: bool = False
     ) -> bool:
+        # TODO: This is just a hack to enable testing short positions until support for lending gets implemented.
+        if self._skip_balance_check:
+            return True
+
         ret = True
         assert (order is not None) ^ (order_request is not None)
 
