@@ -415,6 +415,13 @@ class Exchange:
                 self._balances.order_updated(order, {})
                 logger.debug(logs.StructuredMessage("Order not filled", order_id=order.id, order_state=order.state))
 
+        logger.debug(logs.StructuredMessage(
+            "Processing order", order=order.get_debug_info(),
+            bar={
+                "open": bar_event.bar.open, "high": bar_event.bar.high, "low": bar_event.bar.low,
+                "close": bar_event.bar.close, "volume": bar_event.bar.volume,
+            }
+        ))
         prev_state = order.state
         balance_updates = order.get_balance_updates(bar_event.bar, liquidity_strategy)
         assert order.state == prev_state, "The order state should not change inside get_balance_updates"

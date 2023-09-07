@@ -181,6 +181,15 @@ class Order:
         """Called every time the order was processed but no fill took place."""
         pass
 
+    def get_debug_info(self) -> dict:
+        return {
+            "id": self.id,
+            "pair": self.pair,
+            "operation": self.operation,
+            "amount": self.amount,
+            "amount_filled": self.amount_filled,
+        }
+
 
 class MarketOrder(Order):
     def __init__(
@@ -251,6 +260,11 @@ class LimitOrder(Order):
             }
         return ret
 
+    def get_debug_info(self) -> dict:
+        ret = super().get_debug_info()
+        ret["limit_price"] = self._limit_price
+        return ret
+
     def get_order_info(self) -> OrderInfo:
         ret = super().get_order_info()
         ret.limit_price = self._limit_price
@@ -308,6 +322,11 @@ class StopOrder(Order):
                 self.pair.base_symbol: amount * base_sign,
                 self.pair.quote_symbol: price * amount * -base_sign
             }
+        return ret
+
+    def get_debug_info(self) -> dict:
+        ret = super().get_debug_info()
+        ret["stop_price"] = self._stop_price
         return ret
 
     def get_order_info(self) -> OrderInfo:
@@ -425,6 +444,12 @@ class StopLimitOrder(Order):
             ret = self.get_balance_updates_before_stop_hit(bar, liquidity_strategy)
         else:
             ret = self.get_balance_updates_after_stop_hit(bar, liquidity_strategy)
+        return ret
+
+    def get_debug_info(self) -> dict:
+        ret = super().get_debug_info()
+        ret["limit_price"] = self._limit_price
+        ret["stop_price"] = self._stop_price
         return ret
 
     def get_order_info(self) -> OrderInfo:
