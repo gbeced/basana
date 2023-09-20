@@ -253,17 +253,18 @@ class LineCharts:
         """
         self._balance_charts[symbol] = AccountBalanceLineChart(symbol, self._exchange)
 
-    def add_portfolio_value(self, symbol: str):
+    def add_portfolio_value(self, symbol: str, precision: int = 2):
         """Adds a chart with the portfolio value in a given currency.
 
         :param symbol: The currency symbol.
+        :param precision: The number of digits after the decimal point.
 
         .. note::
 
             * If the portfolio value can't be calculated at any given point, for example because there is no price for
               a given instrument, an error will be logged.
         """
-        self._portfolio_charts[symbol] = PortfolioValueLineChart(symbol, self._exchange)
+        self._portfolio_charts[symbol] = PortfolioValueLineChart(symbol, self._exchange, precision=precision)
 
     def add_pair(self, pair: Pair, include_buys: bool = True, include_sells: bool = True):
         """Adds a chart with the pair values.
