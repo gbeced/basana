@@ -196,7 +196,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         """Schedules a function to be executed at a given time.
 
         :param when: The datetime when the function should be execution.
-        :param job: The function to executee.
+        :param job: The function to execute.
         """
         self._scheduler_queue.push(when, job)
 
