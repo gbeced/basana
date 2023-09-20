@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1 - September 20, 2023
+
+* Bug fix. Capture and log unhandled exceptions in scheduled jobs.
+
 ## 1.4.0 - Aug 11, 2023
 
 * Support for scheduling functions that will be executed at a given date and time.
