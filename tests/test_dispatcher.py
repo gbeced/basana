@@ -264,6 +264,9 @@ def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
     async def proces_event(event):
         datetimes.append(event.when)
 
+    async def failing_scheduled_job():
+        raise Exception("oh no, oh no, oh no no no no")
+
     async def test_main():
         src = event.FifoQueueEventSource()
         event_datetimes = [
@@ -278,6 +281,7 @@ def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
         for schedule_date in schedule_dates:
             schedule_date = schedule_date.replace(tzinfo=datetime.timezone.utc)
             backtesting_dispatcher.schedule(schedule_date, scheduled_job_factory(schedule_date))
+            backtesting_dispatcher.schedule(schedule_date, failing_scheduled_job)
 
         await backtesting_dispatcher.run()
 
