@@ -196,7 +196,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         """Schedules a function to be executed at a given time.
 
         :param when: The datetime when the function should be execution.
-        :param job: The function to executee.
+        :param job: The function to execute.
         """
         self._scheduler_queue.push(when, job)
 
@@ -270,7 +270,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
 
     async def _execute_scheduled(self, dt: datetime.datetime, job: SchedulerJob):
         logger.debug(logs.StructuredMessage("Executing scheduled job", scheduled=dt))
-        await job()
+        await await_no_raise(job(), message="Unhandled exception executing scheduled job")
 
 
 class BacktestingDispatcher(EventDispatcher):
