@@ -3,6 +3,7 @@
 ## 1.4.1 - September 20, 2023
 
 * Bug fix. Capture and log unhandled exceptions in scheduled jobs.
+* Bug fix. Rounding in charts.
 
 ## 1.4.0 - Aug 11, 2023
 
