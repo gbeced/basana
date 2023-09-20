@@ -75,12 +75,11 @@ class LineChart(metaclass=abc.ABCMeta):
 
 
 class PairLineChart(LineChart):
-    def __init__(self, pair: Pair, include_buys: bool, include_sells: bool, exchange: Exchange, precision: int = 2):
+    def __init__(self, pair: Pair, include_buys: bool, include_sells: bool, exchange: Exchange):
         self._pair = pair
         self._include_buys = include_buys
         self._include_sells = include_sells
         self._exchange = exchange
-        self._precision = precision
         self._ts = TimeSeries()
         self._indicators: Dict[str, Tuple[ChartDataPointFn, TimeSeries]] = {}
 
@@ -125,11 +124,12 @@ class PairLineChart(LineChart):
             lambda order: order.pair == self._pair and order.operation == op,
             self._exchange._get_all_orders()
         )
+        pair_info = self._exchange._get_pair_info(self._pair)
         for order in orders:
             for fill in order.fills:
                 base_amount = fill.balance_updates[order.pair.base_symbol]
                 quote_amount = fill.balance_updates[order.pair.quote_symbol]
-                price = -helpers.truncate_decimal(quote_amount / base_amount, self._precision)
+                price = -helpers.truncate_decimal(quote_amount / base_amount, pair_info.quote_precision)
                 ret.add_value(fill.when, price)
         return ret
 
@@ -253,17 +253,18 @@ class LineCharts:
         """
         self._balance_charts[symbol] = AccountBalanceLineChart(symbol, self._exchange)
 
-    def add_portfolio_value(self, symbol: str):
+    def add_portfolio_value(self, symbol: str, precision: int = 2):
         """Adds a chart with the portfolio value in a given currency.
 
         :param symbol: The currency symbol.
+        :param precision: The number of digits after the decimal point.
 
         .. note::
 
             * If the portfolio value can't be calculated at any given point, for example because there is no price for
               a given instrument, an error will be logged.
         """
-        self._portfolio_charts[symbol] = PortfolioValueLineChart(symbol, self._exchange)
+        self._portfolio_charts[symbol] = PortfolioValueLineChart(symbol, self._exchange, precision=precision)
 
     def add_pair(self, pair: Pair, include_buys: bool = True, include_sells: bool = True):
         """Adds a chart with the pair values.
