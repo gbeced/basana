@@ -5,7 +5,7 @@
 * Bug fix. Capture and log unhandled exceptions in scheduled jobs.
 * Bug fix. Rounding in charts.
 
-## 1.4.0 - Aug 11, 2023
+## 1.4.0 - August 11, 2023
 
 * Support for scheduling functions that will be executed at a given date and time.
 * Improved dispatcher concurrency, specially for the realtime dispatcher.
