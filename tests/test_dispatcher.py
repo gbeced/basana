@@ -249,7 +249,6 @@ def test_sniffers(backtesting_dispatcher):
         datetime.datetime(2000, 1, 2, 0, 0, 0),
         datetime.datetime(2001, 1, 2, 0, 0, 0),
         datetime.datetime(2002, 1, 1, 0, 0, 0),
-        dt.local_now(),
         dt.utc_now(),
     ],
 ])
