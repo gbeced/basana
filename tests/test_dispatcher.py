@@ -278,7 +278,8 @@ def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
         backtesting_dispatcher.subscribe(src, proces_event)
 
         for schedule_date in schedule_dates:
-            schedule_date = schedule_date.replace(tzinfo=datetime.timezone.utc)
+            if dt.is_naive(schedule_date):
+                schedule_date = schedule_date.replace(tzinfo=datetime.timezone.utc)
             backtesting_dispatcher.schedule(schedule_date, scheduled_job_factory(schedule_date))
             backtesting_dispatcher.schedule(schedule_date, failing_scheduled_job)
 
