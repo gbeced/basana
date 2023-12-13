@@ -47,7 +47,7 @@ class Percentage(FeeStrategy):
     """This strategy applies a fixed percentage per trade, in quote currency.
 
     :param percentage: The percentage to apply.
-    :param min_fee: Minimum fee in quote amount. Optional, defaults to 0.
+    :param min_fee: Minimum fee amount, in quote currency.
     """
 
     def __init__(self, percentage: Decimal, min_fee: Decimal = Decimal(0)):
