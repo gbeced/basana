@@ -29,6 +29,7 @@ class FeeStrategy(metaclass=abc.ABCMeta):
         * This is a base class and should not be used directly.
     """
 
+    @abc.abstractmethod
     def calculate_fees(
             self, order: orders.Order, balance_updates: Dict[str, Decimal]
     ) -> Dict[str, Decimal]:
