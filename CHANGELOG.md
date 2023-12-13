@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.2 - TBD
+
+* basana.backtesting.fees.Percentage now supports a minimum fee.
+
 ## 1.4.1 - September 20, 2023
 
 * Bug fix. Capture and log unhandled exceptions in scheduled jobs.
