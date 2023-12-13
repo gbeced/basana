@@ -50,3 +50,14 @@ def test_percentage_fee_with_partial_fills():
     }
     assert fee_strategy.calculate_fees(order, balance_updates) == {"USD": Decimal("-0.098")}
     order.add_fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.1")})
+
+
+def test_percentage_fee_with_minium():
+    fee_strategy = fees.Percentage(Decimal("1"), min_fee=Decimal("5"))
+    order = orders.MarketOrder("1", OrderOperation.BUY, Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN)
+
+    balance_updates = {
+        "BTC": Decimal("0.1"),
+        "USD": Decimal("-50.15"),
+    }
+    assert fee_strategy.calculate_fees(order, balance_updates) == {"USD": Decimal("-5")}
