@@ -47,11 +47,14 @@ class Percentage(FeeStrategy):
     """This strategy applies a fixed percentage per trade, in quote currency.
 
     :param percentage: The percentage to apply.
+    :param min_fee: Minimum fee in quote amount. Optional, defaults to 0.
     """
 
-    def __init__(self, percentage: Decimal):
+    def __init__(self, percentage: Decimal, min_fee: Decimal = Decimal(0)):
         assert percentage >= 0 and percentage < 100, f"Invalid percentage {percentage}"
+        assert min_fee >= 0, f"Minimum fee cannot be negative {min_fee}"
         self._percentage = percentage
+        self._min_fee = min_fee
 
     def calculate_fees(self, order: orders.Order, balance_updates: Dict[str, Decimal]) -> Dict[str, Decimal]:
         ret = {}
@@ -64,7 +67,7 @@ class Percentage(FeeStrategy):
         charged_fee_amount = order.fees.get(symbol, Decimal(0))
         assert charged_fee_amount <= Decimal(0), "Fees should always be negative"
         total_quote_amount = order.balance_updates.get(symbol, Decimal(0)) + balance_updates.get(symbol, Decimal(0))
-        total_fee_amount = -abs(total_quote_amount) * self._percentage / Decimal(100)
+        total_fee_amount = -max(abs(total_quote_amount) * self._percentage / Decimal(100), self._min_fee)
         pending_fee = total_fee_amount - charged_fee_amount
         if pending_fee < Decimal(0):
             ret[symbol] = pending_fee
