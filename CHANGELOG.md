@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.2
+## 1.5.0
 
 * basana.backtesting.fees.Percentage now supports a minimum fee.
 
