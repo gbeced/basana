@@ -48,7 +48,9 @@ def test_account_balances(backtesting_dispatcher):
         )
         assert (await e.get_balance("usd")).available == Decimal("1000")
         assert (await e.get_balance("usd")).total == Decimal("1000")
-        assert (await e.get_balance("ars")).available == Decimal("-2000.05")
+        assert (await e.get_balance("ars")).available == Decimal("0")
+        assert (await e.get_balance("ars")).borrowed == Decimal("2000.05")
+        assert (await e.get_balance("ars")).total == Decimal("-2000.05")
         assert (await e.get_balance("eth")).available == Decimal("0")
         assert (await e.get_balance("ltc")).available == Decimal("0")
 

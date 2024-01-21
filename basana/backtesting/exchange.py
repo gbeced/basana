@@ -85,13 +85,17 @@ class OrderIndex:
 class Balance:
     #: The available balance (the total balance - hold).
     available: Decimal
-    #: The total balance (available + hold).
+    #: The total balance ((available + hold) - (borrowed + interest)).
     total: Decimal = dataclasses.field(init=False)
-    #: The balance on hold.
+    #: The balance on hold (reserved for open sell orders).
     hold: Decimal
+    #: The balance borrowed.
+    borrowed: Decimal
+    #: The interest.
+    interest: Decimal
 
     def __post_init__(self):
-        self.total = self.available + self.hold
+        self.total = (self.available + self.hold) - (self.borrowed + self.interest)
 
 
 @dataclasses.dataclass
@@ -159,17 +163,13 @@ class Exchange:
 
         :param symbol: The currency/symbol/etc..
         """
-        available = self._balances.get_available_balance(symbol)
-        hold = self._balances.get_balance_on_hold(symbol)
-        return Balance(available=available, hold=hold)
+        return self._get_balance(symbol)
 
     async def get_balances(self) -> Dict[str, Balance]:
         """Returns all balances."""
         ret = {}
         for symbol in self._balances.get_symbols():
-            available = self._balances.get_available_balance(symbol)
-            hold = self._balances.get_balance_on_hold(symbol)
-            ret[symbol] = Balance(available=available, hold=hold)
+            ret[symbol] = self._get_balance(symbol)
         return ret
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Optional[Decimal], Optional[Decimal]]:
@@ -568,3 +568,10 @@ class Exchange:
 
     def _get_dispatcher(self) -> dispatcher.EventDispatcher:
         return self._dispatcher
+
+    def _get_balance(self, symbol: str) -> Balance:
+        available = self._balances.get_available_balance(symbol)
+        hold = self._balances.get_balance_on_hold(symbol)
+        return Balance(
+            available=max(Decimal(0), available), hold=hold, borrowed=max(Decimal(0), -available), interest=Decimal(0)
+        )
