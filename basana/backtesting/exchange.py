@@ -83,10 +83,15 @@ class OrderIndex:
 
 @dataclasses.dataclass
 class Balance:
-    #: The available balance (the total balance - reserved/hold).
+    #: The available balance (the total balance - hold).
     available: Decimal
-    #: The total balance (available + reserved/hold).
-    total: Decimal
+    #: The total balance (available + hold).
+    total: Decimal = dataclasses.field(init=False)
+    #: The balance on hold.
+    hold: Decimal
+
+    def __post_init__(self):
+        self.total = self.available + self.hold
 
 
 @dataclasses.dataclass
@@ -156,7 +161,7 @@ class Exchange:
         """
         available = self._balances.get_available_balance(symbol)
         hold = self._balances.get_balance_on_hold(symbol)
-        return Balance(available=available, total=available + hold)
+        return Balance(available=available, hold=hold)
 
     async def get_balances(self) -> Dict[str, Balance]:
         """Returns all balances."""
@@ -164,7 +169,7 @@ class Exchange:
         for symbol in self._balances.get_symbols():
             available = self._balances.get_available_balance(symbol)
             hold = self._balances.get_balance_on_hold(symbol)
-            ret[symbol] = Balance(available=available, total=available + hold)
+            ret[symbol] = Balance(available=available, hold=hold)
         return ret
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Optional[Decimal], Optional[Decimal]]:
