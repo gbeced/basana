@@ -205,7 +205,7 @@ class Exchange:
 
         # Check balances before accepting the order.
         required_balances = await self._estimate_required_balances(order_request)
-        self._check_balance_requirements(required_balances, order_request=order_request, raise_if_short=True)
+        self._check_balance_requirements(required_balances, raise_if_short=True)
 
         # Create and accept the order.
         order = order_request.create_order(uuid.uuid4().hex)
@@ -405,7 +405,7 @@ class Exchange:
 
         # Check balances.
         required_balances = {loan.symbol: loan.amount}
-        self._check_available_balance(required_balances)
+        self._check_balance_requirements(required_balances, log_context={"loan.id": loan_id}, raise_if_short=True)
         # Update balances.
         self._balances.loan_updated(loan)
         # Close the loan.
@@ -498,7 +498,9 @@ class Exchange:
 
         # Check if we're short on any balance.
         required_balances = {symbol: -amount for symbol, amount in final_updates.items() if amount < 0}
-        balance_ok = self._check_balance_requirements(required_balances, order=order)
+        balance_ok = self._check_balance_requirements(
+            required_balances, order=order, log_context={"order.id": order.id}
+        )
 
         # Update, or fail.
         if balance_ok:
@@ -532,16 +534,10 @@ class Exchange:
             event_source.push(event)
 
     def _check_balance_requirements(
-            self, required_balances: Dict[str, Decimal],
-            order: Optional[orders.Order] = None, order_request: Optional[requests.ExchangeOrder] = None,
-            raise_if_short: bool = False
+            self, required_balances: Dict[str, Decimal], order: Optional[orders.Order] = None,
+            log_context: Dict[str, Any] = {}, raise_if_short: bool = False
     ) -> bool:
-        # TODO: This is just a hack to enable testing short positions until support for lending gets implemented.
-        if self._skip_balance_check:
-            return True
-
         ret = True
-        assert (order is not None) ^ (order_request is not None)
 
         for symbol, required in required_balances.items():
             assert required > Decimal(0), f"Invalid required balance {required} for {symbol}"
@@ -550,22 +546,12 @@ class Exchange:
             if order:
                 available_balance += self._balances.get_balance_on_hold_for_order(order.id, symbol)
 
-            balance_short = min(available_balance - required, Decimal(0))
-            if not balance_short:
+            balance_short = max(required - available_balance, Decimal(0))
+            if balance_short == Decimal(0):
                 continue
 
             ret = False
-
-            # Debug log.
-            if order:
-                param_type = "order"
-                param_props = {"order_id": order.id}
-            else:
-                param_type = "order request"
-                param_props = {}
-            logger.debug(logs.StructuredMessage(
-                f"Balance short processing {param_type}", symbol=symbol, short=balance_short, **param_props
-            ))
+            logger.debug(logs.StructuredMessage("Balance is short", symbol=symbol, short=balance_short, **log_context))
 
             # Fail if required.
             if raise_if_short:

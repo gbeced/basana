@@ -622,39 +622,6 @@ def test_not_enough_balance(order_request, backtesting_dispatcher):
     asyncio.run(impl())
 
 
-@pytest.mark.parametrize("order_request", balance_test_requests)
-def test_balance_checks_disabled(order_request, backtesting_dispatcher):
-    e = exchange.Exchange(
-        backtesting_dispatcher,
-        {},
-        fee_strategy=fees.Percentage(percentage=Decimal("0.25")),
-        liquidity_strategy_factory=liquidity.InfiniteLiquidity
-    )
-    e._skip_balance_check = True
-    e.set_pair_info(order_request.pair, PairInfo(8, 2))
-
-    bs = event.FifoQueueEventSource(events=[
-        bar.BarEvent(
-            dt.local_datetime(2000, 1, 3, 23, 59, 59),
-            bar.Bar(
-                dt.local_datetime(2000, 1, 3), order_request.pair,
-                Decimal(1), Decimal(1), Decimal(1), Decimal(1), Decimal(1)
-            )
-        ),
-    ])
-    e.add_bar_source(bs)
-
-    async def impl():
-        created_order = await e.create_order(order_request)
-
-        await backtesting_dispatcher.run()
-        order_info = await e.get_order_info(created_order.id)
-        assert not order_info.is_open
-        assert order_info.amount_filled == order_request.amount
-
-    asyncio.run(impl())
-
-
 def test_small_fill_is_ignored_after_rounding(backtesting_dispatcher):
     e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal("1e6")})
     p = Pair("BTC", "USD")
