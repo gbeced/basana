@@ -56,7 +56,7 @@ def test_unlimited_loans(backtesting_dispatcher):
         balance = await e.get_balance(symbol)
         assert balance.available == amount
         assert balance.borrowed == amount
-        assert balance.total == amount
+        assert balance.total == 0
 
         loans = await e.get_open_loans()
         assert loans == [loan]
