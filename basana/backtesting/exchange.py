@@ -417,7 +417,7 @@ class Exchange:
         required_balances = {loan.symbol: loan.amount}
         self._check_balance_requirements(required_balances, log_context={"loan.id": loan_id}, raise_if_short=True)
         # Update balances.
-        self._balances.loan_updated(loan)
+        self._balances.loan_updated(loan, loan.amount)
         # Close the loan.
         loan.is_open = False
 
