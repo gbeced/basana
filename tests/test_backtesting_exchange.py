@@ -47,9 +47,11 @@ def test_account_balances(backtesting_dispatcher):
             }
         )
         assert (await e.get_balance("usd")).available == Decimal("1000")
-        assert (await e.get_balance("usd")).total == Decimal("1000")
         assert (await e.get_balance("usd")).borrowed == Decimal("0")
-        assert (await e.get_balance("ars")).available == Decimal("-2000.05")
+        assert (await e.get_balance("usd")).total == Decimal("1000")
+        assert (await e.get_balance("ars")).available == Decimal("0")
+        assert (await e.get_balance("ars")).borrowed == Decimal("2000.05")
+        assert (await e.get_balance("ars")).total == Decimal("-2000.05")
         assert (await e.get_balance("eth")).available == Decimal("0")
         assert (await e.get_balance("ltc")).available == Decimal("0")
 
@@ -108,7 +110,7 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
             await e.cancel_order(created_order.id)
 
         # There should be no holds in place.
-        assert sum(e._balances._holds_by_symbol.values()) == 0
+        assert sum(e._balances._holds.values()) == 0
         assert sum(e._balances._holds_by_order.values()) == 0
 
     asyncio.run(impl())
@@ -510,7 +512,7 @@ def test_order_requests(order_plan, backtesting_dispatcher):
         assert len(expected) == sum([len(orders) for orders in order_plan.values()])
 
         # All orders are expected to be in a final state, so there should be no holds in place.
-        assert sum(e._balances._holds_by_symbol.values()) == 0
+        assert sum(e._balances._holds.values()) == 0
         assert sum(e._balances._holds_by_order.values()) == 0
 
     asyncio.run(impl())
@@ -579,7 +581,7 @@ def test_invalid_parameter(order_request, backtesting_dispatcher):
             await e.create_order(order_request)
 
         # Since all orders were rejected there should be no holds in place.
-        assert sum(e._balances._holds_by_symbol.values()) == 0
+        assert sum(e._balances._holds.values()) == 0
         assert sum(e._balances._holds_by_order.values()) == 0
 
     asyncio.run(impl())
@@ -616,7 +618,7 @@ def test_not_enough_balance(order_request, backtesting_dispatcher):
             await e.create_order(order_request)
 
         # Since all orders were rejected there should be no holds in place.
-        assert sum(e._balances._holds_by_symbol.values()) == 0
+        assert sum(e._balances._holds.values()) == 0
         assert sum(e._balances._holds_by_order.values()) == 0
 
     asyncio.run(impl())
@@ -660,7 +662,7 @@ def test_small_fill_is_ignored_after_rounding(backtesting_dispatcher):
         assert order_info.limit_price == Decimal("2")
 
         # There should be no holds in place since the order is completed.
-        assert sum(e._balances._holds_by_symbol.values()) == 0
+        assert sum(e._balances._holds.values()) == 0
         assert sum(e._balances._holds_by_order.values()) == 0
 
     asyncio.run(impl())
@@ -719,7 +721,7 @@ def test_liquidity_is_exhausted_and_order_is_canceled(backtesting_dispatcher):
         assert not order_2_info.is_open
 
         # There should be no holds in place since the orders are in a final state.
-        assert sum(e._balances._holds_by_symbol.values()) == 0
+        assert sum(e._balances._holds.values()) == 0
         assert sum(e._balances._holds_by_order.values()) == 0
 
     asyncio.run(impl())
@@ -761,7 +763,7 @@ def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
         assert (await e.get_balance("USD")).available == Decimal(1000)
 
         # There should be no holds in place since orders got canceled.
-        assert sum(e._balances._holds_by_symbol.values()) == 0
+        assert sum(e._balances._holds.values()) == 0
         assert sum(e._balances._holds_by_order.values()) == 0
 
     asyncio.run(impl())
