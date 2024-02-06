@@ -56,8 +56,8 @@ def test_account_balances(backtesting_dispatcher):
     asyncio.run(impl())
 
 
-def test_order_index():
-    idx = exchange.IndexImpl[orders.Order](lambda o: o.id, lambda o: o.is_open)
+def test_order_container():
+    idx = exchange.ExchangeObjectContainer[orders.Order]()
 
     for i in range(1, 3):
         idx.add(

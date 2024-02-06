@@ -15,8 +15,8 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Any, Awaitable, Callable, Dict, Generator, Generic, Iterable, List, Optional, Sequence, \
-    Tuple, TypeVar
+from typing import cast, Any, Awaitable, Callable, Dict, Generator, Generic, Iterable, List, Optional, Protocol, \
+    Sequence, Tuple, TypeVar
 import copy
 import dataclasses
 import decimal
@@ -38,7 +38,6 @@ LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
 Loan = lending.Loan
 OrderInfo = orders.OrderInfo
 OrderOperation = enums.OrderOperation
-T = TypeVar("T")
 
 
 def assert_has_value(balance_updates: Dict[str, Decimal], symbol: str, sign: Decimal):
@@ -48,40 +47,51 @@ def assert_has_value(balance_updates: Dict[str, Decimal], symbol: str, sign: Dec
     assert bt_helpers.get_sign(value) == sign, f"{symbol} sign is wrong. It should be {sign}"
 
 
-class IndexImpl(Generic[T]):
-    def __init__(self, id_fun: Callable[[T], str], is_open_fun: Callable[[T], bool]):
-        self._id_fun = id_fun
-        self._is_open_fun = is_open_fun
-        self._items: Dict[str, T] = {}  # Items by id.
-        self._open_items: List[T] = []
+class ExchangeObjectProto(Protocol):
+    @property
+    def id(self) -> str:
+        ...
+
+    @property
+    def is_open(self) -> bool:
+        ...
+
+
+TExchangeObject = TypeVar('TExchangeObject', bound=ExchangeObjectProto)
+
+
+class ExchangeObjectContainer(Generic[TExchangeObject]):
+    def __init__(self):
+        self._items: Dict[str, TExchangeObject] = {}  # Items by id.
+        self._open_items: List[TExchangeObject] = []
         self._reindex_every = 50
         self._reindex_counter = 0
 
-    def add(self, item: T):
-        assert self._id_fun(item) not in self._items
-        self._items[self._id_fun(item)] = item
-        if self._is_open_fun(item):
+    def add(self, item: TExchangeObject):
+        assert item.id not in self._items
+        self._items[item.id] = item
+        if item.is_open:
             self._open_items.append(item)
 
-    def get(self, id: str) -> Optional[T]:
+    def get(self, id: str) -> Optional[TExchangeObject]:
         return self._items.get(id)
 
-    def get_open(self) -> Generator[T, None, None]:
+    def get_open(self) -> Generator[TExchangeObject, None, None]:
         self._reindex_counter += 1
-        new_open_items: Optional[List[T]] = None
+        new_open_items: Optional[List[TExchangeObject]] = None
         if self._reindex_counter % self._reindex_every == 0:
             new_open_items = []
 
         for item in self._open_items:
-            if self._is_open_fun(item):
+            if item.is_open:
                 yield item
-                if new_open_items is not None and self._is_open_fun(item):
+                if new_open_items is not None and item.is_open:
                     new_open_items.append(item)
 
         if new_open_items is not None:
             self._open_items = new_open_items
 
-    def get_all(self) -> Iterable[T]:
+    def get_all(self) -> Iterable[TExchangeObject]:
         return self._items.values()
 
 
@@ -156,13 +166,13 @@ class Exchange:
         self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
         self._fee_strategy = fee_strategy
         self._lending_strategy = lending_strategy
-        self._orders = IndexImpl[orders.Order](lambda order: order.id, lambda order: order.is_open)
+        self._orders = ExchangeObjectContainer[orders.Order]()
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
         self._pairs_info: Dict[Pair, PairInfo] = {}
         self._default_pair_info = default_pair_info
         self._last_bars: Dict[Pair, bar.Bar] = {}
         self._bid_ask_spread = bid_ask_spread
-        self._loans = IndexImpl[Loan](lambda loan: loan.id, lambda loan: loan.is_open)
+        self._loans = ExchangeObjectContainer[lending.Loan]()
 
     async def get_balance(self, symbol: str) -> Balance:
         """Returns the balance for a specific currency/symbol/etc..
