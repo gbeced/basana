@@ -386,9 +386,6 @@ class Exchange:
         """
         self._pairs_info[pair] = pair_info
 
-    async def can_lend(self, symbol: str, amount: Decimal) -> bool:
-        return self._lending_strategy.can_lend(symbol, amount)
-
     async def create_loan(self, symbol: str, amount: Decimal) -> Loan:
         if amount <= 0:
             raise Error("Invalid amount")

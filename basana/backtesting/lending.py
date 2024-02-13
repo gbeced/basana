@@ -41,10 +41,6 @@ class LendingStrategy(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def can_lend(self, symbol: str, amount: Decimal) -> bool:
-        raise NotImplementedError()
-
-    @abc.abstractmethod
     def create_loan(self, symbol: str, amount: Decimal) -> Loan:
         raise NotImplementedError()
 
@@ -52,18 +48,12 @@ class LendingStrategy(metaclass=abc.ABCMeta):
 class NoLoans(LendingStrategy):
     """No loans."""
 
-    def can_lend(self, symbol: str, amount: Decimal) -> bool:
-        return False
-
     def create_loan(self, symbol: str, amount: Decimal) -> Loan:
         raise Exception("Lending is not supported")
 
 
 class UnlimitedLoans(LendingStrategy):
     """Unlimited loans."""
-
-    def can_lend(self, symbol: str, amount: Decimal) -> bool:
-        return True
 
     def create_loan(self, symbol: str, amount: Decimal) -> Loan:
         return Loan(id=uuid.uuid4().hex, symbol=symbol, amount=amount, is_open=True)

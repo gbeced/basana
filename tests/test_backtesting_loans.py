@@ -28,7 +28,6 @@ def test_no_loans(backtesting_dispatcher):
 
         symbol = "USD"
         amount = Decimal(10000)
-        assert not await e.can_lend(symbol, amount)
         with pytest.raises(Exception, match="Lending is not supported"):
             await e.create_loan(symbol, amount)
 
@@ -41,7 +40,6 @@ def test_unlimited_loans(backtesting_dispatcher):
 
         symbol = "USD"
         amount = Decimal(10000)
-        assert await e.can_lend(symbol, amount)
 
         balance = await e.get_balance(symbol)
         assert balance.available == 0
