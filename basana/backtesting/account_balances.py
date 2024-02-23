@@ -19,7 +19,7 @@ from typing import Dict, List
 import copy
 import itertools
 
-from basana.backtesting import errors, lending, orders
+from basana.backtesting import errors, helpers, lending, orders
 
 
 class AccountBalances:
@@ -55,13 +55,15 @@ class AccountBalances:
 
             # Mantain class invariants.
             if (balance + balance_update) < Decimal(0):
-                raise errors.Error(f"Not enough {symbol} available")
+                raise errors.NotEnoughBalance(f"Not enough {symbol} available", symbol, balance + balance_update)
             if (hold + hold_update) < Decimal(0):
                 raise errors.Error(f"{symbol} hold update amount is invalid")
             if (borrowed + borrowed_update) < Decimal(0):
                 raise errors.Error(f"{symbol} borrowed update amount is invalid")
             if (balance + balance_update) - (hold + hold_update) < Decimal(0):
-                raise errors.Error(f"Not enough {symbol} available")
+                raise errors.NotEnoughBalance(
+                    f"Not enough {symbol} available", symbol, (balance + balance_update) - (hold + hold_update)
+                )
 
         # Update if no error ocurred.
         for symbol, update in balance_updates.items():
@@ -125,15 +127,20 @@ class AccountBalances:
             else:
                 del self._holds_by_order[order.id]
 
-    def loan_accepted(self, loan: lending.Loan):
+    def accept_loan(self, loan: lending.Loan):
         assert loan.is_open, "The loan is not open"
+
         self.update(
-            balance_updates={loan.symbol: loan.amount},
-            borrowed_updates={loan.symbol: loan.amount},
+            balance_updates={loan.borrowed_symbol: loan.borrowed_amount},
+            borrowed_updates={loan.borrowed_symbol: loan.borrowed_amount},
+            hold_updates=loan.required_collateral
         )
 
-    def loan_updated(self, loan: lending.Loan, amount_repaid: Decimal):
+    def repay_loan(self, loan: lending.Loan, interest: Dict[str, Decimal]):
         self.update(
-            balance_updates={loan.symbol: -amount_repaid},
-            borrowed_updates={loan.symbol: -amount_repaid},
+            balance_updates=helpers.sub_amounts(
+                {loan.borrowed_symbol: -loan.borrowed_amount}, interest
+            ),
+            borrowed_updates={loan.borrowed_symbol: -loan.borrowed_amount},
+            hold_updates={symbol: -amount for symbol, amount in loan.required_collateral.items()}
         )

@@ -30,6 +30,12 @@ def add_amounts(lhs: Dict[str, Decimal], rhs: Dict[str, Decimal]) -> Dict[str, D
     return ret
 
 
+def sub_amounts(lhs: Dict[str, Decimal], rhs: Dict[str, Decimal]) -> Dict[str, Decimal]:
+    keys = set(itertools.chain(lhs.keys(), rhs.keys()))
+    ret = {key: lhs.get(key, ZERO) - rhs.get(key, ZERO) for key in keys}
+    return ret
+
+
 def remove_empty_amounts(amounts: Dict[str, Decimal]) -> Dict[str, Decimal]:
     return {key: value for key, value in amounts.items() if value}
 

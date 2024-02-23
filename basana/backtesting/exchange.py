@@ -17,6 +17,7 @@
 from decimal import Decimal
 from typing import cast, Any, Awaitable, Callable, Dict, Generator, Generic, Iterable, List, Optional, Protocol, \
     Sequence, Tuple, TypeVar
+import collections
 import copy
 import dataclasses
 import decimal
@@ -35,7 +36,7 @@ logger = logging.getLogger(__name__)
 BarEventHandler = Callable[[bar.BarEvent], Awaitable[Any]]
 Error = errors.Error
 LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
-Loan = lending.Loan
+LoanInfo = lending.LoanInfo
 OrderInfo = orders.OrderInfo
 OrderOperation = enums.OrderOperation
 
@@ -158,7 +159,8 @@ class Exchange:
             fee_strategy: fees.FeeStrategy = fees.NoFee(),
             default_pair_info: PairInfo = PairInfo(base_precision=0, quote_precision=2),
             bid_ask_spread: Decimal = Decimal("0.5"),
-            lending_strategy: lending.LendingStrategy = lending.NoLoans()
+            lending_strategy: lending.LendingStrategy = lending.NoLoans(),
+            default_precision: int = 8
     ):
         self._dispatcher = dispatcher
         self._balances = account_balances.AccountBalances(initial_balances)
@@ -173,6 +175,7 @@ class Exchange:
         self._last_bars: Dict[Pair, bar.Bar] = {}
         self._bid_ask_spread = bid_ask_spread
         self._loans = ExchangeObjectContainer[lending.Loan]()
+        self._precisions: Dict[str, int] = collections.defaultdict(lambda: default_precision)
 
     async def get_balance(self, symbol: str) -> Balance:
         """Returns the balance for a specific currency/symbol/etc..
@@ -386,22 +389,23 @@ class Exchange:
         """
         self._pairs_info[pair] = pair_info
 
-    async def create_loan(self, symbol: str, amount: Decimal) -> Loan:
+    async def create_loan(self, symbol: str, amount: Decimal) -> LoanInfo:
         if amount <= 0:
             raise Error("Invalid amount")
 
         # Create and save the loan.
-        loan = self._lending_strategy.create_loan(symbol, amount)
-        self._loans.add(loan)
+        loan = self._lending_strategy.create_loan(symbol, amount, self._dispatcher.now())
         # Update balances.
-        self._balances.loan_accepted(loan)
-        return loan
+        self._balances.accept_loan(loan)
+        self._loans.add(loan)
+        return loan.get_loan_info()
 
-    async def get_open_loans(self) -> List[Loan]:
-        return list(self._loans.get_open())
+    async def get_open_loans(self) -> List[LoanInfo]:
+        return list(map(lambda loan: loan.get_loan_info(), self._loans.get_open()))
 
-    async def get_loan(self, id: str) -> Optional[Loan]:
-        return self._loans.get(id)
+    async def get_loan(self, id: str) -> Optional[LoanInfo]:
+        loan = self._loans.get(id)
+        return None if loan is None else loan.get_loan_info()
 
     async def repay_loan(self, loan_id: str):
         loan = self._loans.get(loan_id)
@@ -411,12 +415,15 @@ class Exchange:
             raise Error("Loan is not open")
 
         # Check balances.
-        required_balances = {loan.symbol: loan.amount}
+        required_balances = {loan.borrowed_symbol: loan.borrowed_amount}
         self._check_balance_requirements(required_balances, log_context={"loan.id": loan_id}, raise_if_short=True)
         # Update balances.
-        self._balances.loan_updated(loan, loan.amount)
+        interest = loan.calculate_interest(self._dispatcher.now())
+        for symbol, amount in interest.items():
+            interest[symbol] = core_helpers.truncate_decimal(amount, self._precisions[symbol])
+        self._balances.repay_loan(loan, interest)
         # Close the loan.
-        loan.is_open = False
+        loan.close()
 
     def _get_pair_info(self, pair: Pair) -> PairInfo:
         ret = self._pairs_info.get(pair)
