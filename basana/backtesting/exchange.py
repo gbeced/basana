@@ -403,8 +403,8 @@ class Exchange:
     async def get_open_loans(self) -> List[LoanInfo]:
         return list(map(lambda loan: loan.get_loan_info(), self._loans.get_open()))
 
-    async def get_loan(self, id: str) -> Optional[LoanInfo]:
-        loan = self._loans.get(id)
+    async def get_loan(self, loan_id: str) -> Optional[LoanInfo]:
+        loan = self._loans.get(loan_id)
         return None if loan is None else loan.get_loan_info()
 
     async def repay_loan(self, loan_id: str):
