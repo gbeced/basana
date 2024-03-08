@@ -19,7 +19,7 @@ from typing import Dict, List
 import copy
 import itertools
 
-from basana.backtesting import errors, helpers, lending, orders
+from basana.backtesting import errors, orders
 
 
 class AccountBalances:
@@ -126,21 +126,3 @@ class AccountBalances:
                     assert order_holds[symbol] >= Decimal(0)
             else:
                 del self._holds_by_order[order.id]
-
-    def accept_loan(self, loan: lending.Loan):
-        assert loan.is_open, "The loan is not open"
-
-        self.update(
-            balance_updates={loan.borrowed_symbol: loan.borrowed_amount},
-            borrowed_updates={loan.borrowed_symbol: loan.borrowed_amount},
-            hold_updates=loan.required_collateral
-        )
-
-    def repay_loan(self, loan: lending.Loan, interest: Dict[str, Decimal]):
-        self.update(
-            balance_updates=helpers.sub_amounts(
-                {loan.borrowed_symbol: -loan.borrowed_amount}, interest
-            ),
-            borrowed_updates={loan.borrowed_symbol: -loan.borrowed_amount},
-            hold_updates={symbol: -amount for symbol, amount in loan.required_collateral.items()}
-        )

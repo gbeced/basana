@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Dict
+from typing import Dict, Generator, Generic, Iterable, List, Optional, Protocol, TypeVar
 import itertools
 
 from basana.core.enums import OrderOperation
@@ -61,3 +61,51 @@ def get_base_sign_for_operation(operation: OrderOperation) -> Decimal:
         assert operation == OrderOperation.SELL
         base_sign = Decimal(-1)
     return base_sign
+
+
+class ExchangeObjectProto(Protocol):
+    @property
+    def id(self) -> str:
+        ...
+
+    @property
+    def is_open(self) -> bool:
+        ...
+
+
+TExchangeObject = TypeVar('TExchangeObject', bound=ExchangeObjectProto)
+
+
+class ExchangeObjectContainer(Generic[TExchangeObject]):
+    def __init__(self):
+        self._items: Dict[str, TExchangeObject] = {}  # Items by id.
+        self._open_items: List[TExchangeObject] = []
+        self._reindex_every = 50
+        self._reindex_counter = 0
+
+    def add(self, item: TExchangeObject):
+        assert item.id not in self._items
+        self._items[item.id] = item
+        if item.is_open:
+            self._open_items.append(item)
+
+    def get(self, id: str) -> Optional[TExchangeObject]:
+        return self._items.get(id)
+
+    def get_open(self) -> Generator[TExchangeObject, None, None]:
+        self._reindex_counter += 1
+        new_open_items: Optional[List[TExchangeObject]] = None
+        if self._reindex_counter % self._reindex_every == 0:
+            new_open_items = []
+
+        for item in self._open_items:
+            if item.is_open:
+                yield item
+                if new_open_items is not None and item.is_open:
+                    new_open_items.append(item)
+
+        if new_open_items is not None:
+            self._open_items = new_open_items
+
+    def get_all(self) -> Iterable[TExchangeObject]:
+        return self._items.values()

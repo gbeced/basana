@@ -15,8 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Any, Awaitable, Callable, Dict, Generator, Generic, Iterable, List, Optional, Protocol, \
-    Sequence, Tuple, TypeVar
+from typing import cast, Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 import copy
 import dataclasses
 import decimal
@@ -45,54 +44,6 @@ def assert_has_value(balance_updates: Dict[str, Decimal], symbol: str, sign: Dec
     assert value is not None, f"{symbol} is missing"
     assert value != Decimal(0), f"{symbol} is zero"
     assert bt_helpers.get_sign(value) == sign, f"{symbol} sign is wrong. It should be {sign}"
-
-
-class ExchangeObjectProto(Protocol):
-    @property
-    def id(self) -> str:
-        ...
-
-    @property
-    def is_open(self) -> bool:
-        ...
-
-
-TExchangeObject = TypeVar('TExchangeObject', bound=ExchangeObjectProto)
-
-
-class ExchangeObjectContainer(Generic[TExchangeObject]):
-    def __init__(self):
-        self._items: Dict[str, TExchangeObject] = {}  # Items by id.
-        self._open_items: List[TExchangeObject] = []
-        self._reindex_every = 50
-        self._reindex_counter = 0
-
-    def add(self, item: TExchangeObject):
-        assert item.id not in self._items
-        self._items[item.id] = item
-        if item.is_open:
-            self._open_items.append(item)
-
-    def get(self, id: str) -> Optional[TExchangeObject]:
-        return self._items.get(id)
-
-    def get_open(self) -> Generator[TExchangeObject, None, None]:
-        self._reindex_counter += 1
-        new_open_items: Optional[List[TExchangeObject]] = None
-        if self._reindex_counter % self._reindex_every == 0:
-            new_open_items = []
-
-        for item in self._open_items:
-            if item.is_open:
-                yield item
-                if new_open_items is not None and item.is_open:
-                    new_open_items.append(item)
-
-        if new_open_items is not None:
-            self._open_items = new_open_items
-
-    def get_all(self) -> Iterable[TExchangeObject]:
-        return self._items.values()
 
 
 @dataclasses.dataclass
@@ -165,13 +116,12 @@ class Exchange:
         self._liquidity_strategy_factory = liquidity_strategy_factory
         self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
         self._fee_strategy = fee_strategy
-        self._lending_strategy = lending_strategy
-        self._orders = ExchangeObjectContainer[orders.Order]()
+        self._orders = bt_helpers.ExchangeObjectContainer[orders.Order]()
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
         self._last_bars: Dict[Pair, bar.Bar] = {}
         self._bid_ask_spread = bid_ask_spread
-        self._loans = ExchangeObjectContainer[lending.Loan]()
         self._config = config.Config(None, default_pair_info)
+        self._loan_mgr = lending.LoanManager(lending_strategy, self._balances, self._config)
 
     async def get_balance(self, symbol: str) -> Balance:
         """Returns the balance for a specific currency/symbol/etc..
@@ -396,40 +346,16 @@ class Exchange:
         self._config.set_symbol_info(symbol, config.SymbolInfo(precision=precision))
 
     async def create_loan(self, symbol: str, amount: Decimal) -> LoanInfo:
-        if amount <= 0:
-            raise Error("Invalid amount")
-
-        # Create and save the loan.
-        loan = self._lending_strategy.create_loan(symbol, amount, self._dispatcher.now())
-        # Update balances.
-        self._balances.accept_loan(loan)
-        self._loans.add(loan)
-        return loan.get_loan_info()
+        return self._loan_mgr.create_loan(symbol, amount, self._dispatcher.now())
 
     async def get_open_loans(self) -> List[LoanInfo]:
-        return list(map(lambda loan: loan.get_loan_info(), self._loans.get_open()))
+        return self._loan_mgr.get_open_loans()
 
     async def get_loan(self, loan_id: str) -> Optional[LoanInfo]:
-        loan = self._loans.get(loan_id)
-        return None if loan is None else loan.get_loan_info()
+        return self._loan_mgr.get_loan(loan_id)
 
     async def repay_loan(self, loan_id: str):
-        loan = self._loans.get(loan_id)
-        if not loan:
-            raise Error("Loan not found")
-        if not loan.is_open:
-            raise Error("Loan is not open")
-
-        # Check balances.
-        required_balances = {loan.borrowed_symbol: loan.borrowed_amount}
-        self._check_balance_requirements(required_balances, log_context={"loan.id": loan_id}, raise_if_short=True)
-        # Update balances.
-        interest = loan.calculate_interest(self._dispatcher.now())
-        for symbol, amount in interest.items():
-            interest[symbol] = core_helpers.truncate_decimal(amount, self._config.get_symbol_info(symbol).precision)
-        self._balances.repay_loan(loan, interest)
-        # Close the loan.
-        loan.close()
+        return self._loan_mgr.repay_loan(loan_id, self._dispatcher.now())
 
     def _get_pair_info(self, pair: Pair) -> PairInfo:
         return self._config.get_pair_info(pair)

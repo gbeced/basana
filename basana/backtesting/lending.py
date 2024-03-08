@@ -15,11 +15,21 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Dict
+from typing import Dict, List, Optional
 import abc
 import dataclasses
 import datetime
 import uuid
+import logging
+
+from basana.backtesting import config, errors
+from basana.backtesting import helpers as bt_helpers
+from basana.backtesting.account_balances import AccountBalances
+from basana.core import logs
+import basana.core.helpers as core_helpers
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass
@@ -133,3 +143,61 @@ class BasicLoans(LendingStrategy):
             uuid.uuid4().hex, symbol, amount, {}, created_at, self._interest_rate, self._interest_period,
             self._min_interest
         )
+
+
+class LoanManager:
+    def __init__(self, lending_strategy: LendingStrategy, account_balances: AccountBalances, config: config.Config):
+        self._loans = bt_helpers.ExchangeObjectContainer[Loan]()
+        self._lending_strategy = lending_strategy
+        self._balances = account_balances
+        self._config = config
+
+    def create_loan(self, symbol: str, amount: Decimal, now: datetime.datetime) -> LoanInfo:
+        if amount <= 0:
+            raise errors.Error("Invalid amount")
+
+        loan = self._lending_strategy.create_loan(symbol, amount, now)
+
+        self._balances.update(
+            balance_updates={loan.borrowed_symbol: loan.borrowed_amount},
+            borrowed_updates={loan.borrowed_symbol: loan.borrowed_amount},
+            hold_updates=loan.required_collateral
+        )
+
+        self._loans.add(loan)
+
+        return loan.get_loan_info()
+
+    def get_open_loans(self) -> List[LoanInfo]:
+        return list(map(lambda loan: loan.get_loan_info(), self._loans.get_open()))
+
+    def get_loan(self, loan_id: str) -> Optional[LoanInfo]:
+        loan = self._loans.get(loan_id)
+        return None if loan is None else loan.get_loan_info()
+
+    def repay_loan(self, loan_id: str, now: datetime.datetime):
+        loan = self._loans.get(loan_id)
+        if not loan:
+            raise errors.Error("Loan not found")
+        if not loan.is_open:
+            raise errors.Error("Loan is not open")
+
+        interest = loan.calculate_interest(now)
+        for symbol, amount in interest.items():
+            interest[symbol] = core_helpers.truncate_decimal(amount, self._config.get_symbol_info(symbol).precision)
+
+        try:
+            self._balances.update(
+                balance_updates=bt_helpers.sub_amounts(
+                    {loan.borrowed_symbol: -loan.borrowed_amount}, interest
+                ),
+                borrowed_updates={loan.borrowed_symbol: -loan.borrowed_amount},
+                hold_updates={symbol: -amount for symbol, amount in loan.required_collateral.items()}
+            )
+        except errors.NotEnoughBalance as e:
+            logger.debug(
+                logs.StructuredMessage("NotEnoughBalance", symbol=symbol, short=e.balance_short, loan_id=loan_id)
+            )
+            raise
+
+        loan.close()
