@@ -17,14 +17,13 @@
 from decimal import Decimal
 from typing import cast, Any, Awaitable, Callable, Dict, Generator, Generic, Iterable, List, Optional, Protocol, \
     Sequence, Tuple, TypeVar
-import collections
 import copy
 import dataclasses
 import decimal
 import logging
 import uuid
 
-from basana.backtesting import account_balances, errors, fees, lending, liquidity, orders, requests
+from basana.backtesting import account_balances, config, errors, fees, lending, liquidity, orders, requests
 from basana.backtesting import helpers as bt_helpers
 from basana.core import bar, dispatcher, enums, event, logs
 from basana.core import helpers as core_helpers
@@ -157,10 +156,9 @@ class Exchange:
             initial_balances: Dict[str, Decimal],
             liquidity_strategy_factory: LiquidityStrategyFactory = liquidity.VolumeShareImpact,
             fee_strategy: fees.FeeStrategy = fees.NoFee(),
-            default_pair_info: PairInfo = PairInfo(base_precision=0, quote_precision=2),
+            default_pair_info: Optional[PairInfo] = PairInfo(base_precision=0, quote_precision=2),
             bid_ask_spread: Decimal = Decimal("0.5"),
-            lending_strategy: lending.LendingStrategy = lending.NoLoans(),
-            default_precision: int = 8
+            lending_strategy: lending.LendingStrategy = lending.NoLoans()
     ):
         self._dispatcher = dispatcher
         self._balances = account_balances.AccountBalances(initial_balances)
@@ -170,12 +168,10 @@ class Exchange:
         self._lending_strategy = lending_strategy
         self._orders = ExchangeObjectContainer[orders.Order]()
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
-        self._pairs_info: Dict[Pair, PairInfo] = {}
-        self._default_pair_info = default_pair_info
         self._last_bars: Dict[Pair, bar.Bar] = {}
         self._bid_ask_spread = bid_ask_spread
         self._loans = ExchangeObjectContainer[lending.Loan]()
-        self._precisions: Dict[str, int] = collections.defaultdict(lambda: default_precision)
+        self._config = config.Config(None, default_pair_info)
 
     async def get_balance(self, symbol: str) -> Balance:
         """Returns the balance for a specific currency/symbol/etc..
@@ -387,7 +383,17 @@ class Exchange:
         :param pair: The trading pair.
         :param pair_info: The pair information.
         """
-        self._pairs_info[pair] = pair_info
+        self._config.set_pair_info(pair, pair_info)
+
+    def set_symbol_precision(self, symbol: str, precision: int):
+        """Set precision for a symbol.
+
+        This is used to round interest in loans.
+
+        :param symbol: The symbol.
+        :param precision: The precision.
+        """
+        self._config.set_symbol_info(symbol, config.SymbolInfo(precision=precision))
 
     async def create_loan(self, symbol: str, amount: Decimal) -> LoanInfo:
         if amount <= 0:
@@ -420,16 +426,13 @@ class Exchange:
         # Update balances.
         interest = loan.calculate_interest(self._dispatcher.now())
         for symbol, amount in interest.items():
-            interest[symbol] = core_helpers.truncate_decimal(amount, self._precisions[symbol])
+            interest[symbol] = core_helpers.truncate_decimal(amount, self._config.get_symbol_info(symbol).precision)
         self._balances.repay_loan(loan, interest)
         # Close the loan.
         loan.close()
 
     def _get_pair_info(self, pair: Pair) -> PairInfo:
-        ret = self._pairs_info.get(pair)
-        if ret is None:
-            ret = self._default_pair_info
-        return ret
+        return self._config.get_pair_info(pair)
 
     def _round_balance_updates(self, pair: Pair, balance_updates: Dict[str, Decimal]) -> Dict[str, Decimal]:
         ret = copy.copy(balance_updates)

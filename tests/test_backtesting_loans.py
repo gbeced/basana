@@ -37,7 +37,7 @@ def test_no_loans(backtesting_dispatcher):
 
 def test_borrow_and_repay_min_interest(backtesting_dispatcher):
     async def impl():
-        min_interest = Decimal("0.001")
+        min_interest = Decimal("0.01")
         symbol = "USD"
         lending_strategy = lending.BasicLoans(
             interest_rate=Decimal("0.00002"), interest_period=datetime.timedelta(hours=1),
@@ -45,6 +45,7 @@ def test_borrow_and_repay_min_interest(backtesting_dispatcher):
         )
         initial_balance = min_interest
         e = exchange.Exchange(backtesting_dispatcher, {symbol: initial_balance}, lending_strategy=lending_strategy)
+        e.set_symbol_precision(symbol, 2)
 
         balance = await e.get_balance(symbol)
         assert balance.available == initial_balance
@@ -82,7 +83,7 @@ def test_borrow_and_repay_min_interest(backtesting_dispatcher):
 
 def test_borrow_and_repay(backtesting_dispatcher):
     async def impl():
-        min_interest = Decimal("0.0001")
+        min_interest = Decimal("0.01")
         symbol = "USD"
         interest_rate = Decimal("0.05")
         interest_period = datetime.timedelta(hours=1)
@@ -91,6 +92,7 @@ def test_borrow_and_repay(backtesting_dispatcher):
         )
         initial_balance = interest_rate
         e = exchange.Exchange(backtesting_dispatcher, {symbol: initial_balance}, lending_strategy=lending_strategy)
+        e.set_symbol_precision(symbol, 2)
 
         balance = await e.get_balance(symbol)
         assert balance.available == initial_balance
