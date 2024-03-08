@@ -24,7 +24,7 @@ from dateutil import tz
 import pytest
 
 from .helpers import abs_data_path
-from basana.backtesting import exchange, fees, liquidity, orders, requests
+from basana.backtesting import exchange, fees, helpers as bt_helpers, orders, requests
 from basana.core import bar, dt, event, helpers
 from basana.core.pair import Pair, PairInfo
 from basana.external.yahoo import bars
@@ -59,7 +59,7 @@ def test_account_balances(backtesting_dispatcher):
 
 
 def test_order_container():
-    idx = exchange.ExchangeObjectContainer[orders.Order]()
+    idx = bt_helpers.ExchangeObjectContainer[orders.Order]()
 
     for i in range(1, 3):
         idx.add(
