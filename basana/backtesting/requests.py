@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Optional
 import abc
 
 from basana.backtesting import errors, orders
@@ -51,14 +50,6 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
             )
 
     @abc.abstractmethod
-    def get_estimated_fill_price(self) -> Optional[Decimal]:
-        """ Returns the estimated fill price for the order.
-
-        This will be used to estimate the cost of executing this order.
-        """
-        raise NotImplementedError()
-
-    @abc.abstractmethod
     def create_order(self, id: str) -> orders.Order:
         raise NotImplementedError()
 
@@ -76,10 +67,6 @@ class MarketOrder(ExchangeOrder):
 
     def validate(self, pair_info: PairInfo):
         super().validate(pair_info)
-
-    def get_estimated_fill_price(self) -> Optional[Decimal]:
-        # It will be the market price, so we can't tell right now.
-        return None
 
     def create_order(self, id: str) -> orders.Order:
         return orders.MarketOrder(id, self.operation, self.pair, self.amount, orders.OrderState.OPEN)
@@ -109,10 +96,6 @@ class LimitOrder(ExchangeOrder):
             raise errors.Error(
                 "{} exceeds maximum precision of {} decimal digits".format(self.limit_price, pair_info.quote_precision)
             )
-
-    def get_estimated_fill_price(self) -> Optional[Decimal]:
-        # It will be the limit price or a better one.
-        return self.limit_price
 
     def create_order(self, id: str) -> orders.Order:
         return orders.LimitOrder(
@@ -148,10 +131,6 @@ class StopOrder(ExchangeOrder):
             raise errors.Error(
                 "{} exceeds maximum precision of {} decimal digits".format(self.stop_price, pair_info.quote_precision)
             )
-
-    def get_estimated_fill_price(self) -> Optional[Decimal]:
-        # It should be around the stop price, or at least we hope so.
-        return self.stop_price
 
     def create_order(self, id: str) -> orders.Order:
         return orders.StopOrder(
@@ -195,10 +174,6 @@ class StopLimitOrder(ExchangeOrder):
                 raise errors.Error(
                     "{} exceeds maximum precision of {} decimal digits".format(value, pair_info.quote_precision)
                 )
-
-    def get_estimated_fill_price(self) -> Optional[Decimal]:
-        # It will be the limit price or a better one.
-        return self.limit_price
 
     def create_order(self, id: str) -> orders.Order:
         return orders.StopLimitOrder(
