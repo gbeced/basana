@@ -78,7 +78,7 @@ class Fill:
 
 
 # This is an internal abstraction to be used by the exchange.
-class Order:
+class Order(metaclass=abc.ABCMeta):
     def __init__(self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState):
         assert amount > Decimal(0), f"Invalid amount {amount}"
 
@@ -162,7 +162,8 @@ class Order:
     def get_balance_updates(
             self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy
     ) -> Dict[str, Decimal]:
-        """Returns the balance updates required to fill the order.
+        """
+        Returns the balance updates required to fill the order.
 
         :param bar: The bar that summarizes the trading activity.
         :param liquidity_strategy: The strategy used to model available liquidity.
@@ -176,6 +177,13 @@ class Order:
               operation.
         """
         raise NotImplementedError()
+
+    def calculate_estimated_fill_price(self) -> Optional[Decimal]:
+        """
+        Optionally override to return an estimate for the fill price.
+        This will be used to reserve the funds that will be required later for processing the order.
+        """
+        return None
 
     def not_filled(self):
         """Called every time the order was processed but no fill took place."""
@@ -260,6 +268,10 @@ class LimitOrder(Order):
             }
         return ret
 
+    def calculate_estimated_fill_price(self) -> Optional[Decimal]:
+        # It will be the limit price or a better one.
+        return self._limit_price
+
     def get_debug_info(self) -> dict:
         ret = super().get_debug_info()
         ret["limit_price"] = self._limit_price
@@ -323,6 +335,10 @@ class StopOrder(Order):
                 self.pair.quote_symbol: price * amount * -base_sign
             }
         return ret
+
+    def calculate_estimated_fill_price(self) -> Optional[Decimal]:
+        # It should be around the stop price, or at least we hope so.
+        return self._stop_price
 
     def get_debug_info(self) -> dict:
         ret = super().get_debug_info()
@@ -445,6 +461,10 @@ class StopLimitOrder(Order):
         else:
             ret = self.get_balance_updates_after_stop_hit(bar, liquidity_strategy)
         return ret
+
+    def calculate_estimated_fill_price(self) -> Optional[Decimal]:
+        # It will be the limit price or a better one.
+        return self._limit_price
 
     def get_debug_info(self) -> dict:
         ret = super().get_debug_info()

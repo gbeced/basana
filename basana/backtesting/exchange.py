@@ -163,11 +163,11 @@ class Exchange:
         order_request.validate(pair_info)
 
         # Check balances before accepting the order.
-        required_balances = await self._estimate_required_balances(order_request)
+        order = order_request.create_order(uuid.uuid4().hex)
+        required_balances = await self._estimate_required_balances(order)
         self._check_balance_requirements(required_balances, raise_if_short=True)
 
-        # Create and accept the order.
-        order = order_request.create_order(uuid.uuid4().hex)
+        # Accept the order.
         self._orders.add(order)
         logger.debug(logs.StructuredMessage("Request accepted", order_id=order.id))
 
@@ -508,26 +508,25 @@ class Exchange:
         last_bar = self._last_bars.get(pair)
         return last_bar.close if last_bar else None
 
-    async def _estimate_required_balances(self, order_request: requests.ExchangeOrder) -> Dict[str, Decimal]:
+    async def _estimate_required_balances(self, order: orders.Order) -> Dict[str, Decimal]:
         # Build a dictionary of balance updates suitable for calculating fees.
-        base_sign = bt_helpers.get_base_sign_for_operation(order_request.operation)
+        base_sign = bt_helpers.get_base_sign_for_operation(order.operation)
         estimated_balance_updates = {
-            order_request.pair.base_symbol: order_request.amount * base_sign
+            order.pair.base_symbol: order.amount * base_sign
         }
-        estimated_fill_price = order_request.get_estimated_fill_price()
+        estimated_fill_price = order.calculate_estimated_fill_price()
         if not estimated_fill_price:
-            estimated_fill_price = await self._get_last_price(order_request.pair)
+            estimated_fill_price = await self._get_last_price(order.pair)
         if estimated_fill_price:
-            estimated_balance_updates[order_request.pair.quote_symbol] = \
-                order_request.amount * estimated_fill_price * -base_sign
-        estimated_balance_updates = self._round_balance_updates(order_request.pair, estimated_balance_updates)
+            estimated_balance_updates[order.pair.quote_symbol] = \
+                order.amount * estimated_fill_price * -base_sign
+        estimated_balance_updates = self._round_balance_updates(order.pair, estimated_balance_updates)
 
         # Calculate fees.
         fees = {}
         if len(estimated_balance_updates) == 2:
-            order = order_request.create_order("temporary")
             fees = self._fee_strategy.calculate_fees(order, estimated_balance_updates)
-            fees = self._round_fees(order_request.pair, fees)
+            fees = self._round_fees(order.pair, fees)
         estimated_balance_updates = bt_helpers.add_amounts(estimated_balance_updates, fees)
 
         # Return only negative balance updates as required balances.
