@@ -22,7 +22,7 @@ import decimal
 import logging
 import uuid
 
-from basana.backtesting import account_balances, config, errors, fees, lending, liquidity, orders, requests
+from basana.backtesting import account_balances, config, errors, fees, lending, liquidity, orders, prices, requests
 from basana.backtesting import helpers as bt_helpers
 from basana.core import bar, dispatcher, enums, event, logs
 from basana.core import helpers as core_helpers
@@ -113,12 +113,12 @@ class Exchange:
     ):
         self._dispatcher = dispatcher
         self._balances = account_balances.AccountBalances(initial_balances)
+        self._price_ticker = prices.PriceTicker()
         self._liquidity_strategy_factory = liquidity_strategy_factory
         self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
         self._fee_strategy = fee_strategy
         self._orders = bt_helpers.ExchangeObjectContainer[orders.Order]()
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
-        self._last_bars: Dict[Pair, bar.Bar] = {}
         self._bid_ask_spread = bid_ask_spread
         self._config = config.Config(None, default_pair_info)
         self._loan_mgr = lending.LoanManager(lending_strategy, self._balances, self._config)
@@ -146,7 +146,7 @@ class Exchange:
         :param pair: The trading pair.
         """
         bid = ask = None
-        last_price = await self._get_last_price(pair)
+        last_price = self._price_ticker.get_price(pair)
         if last_price:
             pair_info = await self.get_pair_info(pair)
             half_spread = core_helpers.truncate_decimal(
@@ -469,7 +469,7 @@ class Exchange:
     async def _on_bar_event(self, event: event.Event):
         assert isinstance(event, bar.BarEvent), f"{event} is not an instance of bar.BarEvent"
 
-        self._last_bars[event.bar.pair] = event.bar
+        self._price_ticker.push_bar_event(event)
         self._process_orders(event)
         # Forward the event to the right source, if any.
         event_source = self._bar_event_source.get(event.bar.pair)
@@ -504,10 +504,6 @@ class Exchange:
 
         return ret
 
-    async def _get_last_price(self, pair: Pair) -> Optional[Decimal]:
-        last_bar = self._last_bars.get(pair)
-        return last_bar.close if last_bar else None
-
     async def _estimate_required_balances(self, order: orders.Order) -> Dict[str, Decimal]:
         # Build a dictionary of balance updates suitable for calculating fees.
         base_sign = bt_helpers.get_base_sign_for_operation(order.operation)
@@ -516,7 +512,7 @@ class Exchange:
         }
         estimated_fill_price = order.calculate_estimated_fill_price()
         if not estimated_fill_price:
-            estimated_fill_price = await self._get_last_price(order.pair)
+            estimated_fill_price = self._price_ticker.get_price(order.pair)
         if estimated_fill_price:
             estimated_balance_updates[order.pair.quote_symbol] = \
                 order.amount * estimated_fill_price * -base_sign
