@@ -23,6 +23,7 @@ import logging
 from dateutil import tz
 import pytest
 
+from basana.backtesting.exchange import CanceledOrder
 from .helpers import abs_data_path, safe_round
 from basana.backtesting import exchange, fees, orders, requests
 from basana.core import bar, dt, event, helpers
@@ -102,12 +103,41 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         assert order_info is not None
         assert not order_info.is_open
 
-        with pytest.raises(exchange.Error):
-            await e.cancel_order(created_order.id)
+        assert isinstance(await e.cancel_order(created_order.id), CanceledOrder)
 
         # There should be no holds in place.
         assert sum(e._balances._holds_by_symbol.values()) == 0
         assert sum(e._balances._holds_by_order.values()) == 0
+
+    asyncio.run(impl())
+
+
+def test_idempotent_cancel(backtesting_dispatcher):
+    e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal("1e6")})
+    p = Pair("BTC", "USD")
+
+    bs = event.FifoQueueEventSource(events=[
+        # This one should be used during fill.
+        bar.BarEvent(
+            dt.local_datetime(2000, 1, 4, 23, 59, 59),
+            bar.Bar(
+                dt.local_datetime(2000, 1, 4), p, Decimal(2), Decimal(2), Decimal(2), Decimal(2), Decimal(10)
+            )
+        )
+    ])
+    e.add_bar_source(bs)
+    e.set_pair_info(p, PairInfo(8, 2))
+
+    async def impl():
+        created_order = await e.create_order(
+            requests.LimitOrder(exchange.OrderOperation.BUY, p, Decimal("0.1"), Decimal("2"))
+        )
+        await backtesting_dispatcher.run()
+
+        order_info = await e.get_order_info(created_order.id)
+        assert order_info is not None
+        with pytest.raises(exchange.Error):
+            await e.cancel_order(created_order.id)
 
     asyncio.run(impl())
 
@@ -144,7 +174,7 @@ def test_open_orders(backtesting_dispatcher):
     asyncio.run(impl())
 
 
-def test_cancel_inexistent_order(backtesting_dispatcher):
+def test_cancel_nonexistent_order(backtesting_dispatcher):
     async def impl():
         e = exchange.Exchange(
             backtesting_dispatcher,

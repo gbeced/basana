@@ -283,13 +283,15 @@ class Exchange:
     async def cancel_order(self, order_id: str) -> CanceledOrder:
         """Cancels an order.
 
-        If the order doesn't exist, or its not open, an :class:`Error` will be raised.
+        If the order doesn't exist, it's not already canceled, or it's not open, an :class:`Error` will be raised.
 
         :param order_id: The order id.
         """
         order = self._orders.get_order(order_id)
         if order is None:
             raise Error("Order not found")
+        if order.state == orders.OrderState.CANCELED:
+            return CanceledOrder(id=order_id)
         if not order.is_open:
             raise Error("Order {} is in {} state and can't be canceled".format(order_id, order.state))
         order.cancel()
