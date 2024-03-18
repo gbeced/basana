@@ -13,7 +13,7 @@
 1. Initialize the virtual environment and install dependencies.
 
 	```
-	$ poetry install
+	$ poetry install --all-extras
 	```
 
 1. Static checks
