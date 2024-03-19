@@ -273,7 +273,7 @@ def test_get_balance_updates_with_infinite_liquidity(order, expected_balance_upd
         Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")
     )
     balance_updates = order.get_balance_updates(b, ls)
-    balance_updates = e._round_balance_updates(order.pair, balance_updates)
+    balance_updates = e._order_mgr._round_balance_updates(balance_updates, order.pair)
     assert balance_updates == expected_balance_updates
 
 
@@ -320,5 +320,5 @@ def test_get_balance_updates_with_finite_liquidity(order, expected_balance_updat
     ls.on_bar(b)
 
     balance_updates = order.get_balance_updates(b, ls)
-    balance_updates = e._round_balance_updates(order.pair, balance_updates)
+    balance_updates = e._order_mgr._round_balance_updates(balance_updates, order.pair)
     assert balance_updates == expected_balance_updates

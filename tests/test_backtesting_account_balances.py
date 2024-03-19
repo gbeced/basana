@@ -15,16 +15,13 @@
 # limitations under the License.
 
 from decimal import Decimal
+import asyncio
 
 import pytest
 
-from basana.backtesting import account_balances, orders
-from basana.core import dt, pair
-
-
-def add_order_fill(order, balances, balance_updates):
-    order.add_fill(dt.utc_now(), balance_updates, {})
-    balances.order_updated(order, balance_updates)
+from basana.backtesting import account_balances, exchange, liquidity, orders
+from basana.core import bar, dt, event
+from basana.core.pair import Pair, PairInfo
 
 
 def test_updates_and_holds():
@@ -67,145 +64,83 @@ def test_updates_and_holds():
     assert balances.get_balance_on_hold("BTC") == Decimal("0")
 
 
-def test_market_order_gets_completed():
-    balances = account_balances.AccountBalances({"USD": Decimal(10000)})
-
-    assert balances.get_available_balance("USD") == Decimal(10000)
-    assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_available_balance("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order("1", "USD") == Decimal(0)
-
-    order = orders.MarketOrder(
-        "1", orders.OrderOperation.BUY, pair.Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN
+@pytest.mark.parametrize("order_fun, checkpoints", [
+    (
+        lambda e: e.create_market_order(orders.OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1")),
+        {
+            dt.local_datetime(2001, 1, 2): {
+                "BTC": {"available": Decimal("1"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+                "USD": {"available": Decimal("999900"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+            }
+        }
+    ),
+    (
+        lambda e: e.create_limit_order(orders.OrderOperation.BUY, Pair("BTC", "USD"), Decimal("150"), Decimal("100")),
+        {
+            dt.local_datetime(2001, 1, 1): {
+                "BTC": {"available": Decimal("0"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+                "USD": {"available": Decimal("1e6"), "hold": Decimal("15000"), "borrowed": Decimal("0")},
+            },
+            dt.local_datetime(2001, 1, 2): {
+                "BTC": {"available": Decimal("100"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+                "USD": {"available": Decimal("985000"), "hold": Decimal("5000"), "borrowed": Decimal("0")},
+            },
+            dt.local_datetime(2001, 1, 3): {
+                "BTC": {"available": Decimal("150"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+                "USD": {"available": Decimal("985000"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+            }
+        }
+    ),
+])
+def test_balance_updates_as_orders_get_processed(order_fun, checkpoints, backtesting_dispatcher):
+    pair = Pair("BTC", "USD")
+    e = exchange.Exchange(
+        backtesting_dispatcher,
+        {pair.quote_symbol: Decimal(1e6)},
+        liquidity_strategy_factory=lambda: liquidity.VolumeShareImpact(
+            volume_limit_pct=Decimal(100), price_impact=Decimal(0)
+        ),
     )
-    balances.order_accepted(order, {})
+    e.set_pair_info(pair, PairInfo(8, 2))
+    mismatches = []
 
-    assert balances.get_available_balance("USD") == Decimal(10000)
-    assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_available_balance("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(0)
+    async def on_bar(bar_event):
+        expected_balances = checkpoints.get(bar_event.when, {})
+        for symbol, expected_balance in expected_balances.items():
+            balance = await e.get_balance(symbol)
+            for name, value in expected_balance.items():
+                if getattr(balance, name) != value:
+                    mismatches.append((bar_event.when, symbol, name, getattr(balance, name)))
 
-    add_order_fill(order, balances, {"BTC": Decimal("0.05"), "USD": Decimal("-1010")})
+    async def impl():
+        # These are for testing scenarios where fills take place in multiple bars.
+        src = event.FifoQueueEventSource(events=[
+            bar.BarEvent(
+                dt.local_datetime(2001, 1, 2),
+                bar.Bar(
+                    dt.local_datetime(2001, 1, 1),
+                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100)
+                )
+            ),
+            bar.BarEvent(
+                dt.local_datetime(2001, 1, 3),
+                bar.Bar(
+                    dt.local_datetime(2001, 1, 2),
+                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100)
+                )
+            ),
+            bar.BarEvent(
+                dt.local_datetime(2001, 1, 4),
+                bar.Bar(
+                    dt.local_datetime(2001, 1, 3),
+                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100)
+                )
+            ),
+        ])
+        e.add_bar_source(src)
+        e.subscribe_to_bar_events(pair, on_bar)
+        await order_fun(e)
+        await backtesting_dispatcher.run()
+        assert mismatches == []
 
-    assert balances.get_available_balance("USD") == Decimal(8990)
-    assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_available_balance("BTC") == Decimal("0.05")
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(0)
-
-    add_order_fill(order, balances, {"BTC": Decimal("0.04"), "USD": Decimal("-1010")})
-
-    assert balances.get_available_balance("USD") == Decimal(7980)
-    assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_available_balance("BTC") == Decimal("0.09")
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(0)
-
-    add_order_fill(order, balances, {"BTC": Decimal("0.01"), "USD": Decimal("-250")})
-
-    assert balances.get_available_balance("USD") == Decimal(7730)
-    assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_available_balance("BTC") == Decimal("0.1")
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(0)
-
-
-def test_limit_order_gets_completed():
-    balances = account_balances.AccountBalances({"USD": Decimal(10000)})
-
-    assert balances.get_available_balance("USD") == Decimal(10000)
-    assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_available_balance("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order("1", "USD") == Decimal(0)
-
-    order = orders.LimitOrder(
-        "1", orders.OrderOperation.BUY, pair.Pair("BTC", "USD"), Decimal("0.1"), Decimal("30000"),
-        orders.OrderState.OPEN
-    )
-    balances.order_accepted(order, {"USD": Decimal("3000")})
-
-    assert balances.get_available_balance("USD") == Decimal(7000)
-    assert balances.get_balance_on_hold("USD") == Decimal(3000)
-    assert balances.get_available_balance("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(3000)
-
-    add_order_fill(order, balances, {"BTC": Decimal("0.05"), "USD": Decimal("-1500")})
-
-    assert balances.get_available_balance("USD") == Decimal(7000)
-    assert balances.get_balance_on_hold("USD") == Decimal(1500)
-    assert balances.get_available_balance("BTC") == Decimal("0.05")
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(1500)
-
-    add_order_fill(order, balances, {"BTC": Decimal("0.05"), "USD": Decimal("-1400")})
-
-    assert balances.get_available_balance("USD") == Decimal(7100)
-    assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_available_balance("BTC") == Decimal("0.1")
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(0)
-
-
-def test_order_gets_canceled():
-    balances = account_balances.AccountBalances({"USD": Decimal(10000)})
-
-    assert balances.get_available_balance("USD") == Decimal(10000)
-    assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_available_balance("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order("1", "USD") == Decimal(0)
-
-    order = orders.MarketOrder(
-        "1", orders.OrderOperation.BUY, pair.Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN
-    )
-    balances.order_accepted(order, {"USD": Decimal("2100")})
-
-    assert balances.get_available_balance("USD") == Decimal(7900)
-    assert balances.get_balance_on_hold("USD") == Decimal(2100)
-    assert balances.get_available_balance("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(2100)
-
-    balances.order_updated(order, {"BTC": Decimal("0.05"), "USD": Decimal("-1010")})
-
-    assert balances.get_available_balance("USD") == Decimal(7900)
-    assert balances.get_balance_on_hold("USD") == Decimal(1090)
-    assert balances.get_available_balance("BTC") == Decimal("0.05")
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(1090)
-
-    order.cancel()
-    balances.order_updated(order, {})
-
-    assert balances.get_available_balance("USD") == Decimal(8990)
-    assert balances.get_balance_on_hold("USD") == Decimal(0)
-    assert balances.get_available_balance("BTC") == Decimal("0.05")
-    assert balances.get_balance_on_hold("BTC") == Decimal(0)
-    assert balances.get_balance_on_hold_for_order(order.id, "USD") == Decimal(0)
-
-
-def test_symbols():
-    balances = account_balances.AccountBalances({"USD": Decimal(10000)})
-    assert balances.get_symbols() == ["USD"]
-
-    order = orders.MarketOrder(
-        "1", orders.OrderOperation.BUY, pair.Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN
-    )
-    balances.order_accepted(order, {})
-    assert balances.get_symbols() == ["USD"]
-
-    add_order_fill(order, balances, {"BTC": Decimal("0.05"), "USD": Decimal("-5000")})
-    symbols = balances.get_symbols()
-    symbols.sort()
-    assert symbols == ["BTC", "USD"]
-
-    add_order_fill(order, balances, {"BTC": Decimal("0.05"), "USD": Decimal("-5000")})
-    symbols = balances.get_symbols()
-    symbols.sort()
-    assert symbols == ["BTC", "USD"]
-    assert balances.get_balance_on_hold("USD") == 0
-    assert balances.get_available_balance("USD") == 0
+    asyncio.run(impl())

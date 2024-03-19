@@ -16,10 +16,9 @@
 
 from decimal import Decimal
 from typing import Dict, List
-import copy
 import itertools
 
-from basana.backtesting import errors, orders
+from basana.backtesting import errors
 
 
 class AccountBalances:
@@ -37,7 +36,6 @@ class AccountBalances:
         self._borrowed: Dict[str, Decimal] = {
             symbol: -balance for symbol, balance in initial_balances.items() if balance < 0
         }
-        self._holds_by_order: Dict[str, Dict[str, Decimal]] = {}
 
     def update(
             self, balance_updates: Dict[str, Decimal] = {}, hold_updates: Dict[str, Decimal] = {},
@@ -87,42 +85,3 @@ class AccountBalances:
 
     def get_borrowed_balance(self, symbol: str) -> Decimal:
         return self._borrowed.get(symbol, Decimal(0))
-
-    def get_balance_on_hold_for_order(self, order_id: str, symbol: str) -> Decimal:
-        return self._holds_by_order.get(order_id, {}).get(symbol, Decimal(0))
-
-    def order_accepted(self, order: orders.Order, required_balances: Dict[str, Decimal]):
-        assert order.is_open, "The order is not open"
-        assert order.id not in self._holds_by_order, "The order was already accepted"
-
-        # When an order gets accepted we need to hold any required balance that will be debited as the order gets
-        # filled.
-        if required_balances:
-            self.update(hold_updates=required_balances)
-            self._holds_by_order[order.id] = copy.copy(required_balances)
-
-    def order_updated(self, order: orders.Order, balance_updates: Dict[str, Decimal]):
-        # If we have holds associated with the order, it may be time to release some/all of those.
-        hold_updates = {}
-        order_holds = self._holds_by_order.get(order.id, {})
-        if order_holds:
-            if order.is_open:
-                hold_updates = {
-                    symbol: max(amount, -order_holds.get(symbol, Decimal(0)))
-                    for symbol, amount in balance_updates.items()
-                    if amount < Decimal(0) and symbol in order_holds
-                }
-            else:
-                hold_updates = {symbol: -amount for symbol, amount in order_holds.items()}
-
-        # Update holds and balances.
-        self.update(balance_updates=balance_updates, hold_updates=hold_updates)
-
-        # Update holds by order.
-        if order_holds:
-            if order.is_open:
-                for symbol, update in hold_updates.items():
-                    order_holds[symbol] += update
-                    assert order_holds[symbol] >= Decimal(0)
-            else:
-                del self._holds_by_order[order.id]

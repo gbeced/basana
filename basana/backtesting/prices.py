@@ -25,7 +25,7 @@ class PriceTicker:
     def __init__(self):
         self._last_bars: Dict[Pair, Bar] = {}
 
-    def push_bar_event(self, event: BarEvent):
+    def on_bar_event(self, event: BarEvent):
         self._last_bars[event.bar.pair] = event.bar
 
     def get_price(self, pair: Pair) -> Optional[Decimal]:
