@@ -16,16 +16,13 @@
 
 from decimal import Decimal
 from typing import cast, Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
-import copy
 import dataclasses
-import decimal
 import logging
 import uuid
 
-from basana.backtesting import account_balances, config, errors, fees, lending, liquidity, orders, prices, requests
-from basana.backtesting import helpers as bt_helpers
-from basana.core import bar, dispatcher, enums, event, logs
-from basana.core import helpers as core_helpers
+from basana.backtesting import account_balances, config, errors, fees, lending, liquidity, \
+    orders, order_mgr, prices, requests
+from basana.core import bar, dispatcher, enums, event, helpers as core_helpers, logs
 from basana.core.pair import Pair, PairInfo
 
 
@@ -37,13 +34,6 @@ LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
 LoanInfo = lending.LoanInfo
 OrderInfo = orders.OrderInfo
 OrderOperation = enums.OrderOperation
-
-
-def assert_has_value(balance_updates: Dict[str, Decimal], symbol: str, sign: Decimal):
-    value = balance_updates.get(symbol)
-    assert value is not None, f"{symbol} is missing"
-    assert value != Decimal(0), f"{symbol} is zero"
-    assert bt_helpers.get_sign(value) == sign, f"{symbol} sign is wrong. It should be {sign}"
 
 
 @dataclasses.dataclass
@@ -114,14 +104,13 @@ class Exchange:
         self._dispatcher = dispatcher
         self._balances = account_balances.AccountBalances(initial_balances)
         self._price_ticker = prices.PriceTicker()
-        self._liquidity_strategy_factory = liquidity_strategy_factory
-        self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
-        self._fee_strategy = fee_strategy
-        self._orders = bt_helpers.ExchangeObjectContainer[orders.Order]()
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
         self._bid_ask_spread = bid_ask_spread
         self._config = config.Config(None, default_pair_info)
         self._loan_mgr = lending.LoanManager(lending_strategy, self._balances, self._config)
+        self._order_mgr = order_mgr.OrderManager(
+            self._config, self._balances, self._price_ticker, fee_strategy, liquidity_strategy_factory
+        )
 
     async def get_balance(self, symbol: str) -> Balance:
         """Returns the balance for a specific currency/symbol/etc..
@@ -162,18 +151,9 @@ class Exchange:
         pair_info = await self.get_pair_info(order_request.pair)
         order_request.validate(pair_info)
 
-        # Check balances before accepting the order.
         order = order_request.create_order(uuid.uuid4().hex)
-        required_balances = await self._estimate_required_balances(order)
-        self._check_balance_requirements(required_balances, raise_if_short=True)
-
-        # Accept the order.
-        self._orders.add(order)
+        self._order_mgr.add_order(order)
         logger.debug(logs.StructuredMessage("Request accepted", order_id=order.id))
-
-        # Update/hold balances.
-        self._balances.order_accepted(order, required_balances)
-
         return CreatedOrder(id=order.id)
 
     async def create_market_order(self, operation: OrderOperation, pair: Pair, amount: Decimal) -> CreatedOrder:
@@ -259,14 +239,7 @@ class Exchange:
 
         :param order_id: The order id.
         """
-        order = self._orders.get(order_id)
-        if order is None:
-            raise Error("Order not found")
-        if not order.is_open:
-            raise Error("Order {} is in {} state and can't be canceled".format(order_id, order.state))
-        order.cancel()
-        # Update balances to release any pending hold.
-        self._balances.order_updated(order, {})
+        self._order_mgr.cancel_order(order_id)
         return CanceledOrder(id=order_id)
 
     async def get_order_info(self, order_id: str) -> OrderInfo:
@@ -276,7 +249,7 @@ class Exchange:
 
         :param order_id: The order id.
         """
-        order = self._orders.get(order_id)
+        order = self._order_mgr.get_order(order_id)
         if not order:
             raise Error("Order not found")
         return order.get_order_info()
@@ -294,7 +267,7 @@ class Exchange:
                 amount=order.amount,
                 amount_filled=order.amount_filled
             )
-            for order in self._orders.get_open()
+            for order in self._order_mgr.get_open_orders()
             if pair is None or order.pair == pair
         ]
 
@@ -360,176 +333,19 @@ class Exchange:
     def _get_pair_info(self, pair: Pair) -> PairInfo:
         return self._config.get_pair_info(pair)
 
-    def _round_balance_updates(self, pair: Pair, balance_updates: Dict[str, Decimal]) -> Dict[str, Decimal]:
-        ret = copy.copy(balance_updates)
-        pair_info = self._get_pair_info(pair)
-
-        # For the base amount we truncate instead of rounding to avoid exceeding available liquidity.
-        base_amount = ret.get(pair.base_symbol)
-        if base_amount:
-            base_amount = core_helpers.truncate_decimal(base_amount, pair_info.base_precision)
-            ret[pair.base_symbol] = base_amount
-
-        # For the quote amount we simply round.
-        quote_amount = ret.get(pair.quote_symbol)
-        if quote_amount:
-            quote_amount = core_helpers.round_decimal(quote_amount, pair_info.quote_precision)
-            ret[pair.quote_symbol] = quote_amount
-
-        return bt_helpers.remove_empty_amounts(ret)
-
-    def _round_fees(self, pair: Pair, fees: Dict[str, Decimal]) -> Dict[str, Decimal]:
-        ret = copy.copy(fees)
-        pair_info = self._get_pair_info(pair)
-        precisions = {
-            pair.base_symbol: pair_info.base_precision,
-            pair.quote_symbol: pair_info.quote_precision,
-        }
-        for symbol in ret.keys():
-            amount = ret.get(symbol)
-            # If there is a fee in a symbol other that base/quote we won't round it since we don't know the precision.
-            if amount and (precision := precisions.get(symbol)) is not None:
-                amount = core_helpers.round_decimal(amount, precision, rounding=decimal.ROUND_UP)
-                ret[symbol] = amount
-
-        return bt_helpers.remove_empty_amounts(ret)
-
-    def _process_order(
-            self, order: orders.Order, bar_event: bar.BarEvent, liquidity_strategy: liquidity.LiquidityStrategy
-    ):
-        def order_not_filled():
-            order.not_filled()
-            # Update balances to release any pending hold if the order is no longer open.
-            if not order.is_open:
-                self._balances.order_updated(order, {})
-                logger.debug(logs.StructuredMessage("Order not filled", order_id=order.id, order_state=order.state))
-
-        logger.debug(logs.StructuredMessage(
-            "Processing order", order=order.get_debug_info(),
-            bar={
-                "open": bar_event.bar.open, "high": bar_event.bar.high, "low": bar_event.bar.low,
-                "close": bar_event.bar.close, "volume": bar_event.bar.volume,
-            }
-        ))
-        prev_state = order.state
-        balance_updates = order.get_balance_updates(bar_event.bar, liquidity_strategy)
-        assert order.state == prev_state, "The order state should not change inside get_balance_updates"
-
-        # If there are no balance updates then there is nothing left to do.
-        if not balance_updates:
-            order_not_filled()
-            return
-
-        # Sanity checks. Base and quote amounts should be there.
-        base_sign = bt_helpers.get_base_sign_for_operation(order.operation)
-        assert_has_value(balance_updates, order.pair.base_symbol, base_sign)
-        assert_has_value(balance_updates, order.pair.quote_symbol, -base_sign)
-
-        # If base/quote amounts were removed after rounding then there is nothing left to do.
-        balance_updates = self._round_balance_updates(order.pair, balance_updates)
-        logger.debug(logs.StructuredMessage("Processing order", order_id=order.id, balance_updates=balance_updates))
-        if order.pair.base_symbol not in balance_updates or order.pair.quote_symbol not in balance_updates:
-            order_not_filled()
-            return
-
-        # Get fees, round them, and combine them with the balance updates.
-        fees = self._fee_strategy.calculate_fees(order, balance_updates)
-        fees = self._round_fees(order.pair, fees)
-        logger.debug(logs.StructuredMessage("Processing order", order_id=order.id, fees=fees))
-        final_updates = bt_helpers.add_amounts(balance_updates, fees)
-        final_updates = bt_helpers.remove_empty_amounts(final_updates)
-
-        # Check if we're short on any balance.
-        required_balances = {symbol: -amount for symbol, amount in final_updates.items() if amount < 0}
-        balance_ok = self._check_balance_requirements(
-            required_balances, order=order, log_context={"order.id": order.id}
-        )
-
-        # Update, or fail.
-        if balance_ok:
-            # Update the liquidity strategy.
-            liquidity_strategy.take_liquidity(abs(balance_updates[bar_event.bar.pair.base_symbol]))
-            # Update the order.
-            order.add_fill(bar_event.when, balance_updates, fees)
-            # Update balances.
-            self._balances.order_updated(order, final_updates)
-            logger.debug(logs.StructuredMessage(
-                "Order updated", order_id=order.id, final_updates=final_updates, order_state=order.state
-            ))
-        else:
-            order_not_filled()
-
-    def _process_orders(self, bar_event: bar.BarEvent):
-        if (liquidity_strategy := self._liquidity_strategies.get(bar_event.bar.pair)) is None:
-            liquidity_strategy = self._liquidity_strategy_factory()
-        liquidity_strategy.on_bar(bar_event.bar)
-        for order in filter(lambda o: o.pair == bar_event.bar.pair, self._orders.get_open()):
-            self._process_order(order, bar_event, liquidity_strategy)
-
     async def _on_bar_event(self, event: event.Event):
         assert isinstance(event, bar.BarEvent), f"{event} is not an instance of bar.BarEvent"
 
-        self._price_ticker.push_bar_event(event)
-        self._process_orders(event)
-        # Forward the event to the right source, if any.
+        self._price_ticker.on_bar_event(event)
+        self._order_mgr.on_bar_event(event)
+
+        # Forward the event if necessary.
         event_source = self._bar_event_source.get(event.bar.pair)
         if event_source:
             event_source.push(event)
 
-    def _check_balance_requirements(
-            self, required_balances: Dict[str, Decimal], order: Optional[orders.Order] = None,
-            log_context: Dict[str, Any] = {}, raise_if_short: bool = False
-    ) -> bool:
-        ret = True
-
-        for symbol, required in required_balances.items():
-            assert required > Decimal(0), f"Invalid required balance {required} for {symbol}"
-
-            available_balance = self._balances.get_available_balance(symbol)
-            if order:
-                available_balance += self._balances.get_balance_on_hold_for_order(order.id, symbol)
-
-            balance_short = max(required - available_balance, Decimal(0))
-            if balance_short == Decimal(0):
-                continue
-
-            ret = False
-            logger.debug(logs.StructuredMessage("Balance is short", symbol=symbol, short=balance_short, **log_context))
-
-            # Fail if required.
-            if raise_if_short:
-                raise errors.Error("Not enough {} available. {} are required and {} are available".format(
-                    symbol, required, available_balance
-                ))
-
-        return ret
-
-    async def _estimate_required_balances(self, order: orders.Order) -> Dict[str, Decimal]:
-        # Build a dictionary of balance updates suitable for calculating fees.
-        base_sign = bt_helpers.get_base_sign_for_operation(order.operation)
-        estimated_balance_updates = {
-            order.pair.base_symbol: order.amount * base_sign
-        }
-        estimated_fill_price = order.calculate_estimated_fill_price()
-        if not estimated_fill_price:
-            estimated_fill_price = self._price_ticker.get_price(order.pair)
-        if estimated_fill_price:
-            estimated_balance_updates[order.pair.quote_symbol] = \
-                order.amount * estimated_fill_price * -base_sign
-        estimated_balance_updates = self._round_balance_updates(order.pair, estimated_balance_updates)
-
-        # Calculate fees.
-        fees = {}
-        if len(estimated_balance_updates) == 2:
-            fees = self._fee_strategy.calculate_fees(order, estimated_balance_updates)
-            fees = self._round_fees(order.pair, fees)
-        estimated_balance_updates = bt_helpers.add_amounts(estimated_balance_updates, fees)
-
-        # Return only negative balance updates as required balances.
-        return {symbol: -amount for symbol, amount in estimated_balance_updates.items() if amount < Decimal(0)}
-
     def _get_all_orders(self) -> Sequence[orders.Order]:
-        return list(self._orders.get_all())
+        return list(self._order_mgr.get_all_orders())
 
     def _get_dispatcher(self) -> dispatcher.EventDispatcher:
         return self._dispatcher
