@@ -140,7 +140,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._stopped = False
         self._scheduler_queue = SchedulerQueue()
         self._event_mux = EventMultiplexer()
-        self._task_pool = helpers.TaskPool(max_concurrent)
+        # Used to execute event and scheduler handlers.
+        self._handlers_task_pool = helpers.TaskPool(max_concurrent)
 
     @property
     def current_event_dt(self) -> Optional[datetime.datetime]:
@@ -162,7 +163,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._stopped = True
         if self._active_tasks:
             self._active_tasks.cancel()
-        self._task_pool.cancel()
+        self._handlers_task_pool.cancel()
 
     def subscribe(self, source: event.EventSource, event_handler: EventHandler):
         """Registers an async callable that will be called when an event source has new events.
@@ -236,8 +237,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             pass
         finally:
             # Cancel any pending task in the event pool.
-            self._task_pool.cancel()
-            await self._task_pool.wait_all()
+            self._handlers_task_pool.cancel()
+            await self._handlers_task_pool.wait()
             # No more cancelation at this point.
             self._active_tasks = None
             # Finalize producers.
@@ -324,9 +325,9 @@ class BacktestingDispatcher(EventDispatcher):
             if self._last_dt is None or next_scheduled_dt > self._last_dt:
                 self._last_dt = next_scheduled_dt
 
-            await self._task_pool.push(self._execute_scheduled(next_scheduled_dt, job))
+            await self._handlers_task_pool.push(self._execute_scheduled(next_scheduled_dt, job))
             # Waiting here and not outside of the loop to prevent executing distant scheduled jobs at the same time.
-            await self._task_pool.wait_all()
+            await self._handlers_task_pool.wait()
 
             next_scheduled_dt = self._scheduler_queue.peek_next_event_dt()
 
@@ -334,10 +335,10 @@ class BacktestingDispatcher(EventDispatcher):
         # Pop events, push them into the task pool, and wait those to finish executing.
         self._last_dt = dt
         for source, evnt in self._event_mux.pop_while(dt):
-            await self._task_pool.push(
+            await self._handlers_task_pool.push(
                 self._dispatch_event(EventDispatch(event=evnt, handlers=self._event_handlers.get(source, [])))
             )
-        await self._task_pool.wait_all()
+        await self._handlers_task_pool.wait()
 
 
 class RealtimeDispatcher(EventDispatcher):
@@ -376,14 +377,14 @@ class RealtimeDispatcher(EventDispatcher):
                 self._push_events(now),
             )
             # Give some time for tasks to execute, and keep on pushing tasks.
-            idle = await self._task_pool.wait_all(timeout=self._wait_all_timeout)
-            if idle:
+            await self._handlers_task_pool.wait(timeout=self._wait_all_timeout)
+            if self._handlers_task_pool.idle:
                 await self._on_idle()
 
     async def _on_idle(self):
         if self._idle_handlers:
             await gather_no_raise(*[
-                self._task_pool.push(idle_handler()) for idle_handler in self._idle_handlers
+                self._handlers_task_pool.push(idle_handler()) for idle_handler in self._idle_handlers
             ])
         else:
             # Otherwise we'll monopolize the event loop.
@@ -393,7 +394,7 @@ class RealtimeDispatcher(EventDispatcher):
         while (next_scheduled_dt := self._scheduler_queue.peek_next_event_dt()) and next_scheduled_dt <= dt:
             next_scheduled_dt, job = self._scheduler_queue.pop()
             # Push scheduled job into the task pool for processing.
-            await self._task_pool.push(self._execute_scheduled(next_scheduled_dt, job))
+            await self._handlers_task_pool.push(self._execute_scheduled(next_scheduled_dt, job))
 
     async def _push_events(self, dt: datetime.datetime):
         # Pop events and feed the pool.
@@ -409,7 +410,7 @@ class RealtimeDispatcher(EventDispatcher):
             self._prev_event_dt[source] = evnt.when
 
             # Push event into the task pool for processing.
-            await self._task_pool.push(
+            await self._handlers_task_pool.push(
                 self._dispatch_event(EventDispatch(
                     event=evnt,
                     handlers=self._event_handlers.get(source, [])

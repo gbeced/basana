@@ -329,3 +329,32 @@ def test_stop_dispatcher_when_idle(realtime_dispatcher):
     asyncio.run(realtime_dispatcher.run())
 
     assert event_count == 2
+
+
+def test_handler_exceptions_are_catched_by_the_dispatcher(backtesting_dispatcher):
+    event_count = 0
+    schedule_job_count = 0
+
+    async def event_handler(event):
+        nonlocal event_count
+        event_count += 1
+        raise Exception("Event handler error")
+
+    async def scheduler_handler():
+        nonlocal schedule_job_count
+        schedule_job_count += 1
+        raise Exception("Scheduler handler error")
+
+    async def test_main():
+        src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
+
+        backtesting_dispatcher.subscribe_all(event_handler)
+        backtesting_dispatcher.subscribe(src, event_handler)
+        backtesting_dispatcher.subscribe_all(event_handler, front_run=True)
+        backtesting_dispatcher.schedule(dt.utc_now(), scheduler_handler)
+
+        await backtesting_dispatcher.run()
+        assert event_count == 3
+        assert schedule_job_count == 1
+
+    asyncio.run(test_main())
