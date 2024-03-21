@@ -17,6 +17,7 @@
 from typing import cast, Any, Awaitable, Callable, Dict, Generator, List, Optional, Set, Tuple
 import abc
 import asyncio
+import contextlib
 import dataclasses
 import datetime
 import heapq
@@ -223,13 +224,11 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._running = True
         try:
             # Initialize producers.
-            async with helpers.TaskGroup() as tg:
-                self._active_tasks = tg  # So it can be canceled.
+            async with self._task_group() as tg:
                 for producer in self._producers:
                     tg.create_task(producer.initialize())
             # Run producers and dispatch loop.
-            async with helpers.TaskGroup() as tg:
-                self._active_tasks = tg  # So it can be canceled.
+            async with self._task_group() as tg:
                 for producer in self._producers:
                     tg.create_task(producer.main())
                 tg.create_task(self._dispatch_loop())
@@ -250,6 +249,15 @@ class EventDispatcher(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     async def _dispatch_loop(self):
         raise NotImplementedError()
+
+    @contextlib.asynccontextmanager
+    async def _task_group(self):
+        try:
+            async with helpers.TaskGroup() as tg:
+                self._active_tasks = tg  # So it can be canceled.
+                yield tg
+        finally:
+            self._active_tasks = None
 
     async def _dispatch_event(self, event_dispatch: EventDispatch):
         logger.debug(logs.StructuredMessage(
