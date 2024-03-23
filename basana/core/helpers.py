@@ -65,38 +65,67 @@ class TaskGroup:
 
 
 class TaskPool:
+    """
+    A class for managing a pool of asyncio tasks.
+
+    :param size: The maximum size of the task pool.
+    """
     def __init__(self, size: int):
         assert size > 0, "Invalid size"
         self._max_size = size
         self._tasks: Set[asyncio.Task] = set()
+        self._done: List[asyncio.Task] = []
+
+    @property
+    def idle(self) -> int:
+        """
+        True if there are no active tasks in the pool, False otherwise.
+        """
+        return len(self._tasks) == 0
 
     async def push(self, coroutine: Coroutine[Any, Any, Any]):
+        """
+        Adds a coroutine to the task pool. If the pool is full it will block until there is room for the new task.
+
+        :param coroutine: The coroutine to be added to the task pool.
+        """
         # Wait for some task to complete if there is no more room.
         while len(self._tasks) >= self._max_size:
             await self._wait_impl(timeout=None, return_when=asyncio.FIRST_COMPLETED)
         self._tasks.add(asyncio.create_task(coroutine))
 
-    def cancel(self) -> List[asyncio.Task]:
+    def pop_done(self) -> List[asyncio.Task]:
+        """
+        Returns the tasks that are done running since the last call to pop_done.
+        """
+        ret = self._done
+        self._done = []
+        return ret
+
+    def cancel(self):
+        """
+        Requests all tasks in the pool to be canceled.
+        """
         pending = [task for task in self._tasks if not task.done()]
         for task in pending:
-            if not task.done():
-                task.cancel()
-        return pending
+            task.cancel()
 
-    # async def wait_one(self, timeout: Optional[Union[int, float]] = None) -> bool:
-    #     if self._tasks:
-    #         await self._wait_impl(timeout=timeout, return_when=asyncio.FIRST_COMPLETED)
-    #     return not self._tasks
+    async def wait(self, timeout: Optional[Union[int, float]] = None) -> bool:
+        """
+        Waits for all tasks in the pool to complete. Returns True if all tasks are done, False otherwise.
 
-    async def wait_all(self, timeout: Optional[Union[int, float]] = None) -> bool:
+        :param timeout: The maximum number of seconds to wait for tasks to complete. If None, wait indefinitely.
+        """
+        return await self._wait_impl(timeout=timeout, return_when=asyncio.ALL_COMPLETED)
+
+    async def _wait_impl(self, timeout: Optional[Union[int, float]], return_when: str) -> bool:
+        done: List[asyncio.Task] = []
         if self._tasks:
-            await self._wait_impl(timeout=timeout, return_when=asyncio.ALL_COMPLETED)
-        return not self._tasks
-
-    async def _wait_impl(self, timeout: Optional[Union[int, float]], return_when: str):
-        done, _ = await asyncio.wait(self._tasks, timeout=timeout, return_when=return_when)
+            done, _ = await asyncio.wait(self._tasks, timeout=timeout, return_when=return_when)
         for task in done:
             self._tasks.remove(task)
+            self._done.append(task)
+        return len(done) > 0
 
 
 @contextlib.contextmanager
