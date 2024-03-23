@@ -54,16 +54,21 @@ class OrderManager:
             self._process_order(order, bar_event, liquidity_strategy)
 
     def add_order(self, order: Order):
-        required_balances = self._estimate_required_balances(order)
-        self._check_balance_requirements(required_balances, raise_if_short=True)
+        try:
+            required_balances = self._estimate_required_balances(order)
+            # When an order gets accepted we need to hold any required balance that will be debited as the order gets
+            # filled.
+            if required_balances:
+                self._balances.update(hold_updates=required_balances)
+                self._holds_by_order[order.id] = copy.copy(required_balances)
 
-        # When an order gets accepted we need to hold any required balance that will be debited as the order gets
-        # filled.
-        if required_balances:
-            self._balances.update(hold_updates=required_balances)
-            self._holds_by_order[order.id] = copy.copy(required_balances)
-
-        self._orders.add(order)
+            self._orders.add(order)
+        except errors.NotEnoughBalance as e:
+            logger.debug(logs.StructuredMessage(
+                "Not enough balance to accept order", order=order.get_debug_info(), symbol=e.symbol,
+                short=e.balance_short
+            ))
+            raise
 
     def get_order(self, order_id: str) -> Optional[Order]:
         return self._orders.get(order_id)
