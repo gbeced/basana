@@ -142,6 +142,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._event_mux = EventMultiplexer()
         # Used to execute event and scheduler handlers.
         self._handlers_task_pool = helpers.TaskPool(max_concurrent)
+        # Set to True for the dispatcher to stop if a handler raises an exception.
+        self.stop_on_handler_exceptions = False
 
     @property
     def current_event_dt(self) -> Optional[datetime.datetime]:
@@ -265,21 +267,40 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             "Dispatching event", when=event_dispatch.event.when, type=type(event_dispatch.event)
         ))
         if self._sniffers_pre:
-            await gather_no_raise(
-                *[event_handler(event_dispatch.event) for event_handler in self._sniffers_pre]
+            await asyncio.gather(
+                *[self._call_event_handler(event_dispatch.event, handler) for handler in self._sniffers_pre]
             )
         if event_dispatch.handlers:
-            await gather_no_raise(
-                *[event_handler(event_dispatch.event) for event_handler in event_dispatch.handlers]
+            await asyncio.gather(
+                *[self._call_event_handler(event_dispatch.event, handler) for handler in event_dispatch.handlers]
             )
         if self._sniffers_post:
-            await gather_no_raise(
-                *[event_handler(event_dispatch.event) for event_handler in self._sniffers_post]
+            await asyncio.gather(
+                *[self._call_event_handler(event_dispatch.event, handler) for handler in self._sniffers_post]
             )
+
+    async def _call_event_handler(self, event: event.Event, handler: EventHandler):
+        try:
+            return await handler(event)
+        except Exception as e:
+            logger.exception(logs.StructuredMessage(
+                "Unhandled exception in event handler", error=e, event=dict(type=type(event), when=event.when),
+                handler=handler
+            ))
+            if self.stop_on_handler_exceptions:
+                self.stop()
 
     async def _execute_scheduled(self, dt: datetime.datetime, job: SchedulerJob):
         logger.debug(logs.StructuredMessage("Executing scheduled job", scheduled=dt))
-        await await_no_raise(job(), message="Unhandled exception executing scheduled job")
+
+        try:
+            await job()
+        except Exception as e:
+            logger.exception(logs.StructuredMessage(
+                "Unhandled exception in handler", error=e, dt=dt, scheduler_job=job
+            ))
+            if self.stop_on_handler_exceptions:
+                self.stop()
 
 
 class BacktestingDispatcher(EventDispatcher):

@@ -311,11 +311,11 @@ def test_realtime_scheduler(delta_seconds, realtime_dispatcher):
 
 
 def test_stop_dispatcher_when_idle(realtime_dispatcher):
-    event_count = 0
+    handler_calls = 0
 
     async def on_event(event):
-        nonlocal event_count
-        event_count += 1
+        nonlocal handler_calls
+        handler_calls += 1
 
     async def on_idle():
         realtime_dispatcher.stop()
@@ -328,33 +328,101 @@ def test_stop_dispatcher_when_idle(realtime_dispatcher):
     realtime_dispatcher.subscribe_idle(on_idle)
     asyncio.run(realtime_dispatcher.run())
 
-    assert event_count == 2
+    assert handler_calls == 2
 
 
-def test_handler_exceptions_are_catched_by_the_dispatcher(backtesting_dispatcher):
-    event_count = 0
-    schedule_job_count = 0
+def test_handler_exceptions_dont_stop_the_dispatcher(backtesting_dispatcher):
+    handler_calls = 0
+    scheduler_handler_calls = 0
 
     async def event_handler(event):
-        nonlocal event_count
-        event_count += 1
+        nonlocal handler_calls
+        handler_calls += 1
         raise Exception("Event handler error")
 
     async def scheduler_handler():
-        nonlocal schedule_job_count
-        schedule_job_count += 1
+        nonlocal scheduler_handler_calls
+        scheduler_handler_calls += 1
         raise Exception("Scheduler handler error")
 
     async def test_main():
-        src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
+        src = event.FifoQueueEventSource(events=[
+            event.Event(dt.utc_now()),
+            event.Event(dt.utc_now()),
+            event.Event(dt.utc_now()),
+        ])
 
-        backtesting_dispatcher.subscribe_all(event_handler)
-        backtesting_dispatcher.subscribe(src, event_handler)
         backtesting_dispatcher.subscribe_all(event_handler, front_run=True)
+        backtesting_dispatcher.subscribe(src, event_handler)
+        backtesting_dispatcher.subscribe_all(event_handler)
         backtesting_dispatcher.schedule(dt.utc_now(), scheduler_handler)
 
         await backtesting_dispatcher.run()
-        assert event_count == 3
-        assert schedule_job_count == 1
+        assert handler_calls == 3 * 3
+        assert scheduler_handler_calls == 1
+
+    asyncio.run(test_main())
+
+
+def test_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher):
+    backtesting_dispatcher.stop_on_handler_exceptions = True
+    handler_calls = 0
+
+    async def event_handler(event):
+        nonlocal handler_calls
+        handler_calls += 1
+        raise Exception("Event handler error")
+
+    async def event_handler_2(event):
+        nonlocal handler_calls
+        handler_calls += 1
+        raise Exception("Event handler error")
+
+    async def test_main():
+        src = event.FifoQueueEventSource(events=[
+            event.Event(dt.utc_now()),
+            event.Event(dt.utc_now()),
+            event.Event(dt.utc_now()),
+        ])
+
+        backtesting_dispatcher.subscribe(src, event_handler)
+        backtesting_dispatcher.subscribe(src, event_handler_2)
+
+        await backtesting_dispatcher.run()
+        assert handler_calls == 1
+
+    asyncio.run(test_main())
+
+
+def test_scheduler_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher):
+    backtesting_dispatcher.stop_on_handler_exceptions = True
+    handler_calls = 0
+
+    async def event_handler(event):
+        pass
+
+    async def scheduler_handler():
+        nonlocal handler_calls
+        handler_calls += 1
+        raise Exception("Scheduler handler error")
+
+    async def scheduler_handler_2():
+        nonlocal handler_calls
+        handler_calls += 1
+        raise Exception("Scheduler handler error")
+
+    async def test_main():
+        src = event.FifoQueueEventSource(events=[
+            event.Event(dt.utc_now()),
+            event.Event(dt.utc_now()),
+            event.Event(dt.utc_now()),
+        ])
+
+        backtesting_dispatcher.subscribe(src, event_handler)
+        backtesting_dispatcher.schedule(dt.utc_now(), scheduler_handler)
+        backtesting_dispatcher.schedule(dt.utc_now(), scheduler_handler_2)
+        await backtesting_dispatcher.run()
+
+        assert handler_calls == 1
 
     asyncio.run(test_main())
