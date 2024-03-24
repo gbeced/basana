@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Any, Callable, Dict, Generator, Iterable, Optional
+from typing import Callable, Dict, Generator, Iterable, Optional
 import copy
 import decimal
 import logging
@@ -55,14 +55,14 @@ class OrderManager:
 
     def add_order(self, order: Order):
         try:
-            required_balances = self._estimate_required_balances(order)
             # When an order gets accepted we need to hold any required balance that will be debited as the order gets
             # filled.
-            if required_balances:
+            if required_balances := self._estimate_required_balances(order):
                 self._balances.update(hold_updates=required_balances)
                 self._holds_by_order[order.id] = copy.copy(required_balances)
 
             self._orders.add(order)
+
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage(
                 "Not enough balance to accept order", order=order.get_debug_info(), symbol=e.symbol,
@@ -86,13 +86,12 @@ class OrderManager:
         if not order.is_open:
             raise errors.Error("Order {} is in {} state and can't be canceled".format(order_id, order.state))
         order.cancel()
-        # Update balances to release any pending hold.
-        self._order_updated(order, {})
+        self._order_updated(order)
 
     def get_balance_on_hold_for_order(self, order_id: str, symbol: str) -> Decimal:
         return self._holds_by_order.get(order_id, {}).get(symbol, Decimal(0))
 
-    def _order_updated(self, order: Order, balance_updates: Dict[str, Decimal]):
+    def _update_balances(self, order: Order, balance_updates: Dict[str, Decimal]):
         # If we have holds associated with the order, it may be time to release some/all of those.
         hold_updates = {}
         order_holds = self._holds_by_order.get(order.id, {})
@@ -107,7 +106,8 @@ class OrderManager:
                 hold_updates = {symbol: -amount for symbol, amount in order_holds.items()}
 
         # Update holds and balances.
-        self._balances.update(balance_updates=balance_updates, hold_updates=hold_updates)
+        if balance_updates or hold_updates:
+            self._balances.update(balance_updates=balance_updates, hold_updates=hold_updates)
 
         # Update holds by order.
         if order_holds:
@@ -118,15 +118,19 @@ class OrderManager:
             else:
                 del self._holds_by_order[order.id]
 
+    def _order_updated(self, order: Order):
+        if not order.is_open:
+            # The order is closed and there might be balances on hold that have to be released.
+            self._update_balances(order, {})
+
     def _process_order(
             self, order: Order, bar_event: bar.BarEvent, liquidity_strategy: liquidity.LiquidityStrategy
     ):
         def order_not_filled():
             order.not_filled()
-            # Update balances to release any pending hold if the order is no longer open.
+            self._order_updated(order)
             if not order.is_open:
-                self._order_updated(order, {})
-                logger.debug(logs.StructuredMessage("Order not filled", order_id=order.id, order_state=order.state))
+                logger.debug(logs.StructuredMessage("Order closed", order_id=order.id, order_state=order.state))
 
         logger.debug(logs.StructuredMessage(
             "Processing order", order=order.get_debug_info(),
@@ -146,8 +150,8 @@ class OrderManager:
 
         # Sanity checks. Base and quote amounts should be there.
         base_sign = helpers.get_base_sign_for_operation(order.operation)
-        assert_has_value(balance_updates, order.pair.base_symbol, base_sign)
-        assert_has_value(balance_updates, order.pair.quote_symbol, -base_sign)
+        assert_balance_update_value(balance_updates, order.pair.base_symbol, base_sign)
+        assert_balance_update_value(balance_updates, order.pair.quote_symbol, -base_sign)
 
         # If base/quote amounts were removed after rounding then there is nothing left to do.
         balance_updates = self._round_balance_updates(balance_updates, order.pair)
@@ -163,24 +167,23 @@ class OrderManager:
         final_updates = helpers.add_amounts(balance_updates, fees)
         final_updates = helpers.remove_empty_amounts(final_updates)
 
-        # Check if we're short on any balance.
-        required_balances = {symbol: -amount for symbol, amount in final_updates.items() if amount < 0}
-        balance_ok = self._check_balance_requirements(
-            required_balances, order=order, log_context={"order.id": order.id}
-        )
-
-        # Update, or fail.
-        if balance_ok:
-            # Update the liquidity strategy.
-            liquidity_strategy.take_liquidity(abs(balance_updates[bar_event.bar.pair.base_symbol]))
-            # Update the order.
-            order.add_fill(bar_event.when, balance_updates, fees)
-            # Update balances.
-            self._order_updated(order, final_updates)
+        try:
+            # Update balances. This may fail if there is not enough balance, so we do this first.
+            self._update_balances(order, final_updates)
             logger.debug(logs.StructuredMessage(
                 "Order updated", order_id=order.id, final_updates=final_updates, order_state=order.state
             ))
-        else:
+            # Update the liquidity strategy.
+            liquidity_strategy.take_liquidity(abs(balance_updates[bar_event.bar.pair.base_symbol]))
+            # Update the order and release any pending balance on hold if the order is now closed.
+            order.add_fill(bar_event.when, balance_updates, fees)
+            self._order_updated(order)
+
+        except errors.NotEnoughBalance as e:
+            logger.debug(logs.StructuredMessage(
+                "Not enough balance processing order", order=order.get_debug_info(), symbol=e.symbol,
+                short=e.balance_short
+            ))
             order_not_filled()
 
     def _round_balance_updates(self, balance_updates: Dict[str, Decimal], pair: Pair) -> Dict[str, Decimal]:
@@ -241,36 +244,8 @@ class OrderManager:
         # Return only negative balance updates as required balances.
         return {symbol: -amount for symbol, amount in estimated_balance_updates.items() if amount < Decimal(0)}
 
-    def _check_balance_requirements(
-            self, required_balances: Dict[str, Decimal], order: Optional[Order] = None,
-            log_context: Dict[str, Any] = {}, raise_if_short: bool = False
-    ) -> bool:
-        ret = True
 
-        for symbol, required in required_balances.items():
-            assert required > Decimal(0), f"Invalid required balance {required} for {symbol}"
-
-            available_balance = self._balances.get_available_balance(symbol)
-            if order:
-                available_balance += self.get_balance_on_hold_for_order(order.id, symbol)
-
-            balance_short = max(required - available_balance, Decimal(0))
-            if balance_short == Decimal(0):
-                continue
-
-            ret = False
-            logger.debug(logs.StructuredMessage("Balance is short", symbol=symbol, short=balance_short, **log_context))
-
-            # Fail if required.
-            if raise_if_short:
-                raise errors.Error("Not enough {} available. {} are required and {} are available".format(
-                    symbol, required, available_balance
-                ))
-
-        return ret
-
-
-def assert_has_value(balance_updates: Dict[str, Decimal], symbol: str, sign: Decimal):
+def assert_balance_update_value(balance_updates: Dict[str, Decimal], symbol: str, sign: Decimal):
     value = balance_updates.get(symbol)
     assert value is not None, f"{symbol} is missing"
     assert value != Decimal(0), f"{symbol} is zero"
