@@ -99,7 +99,7 @@ class Exchange:
             fee_strategy: fees.FeeStrategy = fees.NoFee(),
             default_pair_info: Optional[PairInfo] = PairInfo(base_precision=0, quote_precision=2),
             bid_ask_spread: Decimal = Decimal("0.5"),
-            lending_strategy: lending.LendingStrategy = lending.NoLoans()
+            loan_factory: lending.LoanFactory = lending.NoLoans()
     ):
         self._dispatcher = dispatcher
         self._balances = account_balances.AccountBalances(initial_balances)
@@ -107,7 +107,7 @@ class Exchange:
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
         self._bid_ask_spread = bid_ask_spread
         self._config = config.Config(None, default_pair_info)
-        self._loan_mgr = lending.LoanManager(lending_strategy, self._balances, self._config)
+        self._loan_mgr = lending.LoanManager(loan_factory, self._balances, self._config)
         self._order_mgr = order_mgr.OrderManager(
             self._config, self._balances, self._price_ticker, fee_strategy, liquidity_strategy_factory
         )

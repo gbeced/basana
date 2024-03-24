@@ -93,12 +93,9 @@ class Loan(metaclass=abc.ABCMeta):
         self._is_open = False
 
 
-class LendingStrategy(metaclass=abc.ABCMeta):
-    """Base class for strategies that model lending schemes.
-
-    .. note::
-
-        * This is a base class and should not be used directly.
+class LoanFactory(metaclass=abc.ABCMeta):
+    """
+    Base class for loan factories.
     """
 
     @abc.abstractmethod
@@ -106,8 +103,10 @@ class LendingStrategy(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class NoLoans(LendingStrategy):
-    """No loans."""
+class NoLoans(LoanFactory):
+    """
+    Lending is not supported.
+    """
 
     def create_loan(self, symbol: str, amount: Decimal, created_at: datetime.datetime) -> Loan:
         raise Exception("Lending is not supported")
@@ -132,7 +131,14 @@ class BasicLoan(Loan):
         return {self.borrowed_symbol: interest}
 
 
-class BasicLoans(LendingStrategy):
+class BasicLoans(LoanFactory):
+    """
+    TODO
+
+    :param interest_rate:
+    :param interest_period:
+    :param min_interest:
+    """
     def __init__(self, interest_rate: Decimal, interest_period: datetime.timedelta, min_interest: Decimal):
         self._interest_rate = interest_rate
         self._interest_period = interest_period
@@ -146,9 +152,9 @@ class BasicLoans(LendingStrategy):
 
 
 class LoanManager:
-    def __init__(self, lending_strategy: LendingStrategy, account_balances: AccountBalances, config: config.Config):
+    def __init__(self, loan_factory: LoanFactory, account_balances: AccountBalances, config: config.Config):
         self._loans = bt_helpers.ExchangeObjectContainer[Loan]()
-        self._lending_strategy = lending_strategy
+        self._loan_factory = loan_factory
         self._balances = account_balances
         self._config = config
 
@@ -156,7 +162,7 @@ class LoanManager:
         if amount <= 0:
             raise errors.Error("Invalid amount")
 
-        loan = self._lending_strategy.create_loan(symbol, amount, now)
+        loan = self._loan_factory.create_loan(symbol, amount, now)
 
         self._balances.update(
             balance_updates={loan.borrowed_symbol: loan.borrowed_amount},
