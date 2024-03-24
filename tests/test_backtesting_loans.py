@@ -39,12 +39,12 @@ def test_borrow_and_repay_min_interest(backtesting_dispatcher):
     async def impl():
         min_interest = Decimal("0.01")
         symbol = "USD"
-        lending_strategy = lending.BasicLoans(
+        loan_factory = lending.BasicLoans(
             interest_rate=Decimal("0.00002"), interest_period=datetime.timedelta(hours=1),
             min_interest=min_interest
         )
         initial_balance = min_interest
-        e = exchange.Exchange(backtesting_dispatcher, {symbol: initial_balance}, lending_strategy=lending_strategy)
+        e = exchange.Exchange(backtesting_dispatcher, {symbol: initial_balance}, loan_factory=loan_factory)
         e.set_symbol_precision(symbol, 2)
 
         balance = await e.get_balance(symbol)
@@ -87,11 +87,11 @@ def test_borrow_and_repay(backtesting_dispatcher):
         symbol = "USD"
         interest_rate = Decimal("0.05")
         interest_period = datetime.timedelta(hours=1)
-        lending_strategy = lending.BasicLoans(
+        loan_factory = lending.BasicLoans(
             interest_rate=interest_rate, interest_period=interest_period, min_interest=min_interest
         )
         initial_balance = interest_rate
-        e = exchange.Exchange(backtesting_dispatcher, {symbol: initial_balance}, lending_strategy=lending_strategy)
+        e = exchange.Exchange(backtesting_dispatcher, {symbol: initial_balance}, loan_factory=loan_factory)
         e.set_symbol_precision(symbol, 2)
 
         balance = await e.get_balance(symbol)
@@ -131,10 +131,10 @@ def test_borrow_and_repay(backtesting_dispatcher):
 
 def test_repay_inexistent(backtesting_dispatcher):
     async def impl():
-        lending_strategy = lending.BasicLoans(
+        loan_factory = lending.BasicLoans(
             interest_rate=Decimal("0"), interest_period=datetime.timedelta(days=365), min_interest=Decimal("0.001")
         )
-        e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
+        e = exchange.Exchange(backtesting_dispatcher, {}, loan_factory=loan_factory)
 
         with pytest.raises(Exception, match="Loan not found"):
             await e.repay_loan("inexistent")
@@ -144,10 +144,10 @@ def test_repay_inexistent(backtesting_dispatcher):
 
 def test_invalid_borrow_amount(backtesting_dispatcher):
     async def impl():
-        lending_strategy = lending.BasicLoans(
+        loan_factory = lending.BasicLoans(
             interest_rate=Decimal("0"), interest_period=datetime.timedelta(days=365), min_interest=Decimal("0.001")
         )
-        e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
+        e = exchange.Exchange(backtesting_dispatcher, {}, loan_factory=loan_factory)
 
         with pytest.raises(Exception, match="Invalid amount"):
             await e.create_loan("USD", Decimal(-10000))
