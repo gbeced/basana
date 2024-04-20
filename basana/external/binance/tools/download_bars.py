@@ -17,6 +17,7 @@
 from typing import List, Optional
 import argparse
 import datetime
+import sys
 
 import aiohttp
 import asyncio
@@ -68,17 +69,18 @@ def to_binance_currency_pair(currency_pair: str):
 
 
 class CSVWriter:
-    def __init__(self):
+    def __init__(self, output_file: Optional[str]):
         self._header_written = False
+        self._output_file = open(output_file, "w") if output_file else sys.stdout
 
     def write_candlestick(self, candlestick: Candlestick):
         if not self._header_written:
-            print("datetime,open,high,low,close,volume")
+            print("datetime,open,high,low,close,volume", file=self._output_file)
             self._header_written = True
         print(",".join([
             str(datetime.datetime.utcfromtimestamp(candlestick.open_timestamp / 1000)),
             candlestick.open, candlestick.high, candlestick.low, candlestick.close, candlestick.volume
-        ]))
+        ]), file=self._output_file)
 
 
 async def main(params: Optional[List[str]] = None, config_overrides: dict = {}):
@@ -93,6 +95,7 @@ async def main(params: Optional[List[str]] = None, config_overrides: dict = {}):
     parser.add_argument(
         "-e", "--end", help="The ending date YYYY-MM-DD format. Included in the range.", required=True
     )
+    parser.add_argument("-o", "--output", help="The output file.", required=False, default=None)
     args = parser.parse_args(args=params)
 
     step = period_to_step[args.period]
@@ -108,7 +111,7 @@ async def main(params: Optional[List[str]] = None, config_overrides: dict = {}):
 
     tb = token_bucket.TokenBucketLimiter(10, 1)
     now_ts = helpers.datetime_to_timestamp(dt.utc_now())
-    writer = CSVWriter()
+    writer = CSVWriter(args.output)
     async with aiohttp.ClientSession() as session:
         cli = client.APIClient(session=session, tb=tb, config_overrides=config_overrides)
         eof = False
