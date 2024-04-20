@@ -11,6 +11,7 @@ on:
       - feature/*
       - hotfix/*
       - bugfix/*
+      - issues/*
   pull_request:
     branches:
       - master 
