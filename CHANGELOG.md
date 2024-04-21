@@ -1,5 +1,9 @@
 # Changelog
 
+## 
+
+* Bug fix. Parse BOM when opening CSV files and set the encoding appropriately.
+
 ## 1.5.0
 
 * basana.backtesting.fees.Percentage now supports a minimum fee.
