@@ -39,7 +39,7 @@ class Trade:
     def datetime(self) -> datetime.datetime:
         """The datetime when the trade occurred."""
         timestamp = int(self.json["microtimestamp"]) / 1e6
-        return datetime.datetime.utcfromtimestamp(timestamp).replace(tzinfo=datetime.timezone.utc)
+        return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
 
     @property
     def amount(self) -> Decimal:

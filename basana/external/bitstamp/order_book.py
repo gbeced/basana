@@ -50,7 +50,7 @@ class OrderBook:
     @property
     def datetime(self) -> datetime.datetime:
         timestamp = int(self.json["microtimestamp"]) / 1e6
-        return datetime.datetime.utcfromtimestamp(timestamp).replace(tzinfo=datetime.timezone.utc)
+        return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
 
     @property
     def bids(self) -> List[Entry]:
