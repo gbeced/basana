@@ -27,7 +27,7 @@ $ pip install basana[charts] talipp
 ### Download historical data for backtesting
 
 ```
-$ python -m basana.external.bitstamp.tools.download_bars -c BTC/USD -p 1d -s 2014-01-01 -e 2021-01-31 > bitstamp_btcusd_day.csv
+$ python -m basana.external.bitstamp.tools.download_bars -c BTC/USD -p 1d -s 2014-01-01 -e 2021-01-31 -o bitstamp_btcusd_day.csv
 ```
 
 ### Backtesting using SMA and market orders

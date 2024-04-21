@@ -15,8 +15,8 @@
 # limitations under the License.
 
 # Bars can be downloaded using this command:
-# python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2021-01-01 -e 2021-12-31 > \
-# binance_btcusdt_day.csv
+# python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2021-01-01 -e 2021-12-31 \
+# -o binance_btcusdt_day.csv
 
 from decimal import Decimal
 import asyncio

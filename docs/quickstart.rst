@@ -55,7 +55,7 @@ for year 2021:
 
 .. code-block:: console
 
-    (.venv) $ python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2021-01-01 -e 2021-12-31 > binance_btcusdt_day.csv
+    (.venv) $ python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2021-01-01 -e 2021-12-31 -o binance_btcusdt_day.csv
 
 Next, save the following strategy code as *bbands.py*:
 
