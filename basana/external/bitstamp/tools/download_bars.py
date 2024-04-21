@@ -75,8 +75,10 @@ class CSVWriter:
         if not self._header_written:
             print("datetime,open,high,low,close,volume", file=self._output_file)
             self._header_written = True
+
+        dt_col = datetime.datetime.fromtimestamp(ohlc.open_timestamp, tz=datetime.timezone.utc)
         print(",".join([
-            str(datetime.datetime.utcfromtimestamp(ohlc.open_timestamp)),
+            str(dt_col.replace(tzinfo=None)),
             ohlc.open, ohlc.high, ohlc.low, ohlc.close, ohlc.volume
         ]), file=self._output_file)
 

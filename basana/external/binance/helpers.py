@@ -88,7 +88,7 @@ def get_optional_decimal(mapping: dict, key: str, skip_zero: bool) -> Optional[D
 
 
 def timestamp_to_datetime(timestamp: int) -> datetime.datetime:
-    return datetime.datetime.utcfromtimestamp(timestamp / 1e3).replace(tzinfo=datetime.timezone.utc)
+    return datetime.datetime.fromtimestamp(timestamp / 1e3, tz=datetime.timezone.utc)
 
 
 def datetime_to_timestamp(datetime: datetime.datetime) -> int:

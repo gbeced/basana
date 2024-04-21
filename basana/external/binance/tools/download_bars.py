@@ -77,8 +77,10 @@ class CSVWriter:
         if not self._header_written:
             print("datetime,open,high,low,close,volume", file=self._output_file)
             self._header_written = True
+
+        dt_col = datetime.datetime.fromtimestamp(candlestick.open_timestamp / 1000, tz=datetime.timezone.utc)
         print(",".join([
-            str(datetime.datetime.utcfromtimestamp(candlestick.open_timestamp / 1000)),
+            str(dt_col.replace(tzinfo=None)),
             candlestick.open, candlestick.high, candlestick.low, candlestick.close, candlestick.volume
         ]), file=self._output_file)
 
