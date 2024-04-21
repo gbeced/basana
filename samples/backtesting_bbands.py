@@ -85,9 +85,15 @@ async def main():
     # Setup chart.
     chart = charts.LineCharts(exchange)
     chart.add_pair(pair)
-    chart.add_pair_indicator("Upper", pair, lambda _: strategy.bb[-1].ub if len(strategy.bb) else None)
-    chart.add_pair_indicator("Central", pair, lambda _: strategy.bb[-1].cb if len(strategy.bb) else None)
-    chart.add_pair_indicator("Lower", pair, lambda _: strategy.bb[-1].lb if len(strategy.bb) else None)
+    chart.add_pair_indicator(
+        "Upper", pair, lambda _: strategy.bb[-1].ub if len(strategy.bb) and strategy.bb[-1] else None
+    )
+    chart.add_pair_indicator(
+        "Central", pair, lambda _: strategy.bb[-1].cb if len(strategy.bb) and strategy.bb[-1] else None
+    )
+    chart.add_pair_indicator(
+        "Lower", pair, lambda _: strategy.bb[-1].lb if len(strategy.bb) and strategy.bb[-1] else None
+    )
     chart.add_portfolio_value("USDT")
 
     # Run the backtest.

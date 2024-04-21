@@ -29,13 +29,13 @@ class Strategy(bs.TradingSignalSource):
     async def on_bar_event(self, bar_event: bs.BarEvent):
         # Feed the technical indicator.
         value = float(bar_event.bar.close)
-        self.bb.add_input_value(value)
+        self.bb.add(value)
 
         # Keep a small window of values to check if there is a crossover.
         self._values = (self._values[-1], value)
 
         # Is the indicator ready ?
-        if len(self.bb) < 2:
+        if len(self.bb) < 2 or self.bb[-2] is None:
             return
 
         # Price moved below lower band ?

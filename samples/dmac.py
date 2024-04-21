@@ -29,11 +29,12 @@ class Strategy(bs.TradingSignalSource):
     async def on_bar_event(self, bar_event: bs.BarEvent):
         # Feed the technical indicators.
         value = float(bar_event.bar.close)
-        self._st_sma.add_input_value(value)
-        self._lt_sma.add_input_value(value)
+        self._st_sma.add(value)
+        self._lt_sma.add(value)
 
         # Are MAs ready ?
-        if len(self._st_sma) < 2 or len(self._lt_sma) < 2:
+        if len(self._st_sma) < 2 or len(self._lt_sma) < 2 \
+                or self._st_sma[-2] is None or self._lt_sma[-2] is None:
             return
 
         # Short term MA crossed above long term MA ?

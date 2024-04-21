@@ -29,7 +29,7 @@ class Strategy(bs.TradingSignalSource):
 
     async def on_bar_event(self, bar_event: bs.BarEvent):
         # Feed the technical indicator.
-        self.rsi.add_input_value(float(bar_event.bar.close))
+        self.rsi.add(float(bar_event.bar.close))
 
         # Is the indicator ready ?
         if len(self.rsi) < 2:
