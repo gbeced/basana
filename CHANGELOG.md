@@ -1,8 +1,11 @@
 # Changelog
 
-## 
+## TBD
 
-* Bug fix. Parse BOM when opening CSV files and set the encoding appropriately.
+### Bug fixes
+
+* [Parse BOM when opening CSV files and set the encoding appropriately](https://github.com/gbeced/basana/issues/36)
+* [Stop subtracting microseconds in RowParser](https://github.com/gbeced/basana/issues/37)
 
 ## 1.5.0
 

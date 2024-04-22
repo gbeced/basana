@@ -29,7 +29,7 @@ from basana.external.yahoo import bars
 
 @pytest.mark.parametrize("order_plan", [
     {
-        datetime.date(2000, 1, 3): [
+        datetime.date(2000, 1, 4): [
             # Buy market.
             lambda e: e.create_market_order(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("2")),
         ],

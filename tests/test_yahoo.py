@@ -110,7 +110,7 @@ def test_multiple_sources(backtesting_dispatcher):
     assert events[0].bar.volume == Decimal("98122000")
 
     assert events[-1].bar.datetime == datetime.datetime(2001, 12, 31, tzinfo=tz.tzlocal())
-    assert events[-1].when == datetime.datetime(2001, 12, 31, 23, 59, 59, microsecond=999999, tzinfo=tz.tzlocal())
+    assert events[-1].when == datetime.datetime(2002, 1, 1, tzinfo=tz.tzlocal())
 
     assert round_decimal(events[-1].bar.open, 2) == Decimal("13.78")
     assert round_decimal(events[-1].bar.high, 2) == Decimal("13.91")

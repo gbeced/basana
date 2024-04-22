@@ -52,7 +52,7 @@ def test_daily_bars_from_csv(filename, backtesting_dispatcher):
         assert bars[0].volume == Decimal("3087.43655395")
         assert bars[-1].datetime == datetime.datetime(2015, 12, 31, tzinfo=datetime.timezone.utc)
         assert bars[-1].open == Decimal("426.09")
-        assert events[-1].when == datetime.datetime(2015, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
+        assert events[-1].when == datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
 
     asyncio.run(impl())
 
@@ -80,7 +80,7 @@ def test_daily_bars_from_utf_16_csv(backtesting_dispatcher):
         assert bars[0].volume == Decimal("3087.43655395")
         assert bars[-1].datetime == datetime.datetime(2015, 12, 31, tzinfo=datetime.timezone.utc)
         assert bars[-1].open == Decimal("426.09")
-        assert events[-1].when == datetime.datetime(2015, 12, 31, 23, 59, 59, 999999, tzinfo=datetime.timezone.utc)
+        assert events[-1].when == datetime.datetime(2016, 1, 1, tzinfo=datetime.timezone.utc)
 
     asyncio.run(impl())
 
