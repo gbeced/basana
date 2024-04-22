@@ -1,6 +1,6 @@
 # Changelog
 
-## TBD
+## 1.5.1
 
 ### Bug fixes
 
