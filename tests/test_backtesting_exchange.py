@@ -23,7 +23,7 @@ import logging
 from dateutil import tz
 import pytest
 
-from .helpers import abs_data_path, safe_round
+from .helpers import abs_data_path
 from basana.backtesting import exchange, fees, orders, requests
 from basana.core import bar, dt, event, helpers
 from basana.core.pair import Pair, PairInfo
@@ -197,9 +197,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
         diff = (backtesting_dispatcher.now() - dt.utc_now())
         assert abs(diff.total_seconds()) > 60
 
-        assert bar_events[0].when == datetime.datetime(
-            2001, 1, 2, hour=23, minute=59, second=59, microsecond=999999, tzinfo=tz.tzlocal()
-        )
+        assert bar_events[0].when == datetime.datetime(2001, 1, 3, tzinfo=tz.tzlocal())
         assert bar_events[0].bar.open == Decimal("29.56")
         assert bar_events[0].bar.high == Decimal("29.75")
         assert bar_events[0].bar.low == Decimal("25.62")
@@ -213,73 +211,103 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
     buff.seek(0)
     output = buff.read()
 
-    assert "2001-01-02 23:59:59,999 INFO" in output
-    assert "2001-12-31 23:59:59,999 INFO" in output
+    assert "2001-01-03 00:00:00,000 INFO" in output
+    assert "2002-01-01 00:00:00,000 INFO" in output
 
 
 @pytest.mark.parametrize("order_plan", [
     {
-        datetime.date(2000, 1, 3): [
+        datetime.date(2000, 1, 4): [
             # Stop order canceled due to insufficient funds. Need to tweak the amount and stop price to get the order
             # accepted, but to fail as soon as it gets processed.
             (
                 lambda e: e.create_stop_order(
                     exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("1e6"), Decimal("0.01")
                 ),
-                False, None, Decimal(0)
+                []
             ),
         ],
     },
     {
-        datetime.date(2000, 1, 7): [
+        datetime.date(2000, 1, 8): [
             # Market order canceled due to insufficient funds. Need to tweak the amount to get the order accepted, but
             # to fail as soon as it gets processed.
             (
                 lambda e: e.create_market_order(
                     exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("9649")
                 ),
-                False, None, Decimal(0)
+                []
             ),
         ],
     },
     {
-        datetime.date(2000, 1, 3): [
+        datetime.date(2000, 1, 4): [
             # Buy market.
             (
                 lambda e: e.create_market_order(
                     exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("2")
                 ),
-                False, Decimal("115.50"), Decimal("0.58")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 1, 5, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("2"), "USD": Decimal("-231.00")},
+                        fees={"USD": Decimal("-0.58")},
+                    ),
+                ]
             ),
             # Limit order within bar.
             (
                 lambda e: e.create_limit_order(
                     exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("4"), Decimal("110.01")
                 ),
-                False, Decimal("110.01"), Decimal("1.11")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 1, 5, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("4"), "USD": Decimal("-440.04")},
+                        fees={"USD": Decimal("-1.11")},
+                    ),
+                ]
             ),
         ],
-        datetime.date(2000, 1, 14): [
+        datetime.date(2000, 1, 15): [
             # Sell market.
             (
                 lambda e: e.create_market_order(
                     exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1")
                 ),
-                False, Decimal("107.87"), Decimal("0.27")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 1, 19, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("107.87")},
+                        fees={"USD": Decimal("-0.27")},
+                    ),
+                ]
             ),
             # Limit order within bar.
             (
                 lambda e: e.create_limit_order(
                     exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("108")
                 ),
-                False, Decimal("108"), Decimal("0.27")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 1, 19, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("108.00")},
+                        fees={"USD": Decimal("-0.27")},
+                    ),
+                ]
             ),
             # Sell stop.
             (
                 lambda e: e.create_stop_order(
                     exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("108")
                 ),
-                False, Decimal("107.87"), Decimal("0.27")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 1, 19, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("107.87")},
+                        fees={"USD": Decimal("-0.27")},
+                    ),
+                ]
             ),
         ],
         datetime.date(2000, 1, 19): [
@@ -289,17 +317,29 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("5"), Decimal("59.5"),
                     Decimal("58.03")
                 ),
-                False, Decimal("58.03"), Decimal("0.73")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 1, 25, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("5"), "USD": Decimal("-290.15")},
+                        fees={"USD": Decimal("-0.73")},
+                    ),
+                ]
             ),
         ],
-        datetime.date(2000, 3, 9): [
+        datetime.date(2000, 3, 10): [
             # Stop price should be hit on 2000-03-10 and order should be filled on 2000-03-13 at open price.
             (
                 lambda e: e.create_stop_limit_order(
                     exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("10"), Decimal("81.62"),
                     Decimal("80.24")
                 ),
-                False, Decimal("78.50"), Decimal("1.97")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 3, 14, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("10"), "USD": Decimal("-785.00")},
+                        fees={"USD": Decimal("-1.97")},
+                    ),
+                ]
             ),
             # Stop price should be hit on 2000-03-10 and order should be filled on 2000-03-10.
             (
@@ -307,17 +347,27 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("9"), Decimal("81.62"),
                     Decimal("81")
                 ),
-                False, Decimal("81"), Decimal("1.83")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 3, 11, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("9"), "USD": Decimal("-729.00")},
+                        fees={"USD": Decimal("-1.83")},
+                    ),
+                ]
             ),
-        ],
-        datetime.date(2000, 3, 10): [
             # Stop price should be hit on 2000-03-13 and order should be filled on 2000-03-13.
             (
                 lambda e: e.create_stop_limit_order(
                     exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("79"),
                     Decimal("78.75")
                 ),
-                False, Decimal("78.75"), Decimal("0.2")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 3, 14, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("78.75")},
+                        fees={"USD": Decimal("-0.20")},
+                    ),
+                ]
             ),
             # Stop price should be hit on 2000-03-13 and order should be filled on 2000-03-14.
             (
@@ -325,7 +375,13 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("79"),
                     Decimal("83.65")
                 ),
-                False, Decimal("83.65"), Decimal("0.21")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 3, 15, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("83.65")},
+                        fees={"USD": Decimal("-0.21")},
+                    ),
+                ]
             ),
             # Stop price should be hit on 2000-03-13 and order should be filled on 2000-03-15 at open.
             (
@@ -333,30 +389,52 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("79"),
                     Decimal("83.80")
                 ),
-                False, Decimal("84"), Decimal("0.21")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 3, 16, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("84.00")},
+                        fees={"USD": Decimal("-0.21")},
+                    ),
+                ]
             ),
-
         ],
     },
     {
-        datetime.date(2001, 1, 2): [
+        datetime.date(2001, 1, 3): [
             # Limit order is filled in multiple bars.
             (
                 lambda e: e.create_limit_order(
                     exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("50"), Decimal("10")
                 ),
-                False, Decimal("5.5"), Decimal("0.69")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2001, 1, 4, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("25"), "USD": Decimal("-137.50")},
+                        fees={"USD": Decimal("-0.35")},
+                    ),
+                    orders.Fill(
+                        when=datetime.datetime(2001, 1, 5, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("25"), "USD": Decimal("-137.50")},
+                        fees={"USD": Decimal("-0.34")},
+                    ),
+                ]
             ),
         ],
     },
     {
-        datetime.date(2000, 1, 3): [
+        datetime.date(2000, 1, 4): [
             # Regression test.
             (
                 lambda e: e.create_limit_order(
                     exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("8600"), Decimal("115.50")
                 ),
-                False, Decimal("115.50"), Decimal("2483.25")
+                [
+                    orders.Fill(
+                        when=datetime.datetime(2000, 1, 5, tzinfo=tz.tzlocal()),
+                        balance_updates={"ORCL": Decimal("8600"), "USD": Decimal("-993300.00")},
+                        fees={"USD": Decimal("-2483.25")},
+                    ),
+                ]
             ),
         ],
     },
@@ -375,13 +453,11 @@ def test_order_requests(order_plan, backtesting_dispatcher):
         nonlocal expected
 
         order_requests = order_plan.get(bar_event.when.date(), [])
-        for create_order_fun, expected_open, expected_fill_price, expected_fee in order_requests:
+        for create_order_fun, expected_fills in order_requests:
             created_order = await create_order_fun(e)
             assert created_order is not None
             expected[created_order.id] = {
-                "is_open": expected_open,
-                "fill_price": expected_fill_price,
-                "fee": expected_fee,
+                "fills": expected_fills,
             }
 
     async def impl():
@@ -392,25 +468,25 @@ def test_order_requests(order_plan, backtesting_dispatcher):
         # These are for testing scenarios where fills take place in multiple bars.
         src = event.FifoQueueEventSource(events=[
             bar.BarEvent(
-                dt.local_datetime(2001, 1, 2, 23, 59, 59),
+                dt.local_datetime(2001, 1, 3),
                 bar.Bar(
                     dt.local_datetime(2001, 1, 2), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
                 )
             ),
             bar.BarEvent(
-                dt.local_datetime(2001, 1, 3, 23, 59, 59),
+                dt.local_datetime(2001, 1, 4),
                 bar.Bar(
                     dt.local_datetime(2001, 1, 3), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
                 )
             ),
             bar.BarEvent(
-                dt.local_datetime(2001, 1, 4, 23, 59, 59),
+                dt.local_datetime(2001, 1, 5),
                 bar.Bar(
                     dt.local_datetime(2001, 1, 4), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
                 )
             ),
             bar.BarEvent(
-                dt.local_datetime(2001, 1, 5, 23, 59, 59),
+                dt.local_datetime(2001, 1, 6),
                 bar.Bar(
                     dt.local_datetime(2001, 1, 5), p, Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
                 )
@@ -425,10 +501,11 @@ def test_order_requests(order_plan, backtesting_dispatcher):
         for order_id, expected_attrs in expected.items():
             order_info = await e.get_order_info(order_id)
             assert order_info is not None
-            assert order_info.is_open == expected_attrs["is_open"], order_info
-            assert safe_round(order_info.fill_price, 2) == expected_attrs["fill_price"], order_info
-            expected_fees = {"USD": expected_attrs["fee"]} if expected_attrs["fee"] else {}
-            assert order_info.fees == expected_fees, order_info
+            assert not order_info.is_open, order_info
+            exchange_order = e._orders.get_order(order_id)
+            assert exchange_order is not None
+            assert exchange_order.fills == expected_attrs["fills"]
+        assert len(expected) == sum([len(orders) for orders in order_plan.values()])
 
         # All orders are expected to be in a final state, so there should be no holds in place.
         assert sum(e._balances._holds_by_symbol.values()) == 0

@@ -23,7 +23,7 @@ from basana.external.common.csv.bars import RowParser
 
 
 period_to_timedelta = {
-    period_str: datetime.timedelta(seconds=period_secs, microseconds=-1)
+    period_str: datetime.timedelta(seconds=period_secs)
     for period_str, period_secs in period_to_step.items()
 }
 

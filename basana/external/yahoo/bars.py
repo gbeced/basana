@@ -61,7 +61,7 @@ def sanitize_ohlc(open: Decimal, high: Decimal, low: Decimal, close: Decimal) ->
 class RowParser(csv.RowParser):
     def __init__(
             self, pair: pair.Pair, adjust_ohlc: bool = False, tzinfo: datetime.tzinfo = tz.tzlocal(),
-            timedelta: datetime.timedelta = datetime.timedelta(hours=24, microseconds=-1)
+            timedelta: datetime.timedelta = datetime.timedelta(hours=24)
     ):
         self.pair = pair
         self.tzinfo = tzinfo
@@ -91,7 +91,7 @@ class CSVBarSource(csv.EventSource):
     def __init__(
             self, pair: pair.Pair, csv_path: str, adjust_ohlc: bool = False, sort: bool = True,
             tzinfo: datetime.tzinfo = tz.tzlocal(),
-            timedelta: datetime.timedelta = datetime.timedelta(hours=24, microseconds=-1),
+            timedelta: datetime.timedelta = datetime.timedelta(hours=24),
             dict_reader_kwargs: dict = {}
     ):
         self.row_parser = RowParser(pair, adjust_ohlc=adjust_ohlc, tzinfo=tzinfo, timedelta=timedelta)
