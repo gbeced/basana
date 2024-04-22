@@ -32,7 +32,7 @@ class Strategy(bs.TradingSignalSource):
         self.rsi.add(float(bar_event.bar.close))
 
         # Is the indicator ready ?
-        if len(self.rsi) < 2:
+        if len(self.rsi) < 2 or self.rsi[-2] is None:
             return
 
         # RSI crossed below oversold level
