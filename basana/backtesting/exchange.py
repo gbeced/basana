@@ -38,19 +38,17 @@ OrderOperation = enums.OrderOperation
 
 @dataclasses.dataclass
 class Balance:
-    #: The available balance (the total balance - hold).
+    #: The available balance.
     available: Decimal
-    #: The total balance ((available + hold) - (borrowed + interest)).
+    #: The total balance (available + hold - borrowed).
     total: Decimal = dataclasses.field(init=False)
     #: The balance on hold (reserved for open sell orders).
     hold: Decimal
     #: The balance borrowed.
     borrowed: Decimal
-    #: The interest.
-    interest: Decimal
 
     def __post_init__(self):
-        self.total = (self.available + self.hold) - (self.borrowed + self.interest)
+        self.total = self.available + self.hold - self.borrowed
 
 
 @dataclasses.dataclass
@@ -344,5 +342,5 @@ class Exchange:
         hold = self._balances.get_balance_on_hold(symbol)
         borrowed = self._balances.get_borrowed_balance(symbol)
         return Balance(
-            available=available, hold=hold, borrowed=borrowed, interest=Decimal(0)
+            available=available, hold=hold, borrowed=borrowed
         )
