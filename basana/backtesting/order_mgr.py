@@ -33,16 +33,16 @@ LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
 
 class OrderManager:
     def __init__(
-            self, config: config.Config, balances: account_balances.AccountBalances,
-            price_ticker: prices.PriceTicker, fee_strategy: fees.FeeStrategy,
-            liquidity_strategy_factory: LiquidityStrategyFactory
+            self, balances: account_balances.AccountBalances, prices: prices.Prices,
+            fee_strategy: fees.FeeStrategy, liquidity_strategy_factory: LiquidityStrategyFactory,
+            config: config.Config
     ):
         self._balances = balances
-        self._config = config
-        self._price_ticker = price_ticker
-        self._liquidity_strategy_factory = liquidity_strategy_factory
-        self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
+        self._prices = prices
         self._fee_strategy = fee_strategy
+        self._liquidity_strategy_factory = liquidity_strategy_factory
+        self._config = config
+        self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
         self._orders = helpers.ExchangeObjectContainer[Order]()
         self._holds_by_order: Dict[str, Dict[str, Decimal]] = {}
 
@@ -221,14 +221,19 @@ class OrderManager:
         return helpers.remove_empty_amounts(ret)
 
     def _estimate_required_balances(self, order: Order) -> Dict[str, Decimal]:
+        # Get an estimated fill price. If the order can't provide one, use the last price available.
+        estimated_fill_price = order.calculate_estimated_fill_price()
+        if not estimated_fill_price:
+            try:
+                estimated_fill_price = self._prices.get_price(order.pair)
+            except errors.NoPrice:
+                pass
+
         # Build a dictionary of balance updates suitable for calculating fees.
         base_sign = helpers.get_base_sign_for_operation(order.operation)
         estimated_balance_updates = {
             order.pair.base_symbol: order.amount * base_sign
         }
-        estimated_fill_price = order.calculate_estimated_fill_price()
-        if not estimated_fill_price:
-            estimated_fill_price = self._price_ticker.get_price(order.pair)
         if estimated_fill_price:
             estimated_balance_updates[order.pair.quote_symbol] = \
                 order.amount * estimated_fill_price * -base_sign

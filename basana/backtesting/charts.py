@@ -21,8 +21,9 @@ import abc
 import collections
 import logging
 
+from basana.backtesting import errors
 from basana.backtesting.exchange import Exchange
-from basana.core import bar, event, logs, helpers
+from basana.core import bar, event, helpers
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
@@ -187,18 +188,16 @@ class PortfolioValueLineChart(LineChart):
         portfolio_value = Decimal(0)
         balances = await self._exchange.get_balances()
         for symbol, balance in balances.items():
-            net_balance = balance.total - balance.borrowed
-            if net_balance == 0:
+            if balance.total == 0:
                 continue
 
-            rate: Optional[Decimal] = Decimal(1)
-            if symbol != self._symbol:
-                rate, _ = await self._exchange.get_bid_ask(Pair(symbol, self._symbol))
-
-            if rate:
-                portfolio_value += rate * net_balance
-            else:
-                logger.error(logs.StructuredMessage("Price missing", pair=Pair(symbol, self._symbol)))
+            try:
+                rate: Decimal = Decimal(1)
+                if symbol != self._symbol:
+                    rate, _ = await self._exchange.get_bid_ask(Pair(symbol, self._symbol))
+                portfolio_value += rate * balance.total
+            except errors.Error as e:
+                logger.debug(str(e))
 
         self._ts.add_value(event.when, helpers.round_decimal(portfolio_value, self._precision))
 

@@ -15,19 +15,42 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Dict, Optional
+from typing import Dict, Tuple
 
+from basana.backtesting import config, errors
+from basana.core import helpers as core_helpers
 from basana.core.bar import Bar, BarEvent
 from basana.core.pair import Pair
 
 
-class PriceTicker:
-    def __init__(self):
+class Prices:
+    def __init__(self, bid_ask_spread_pct: Decimal, config: config.Config):
+        assert bid_ask_spread_pct > Decimal(0)
+
+        self._bid_ask_spread_pct = bid_ask_spread_pct
+        self._config = config
         self._last_bars: Dict[Pair, Bar] = {}
 
     def on_bar_event(self, event: BarEvent):
         self._last_bars[event.bar.pair] = event.bar
 
-    def get_price(self, pair: Pair) -> Optional[Decimal]:
+    def get_bid_ask(self, pair: Pair) -> Tuple[Decimal, Decimal]:
         last_bar = self._last_bars.get(pair)
-        return last_bar.close if last_bar else None
+        if not last_bar:
+            raise errors.NoPrice(f"No price for {pair}")
+
+        last_price = last_bar.close
+        pair_info = self._config.get_pair_info(pair)
+        half_spread = core_helpers.truncate_decimal(
+            (last_price * self._bid_ask_spread_pct / Decimal("100")) / Decimal(2),
+            pair_info.quote_precision
+        )
+        bid = last_price - half_spread
+        ask = last_price + half_spread
+        return bid, ask
+
+    def get_price(self, pair: Pair) -> Decimal:
+        last_bar = self._last_bars.get(pair)
+        if not last_bar:
+            raise errors.NoPrice(f"No price for {pair}")
+        return last_bar.close

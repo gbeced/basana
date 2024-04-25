@@ -13,22 +13,3 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-from decimal import Decimal
-
-
-class Error(Exception):
-    """Base class for exceptions."""
-    pass
-
-
-class NotEnoughBalance(Error):
-    """Not enough balance."""
-    def __init__(self, message: str, symbol: str, balance_short: Decimal):
-        super().__init__(message)
-        self.symbol = symbol
-        self.balance_short = balance_short
-
-
-class NoPrice(Error):
-    pass

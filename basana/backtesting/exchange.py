@@ -22,7 +22,7 @@ import uuid
 
 from basana.backtesting import account_balances, config, errors, fees, lending, liquidity, \
     orders, order_mgr, prices, requests
-from basana.core import bar, dispatcher, enums, event, helpers as core_helpers, logs
+from basana.core import bar, dispatcher, enums, event, logs
 from basana.core.pair import Pair, PairInfo
 
 
@@ -103,13 +103,12 @@ class Exchange:
     ):
         self._dispatcher = dispatcher
         self._balances = account_balances.AccountBalances(initial_balances)
-        self._price_ticker = prices.PriceTicker()
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
-        self._bid_ask_spread = bid_ask_spread
         self._config = config.Config(None, default_pair_info)
         self._loan_mgr = lending.LoanManager(loan_factory, self._balances, self._config)
+        self._prices = prices.Prices(bid_ask_spread, self._config)
         self._order_mgr = order_mgr.OrderManager(
-            self._config, self._balances, self._price_ticker, fee_strategy, liquidity_strategy_factory
+            self._balances, self._prices, fee_strategy, liquidity_strategy_factory, self._config
         )
 
     async def get_balance(self, symbol: str) -> Balance:
@@ -126,25 +125,15 @@ class Exchange:
             ret[symbol] = self._get_balance(symbol)
         return ret
 
-    async def get_bid_ask(self, pair: Pair) -> Tuple[Optional[Decimal], Optional[Decimal]]:
-        """Returns the current bid and ask price, if available.
+    async def get_bid_ask(self, pair: Pair) -> Tuple[Decimal, Decimal]:
+        """Returns the last bid and ask price.
 
         This is calculated using the closing price of the last bar, and the bid/ask spread specified during
         initialization.
 
         :param pair: The trading pair.
         """
-        bid = ask = None
-        last_price = self._price_ticker.get_price(pair)
-        if last_price:
-            pair_info = await self.get_pair_info(pair)
-            half_spread = core_helpers.truncate_decimal(
-                (last_price * self._bid_ask_spread / Decimal("100")) / Decimal(2),
-                pair_info.quote_precision
-            )
-            bid = last_price - half_spread
-            ask = last_price + half_spread
-        return bid, ask
+        return self._prices.get_bid_ask(pair)
 
     async def create_order(self, order_request: requests.ExchangeOrder) -> CreatedOrder:
         # Validate request parameters.
@@ -336,7 +325,7 @@ class Exchange:
     async def _on_bar_event(self, event: event.Event):
         assert isinstance(event, bar.BarEvent), f"{event} is not an instance of bar.BarEvent"
 
-        self._price_ticker.on_bar_event(event)
+        self._prices.on_bar_event(event)
         self._order_mgr.on_bar_event(event)
 
         # Forward the event if necessary.

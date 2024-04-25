@@ -24,7 +24,7 @@ from dateutil import tz
 import pytest
 
 from .helpers import abs_data_path
-from basana.backtesting import exchange, fees, helpers as bt_helpers, orders, requests
+from basana.backtesting import errors, exchange, fees, helpers as bt_helpers, orders, requests
 from basana.core import bar, dt, event, helpers
 from basana.core.pair import Pair, PairInfo
 from basana.external.yahoo import bars
@@ -820,8 +820,8 @@ def test_bid_ask(backtesting_dispatcher):
         ])
         e.add_bar_source(bs)
 
-        bid, ask = await e.get_bid_ask(p)
-        assert bid is None and ask is None
+        with pytest.raises(errors.Error, match="No price for"):
+            await e.get_bid_ask(p)
 
         await backtesting_dispatcher.run()
 
