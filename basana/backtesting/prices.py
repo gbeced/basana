@@ -54,3 +54,13 @@ class Prices:
         if not last_bar:
             raise errors.NoPrice(f"No price for {pair}")
         return last_bar.close
+
+    def convert(self, amount: Decimal, from_symbol: str, to_symbol: str):
+        for pair, price_fun in [
+                (Pair(from_symbol, to_symbol), lambda price: price),
+                (Pair(to_symbol, from_symbol), lambda price: Decimal(1) / price),
+        ]:
+            last_bar = self._last_bars.get(pair)
+            if last_bar:
+                return amount * price_fun(last_bar.close)
+        raise errors.NoPrice(f"No price to convert from {from_symbol} to {to_symbol}")
