@@ -16,11 +16,10 @@
 
 from decimal import Decimal
 from typing import Callable, Dict, Generator, Iterable, Optional
-import copy
 import decimal
 import logging
 
-from basana.backtesting import account_balances, config, errors, fees, helpers, liquidity, prices
+from basana.backtesting import account_balances, config, errors, fees, helpers, liquidity, prices, value_map
 from basana.backtesting.orders import Order
 from basana.core import bar, helpers as core_helpers, logs
 from basana.core.pair import Pair
@@ -44,7 +43,7 @@ class OrderManager:
         self._config = config
         self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
         self._orders = helpers.ExchangeObjectContainer[Order]()
-        self._holds_by_order: Dict[str, Dict[str, Decimal]] = {}
+        self._holds_by_order: Dict[str, value_map.ValueMap] = {}
 
     def on_bar_event(self, bar_event: bar.BarEvent):
         if (liquidity_strategy := self._liquidity_strategies.get(bar_event.bar.pair)) is None:
@@ -59,7 +58,7 @@ class OrderManager:
             # filled.
             if required_balances := self._estimate_required_balances(order):
                 self._balances.update(hold_updates=required_balances)
-                self._holds_by_order[order.id] = copy.copy(required_balances)
+                self._holds_by_order[order.id] = value_map.ValueMap(required_balances)
 
             self._orders.add(order)
 
@@ -89,12 +88,12 @@ class OrderManager:
         self._order_updated(order)
 
     def get_balance_on_hold_for_order(self, order_id: str, symbol: str) -> Decimal:
-        return self._holds_by_order.get(order_id, {}).get(symbol, Decimal(0))
+        return self._holds_by_order.get(order_id, value_map.ValueMap()).get(symbol, Decimal(0))
 
     def _update_balances(self, order: Order, balance_updates: Dict[str, Decimal]):
         # If we have holds associated with the order, it may be time to release some/all of those.
         hold_updates = {}
-        order_holds = self._holds_by_order.get(order.id, {})
+        order_holds = self._holds_by_order.get(order.id, value_map.ValueMap())
         if order_holds:
             if order.is_open:
                 hold_updates = {
@@ -112,9 +111,7 @@ class OrderManager:
         # Update holds by order.
         if order_holds:
             if order.is_open:
-                for symbol, update in hold_updates.items():
-                    order_holds[symbol] += update
-                    assert order_holds[symbol] >= Decimal(0)
+                order_holds += hold_updates
             else:
                 del self._holds_by_order[order.id]
 
@@ -164,8 +161,8 @@ class OrderManager:
         fees = self._fee_strategy.calculate_fees(order, balance_updates)
         fees = self._round_fees(fees, order.pair)
         logger.debug(logs.StructuredMessage("Processing order", order_id=order.id, fees=fees))
-        final_updates = helpers.add_amounts(balance_updates, fees)
-        final_updates = helpers.remove_empty_amounts(final_updates)
+        final_updates = value_map.ValueMap(balance_updates) + fees
+        final_updates.prune()
 
         try:
             # Update balances. This may fail if there is not enough balance, so we do this first.
@@ -186,8 +183,8 @@ class OrderManager:
             ))
             order_not_filled()
 
-    def _round_balance_updates(self, balance_updates: Dict[str, Decimal], pair: Pair) -> Dict[str, Decimal]:
-        ret = copy.copy(balance_updates)
+    def _round_balance_updates(self, balance_updates: Dict[str, Decimal], pair: Pair) -> value_map.ValueMap:
+        ret = value_map.ValueMap(balance_updates)
         pair_info = self._config.get_pair_info(pair)
 
         # For the base amount we truncate instead of rounding to avoid exceeding available liquidity.
@@ -202,10 +199,11 @@ class OrderManager:
             quote_amount = core_helpers.round_decimal(quote_amount, pair_info.quote_precision)
             ret[pair.quote_symbol] = quote_amount
 
-        return helpers.remove_empty_amounts(ret)
+        ret.prune()
+        return ret
 
-    def _round_fees(self, fees: Dict[str, Decimal], pair: Pair) -> Dict[str, Decimal]:
-        ret = copy.copy(fees)
+    def _round_fees(self, fees: Dict[str, Decimal], pair: Pair) -> value_map.ValueMap:
+        ret = value_map.ValueMap(fees)
         pair_info = self._config.get_pair_info(pair)
         precisions = {
             pair.base_symbol: pair_info.base_precision,
@@ -218,9 +216,10 @@ class OrderManager:
                 amount = core_helpers.round_decimal(amount, precision, rounding=decimal.ROUND_UP)
                 ret[symbol] = amount
 
-        return helpers.remove_empty_amounts(ret)
+        ret.prune()
+        return ret
 
-    def _estimate_required_balances(self, order: Order) -> Dict[str, Decimal]:
+    def _estimate_required_balances(self, order: Order) -> value_map.ValueMap:
         # Get an estimated fill price. If the order can't provide one, use the last price available.
         estimated_fill_price = order.calculate_estimated_fill_price()
         if not estimated_fill_price:
@@ -244,10 +243,13 @@ class OrderManager:
         if len(estimated_balance_updates) == 2:
             fees = self._fee_strategy.calculate_fees(order, estimated_balance_updates)
             fees = self._round_fees(fees, order.pair)
-        estimated_balance_updates = helpers.add_amounts(estimated_balance_updates, fees)
+        estimated_balance_updates = value_map.ValueMap(estimated_balance_updates) + fees
 
         # Return only negative balance updates as required balances.
-        return {symbol: -amount for symbol, amount in estimated_balance_updates.items() if amount < Decimal(0)}
+        return value_map.ValueMap({
+            symbol: -amount for symbol, amount in estimated_balance_updates.items()
+            if amount < Decimal(0)
+        })
 
 
 def assert_balance_update_value(balance_updates: Dict[str, Decimal], symbol: str, sign: Decimal):

@@ -16,11 +16,10 @@
 
 from decimal import Decimal
 from typing import Dict, Optional, List
-import copy
 import datetime
 import logging
 
-from basana.backtesting import config, errors, helpers as bt_helpers, prices
+from basana.backtesting import config, errors, helpers as bt_helpers, prices, value_map
 from basana.backtesting.account_balances import AccountBalances
 from basana.backtesting.lending import Loan, LoanInfo, LoanFactory
 from basana.core import logs
@@ -40,7 +39,7 @@ class LoanManager:
         self._balances = account_balances
         self._prices = prices
         self._config = config
-        self._collateral_by_loan: Dict[str, Dict[str, Decimal]] = {}
+        self._collateral_by_loan: Dict[str, value_map.ValueMap] = {}
 
     def create_loan(
             self, symbol: str, amount: Decimal, now: datetime.datetime
@@ -59,7 +58,7 @@ class LoanManager:
 
         # Save the loan now that balance updates succeeded.
         self._loans.add(loan)
-        self._collateral_by_loan[loan.id] = copy.copy(required_collateral)
+        self._collateral_by_loan[loan.id] = value_map.ValueMap(required_collateral)
 
         return loan.get_loan_info()
 
@@ -83,10 +82,8 @@ class LoanManager:
         collateral = self._collateral_by_loan[loan_id]
 
         try:
-            balance_updates = bt_helpers.sub_amounts(
-                {loan.borrowed_symbol: -loan.borrowed_amount},
-                interest
-            )
+            balance_updates = value_map.ValueMap({loan.borrowed_symbol: -loan.borrowed_amount})
+            balance_updates -= interest
             self._balances.update(
                 balance_updates=balance_updates,
                 borrowed_updates={loan.borrowed_symbol: -loan.borrowed_amount},

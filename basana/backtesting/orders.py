@@ -22,7 +22,7 @@ import datetime
 import enum
 import logging
 
-from basana.backtesting import helpers, liquidity
+from basana.backtesting import helpers, liquidity, value_map
 from basana.core import bar, logs
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
@@ -87,8 +87,8 @@ class Order(metaclass=abc.ABCMeta):
         self._pair = pair
         self._amount = amount
         self._state = state
-        self._balance_updates: Dict[str, Decimal] = {}
-        self._fees: Dict[str, Decimal] = {}
+        self._balance_updates = value_map.ValueMap()
+        self._fees = value_map.ValueMap()
         self._fills: List[Fill] = []
 
     @property
@@ -116,11 +116,11 @@ class Order(metaclass=abc.ABCMeta):
         return self._state == OrderState.OPEN
 
     @property
-    def balance_updates(self) -> Dict[str, Decimal]:
+    def balance_updates(self) -> value_map.ValueMap:
         return self._balance_updates
 
     @property
-    def fees(self) -> Dict[str, Decimal]:
+    def fees(self) -> value_map.ValueMap:
         return self._fees
 
     @property
@@ -144,8 +144,8 @@ class Order(metaclass=abc.ABCMeta):
         self._state = OrderState.CANCELED
 
     def add_fill(self, when: datetime.datetime, balance_updates: Dict[str, Decimal], fees: Dict[str, Decimal]):
-        self._balance_updates = helpers.add_amounts(self._balance_updates, balance_updates)
-        self._fees = helpers.add_amounts(self._fees, fees)
+        self._balance_updates += balance_updates
+        self._fees += fees
         if self.amount_filled >= self.amount:
             self._state = OrderState.COMPLETED
         self._fills.append(Fill(when=when, balance_updates=balance_updates, fees=fees))

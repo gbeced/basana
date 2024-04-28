@@ -18,7 +18,7 @@ from decimal import Decimal
 from typing import Dict, List
 import itertools
 
-from basana.backtesting import errors
+from basana.backtesting import errors, value_map
 
 
 class AccountBalances:
@@ -29,13 +29,13 @@ class AccountBalances:
         # * borrowed >= 0
         # * hold <= balance
 
-        self._balances: Dict[str, Decimal] = {
+        self._balances = value_map.ValueMap({
             symbol: balance for symbol, balance in initial_balances.items() if balance >= 0
-        }
-        self._holds: Dict[str, Decimal] = {}
-        self._borrowed: Dict[str, Decimal] = {
+        })
+        self._holds = value_map.ValueMap()
+        self._borrowed = value_map.ValueMap({
             symbol: -balance for symbol, balance in initial_balances.items() if balance < 0
-        }
+        })
 
     def update(
             self, balance_updates: Dict[str, Decimal] = {}, hold_updates: Dict[str, Decimal] = {},
@@ -64,12 +64,9 @@ class AccountBalances:
                 )
 
         # Update if no error ocurred.
-        for symbol, update in balance_updates.items():
-            self._balances[symbol] = self._balances.get(symbol, Decimal(0)) + update
-        for symbol, update in hold_updates.items():
-            self._holds[symbol] = self._holds.get(symbol, Decimal(0)) + update
-        for symbol, update in borrowed_updates.items():
-            self._borrowed[symbol] = self._borrowed.get(symbol, Decimal(0)) + update
+        self._balances += balance_updates
+        self._holds += hold_updates
+        self._borrowed += borrowed_updates
 
     def get_symbols(self) -> List[str]:
         symbols = set(self._balances.keys())
