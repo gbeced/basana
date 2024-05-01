@@ -21,7 +21,7 @@ import logging
 
 from basana.backtesting import config, errors, helpers as bt_helpers, prices, value_map
 from basana.backtesting.account_balances import AccountBalances
-from basana.backtesting.lending import Loan, LoanInfo, LoanFactory
+from basana.backtesting.lending import Loan, LoanInfo, LendingStrategy
 from basana.core import logs
 import basana.core.helpers as core_helpers
 
@@ -31,11 +31,11 @@ logger = logging.getLogger(__name__)
 
 class LoanManager:
     def __init__(
-            self, loan_factory: LoanFactory, account_balances: AccountBalances, prices: prices.Prices,
+            self, lending_strategy: LendingStrategy, account_balances: AccountBalances, prices: prices.Prices,
             config: config.Config
     ):
         self._loans = bt_helpers.ExchangeObjectContainer[Loan]()
-        self._loan_factory = loan_factory
+        self._lending_strategy = lending_strategy
         self._balances = account_balances
         self._prices = prices
         self._config = config
@@ -48,7 +48,7 @@ class LoanManager:
             raise errors.Error("Invalid amount")
 
         # Create the loan and update balances.
-        loan = self._loan_factory.create_loan(symbol, amount, now)
+        loan = self._lending_strategy.create_loan(symbol, amount, now)
         required_collateral = loan.calculate_collateral(self._prices)
         self._balances.update(
             balance_updates={loan.borrowed_symbol: loan.borrowed_amount},
@@ -82,6 +82,7 @@ class LoanManager:
         collateral = self._collateral_by_loan[loan_id]
 
         try:
+            # Update balances.
             balance_updates = value_map.ValueMap({loan.borrowed_symbol: -loan.borrowed_amount})
             balance_updates -= interest
             self._balances.update(

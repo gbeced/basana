@@ -39,85 +39,79 @@ def test_no_loans(backtesting_dispatcher):
 
 
 @pytest.mark.parametrize(
-    ("loan_symbol, collateral_symbol, interest_symbol, repay_after, initial_balances, intermediate_balances, "
-     "final_balances"),
+    ("loan_amount, loan_symbol, collateral_symbol, margin_requirement, "
+     "interest_rate, interest_symbol, interest_period, min_interest, "
+     "repay_after, "
+     "initial_balances, intermediate_balances, final_balances"),
     [
-        # Minimum interest, charged in base symbol.
+        # Borrow USD using USD as collateral.
+        # Minimum interest charged in USD.
         (
-            "BTC", "USD", "BTC", datetime.timedelta(seconds=0),
+            Decimal(10000), "USD", "USD", Decimal("0.04"),
+            Decimal("0.07"), "USD", datetime.timedelta(days=360), Decimal("1"),
+            datetime.timedelta(seconds=0),
             {
-                "BTC": Decimal("0.01"),
-                "USD": Decimal("0"),
+                "USD": Decimal(401)
             },
             {
-                "BTC": dict(available=Decimal("1.01"), borrowed=Decimal("1")),
-                "USD": dict(available=Decimal("0"), borrowed=Decimal("0")),
+                "USD": dict(available=Decimal(10001), borrowed=Decimal(10000), hold=Decimal(400))
             },
             {
-                "BTC": dict(available=Decimal("0"), borrowed=Decimal("0")),
-                "USD": dict(available=Decimal("0"), borrowed=Decimal("0")),
-            }
+                "USD": dict(available=Decimal(400), borrowed=Decimal(0), hold=Decimal(0))
+            },
         ),
-        # Proportional interest, charged in base symbol.
+        # Borrow BTC using USD as collateral.
+        # No interest.
         (
-            "BTC", "USD", "BTC", datetime.timedelta(hours=1),
+            Decimal(1), "BTC", "USD", Decimal("0.2"),
+            Decimal("0"), "USD", datetime.timedelta(seconds=0), Decimal("0"),
+            datetime.timedelta(seconds=0),
             {
-                "BTC": Decimal("0.03"),
-                "USD": Decimal("0"),
+                "BTC": Decimal(0), "USD": Decimal(14000)
             },
             {
-                "BTC": dict(available=Decimal("1.03"), borrowed=Decimal("1")),
-                "USD": dict(available=Decimal("0"), borrowed=Decimal("0")),
+                "BTC": dict(available=Decimal(1), borrowed=Decimal(1), hold=Decimal(0)),
+                "USD": dict(available=Decimal(0), borrowed=Decimal(0), hold=Decimal(14000))
             },
             {
-                "BTC": dict(available=Decimal("0"), borrowed=Decimal("0")),
-                "USD": dict(available=Decimal("0"), borrowed=Decimal("0")),
-            }
+                "BTC": dict(available=Decimal(0), borrowed=Decimal(0), hold=Decimal(0)),
+                "USD": dict(available=Decimal(14000), borrowed=Decimal(0), hold=Decimal(0))
+            },
         ),
-        # Minimum interest, charged in quote symbol.
+        # Borrow BTC. No collateral. Proportional interest in USD.
         (
-            "BTC", "USD", "USD", datetime.timedelta(seconds=0),
+            Decimal(1), "BTC", "USD", Decimal(0),
+            Decimal("0.2"), "USD", datetime.timedelta(days=360), Decimal("0"),
+            datetime.timedelta(days=180),
             {
-                "BTC": Decimal("0"),
-                "USD": Decimal("0.1"),
+                "BTC": Decimal(0), "USD": Decimal(7000)
             },
             {
-                "BTC": dict(available=Decimal("1"), borrowed=Decimal("1")),
-                "USD": dict(available=Decimal("0.1"), borrowed=Decimal("0")),
+                "BTC": dict(available=Decimal(1), borrowed=Decimal(1), hold=Decimal(0)),
+                "USD": dict(available=Decimal(7000), borrowed=Decimal(0), hold=Decimal(0))
             },
             {
-                "BTC": dict(available=Decimal("0"), borrowed=Decimal("0")),
-                "USD": dict(available=Decimal("0"), borrowed=Decimal("0")),
-            }
-        ),
-        # Proportional interest, charged in quote symbol.
-        (
-            "BTC", "USD", "USD", datetime.timedelta(hours=1),
-            {
-                "BTC": Decimal("0"),
-                "USD": Decimal("0.3"),
+                "BTC": dict(available=Decimal(0), borrowed=Decimal(0), hold=Decimal(0)),
+                "USD": dict(available=Decimal(0), borrowed=Decimal(0), hold=Decimal(0))
             },
-            {
-                "BTC": dict(available=Decimal("1"), borrowed=Decimal("1")),
-                "USD": dict(available=Decimal("0.3"), borrowed=Decimal("0")),
-            },
-            {
-                "BTC": dict(available=Decimal("0"), borrowed=Decimal("0")),
-                "USD": dict(available=Decimal("0"), borrowed=Decimal("0")),
-            }
         ),
     ]
 )
 def test_borrow_and_repay(
-        loan_symbol, collateral_symbol, interest_symbol, repay_after, initial_balances, intermediate_balances,
-        final_balances, backtesting_dispatcher
+    loan_amount, loan_symbol, collateral_symbol, margin_requirement,
+    interest_rate, interest_symbol, interest_period, min_interest,
+    repay_after,
+    initial_balances, intermediate_balances, final_balances,
+    backtesting_dispatcher
 ):
     async def impl():
-        loan_amount = Decimal("1")
-        interest_rate = Decimal("0.03")
-        interest_period = datetime.timedelta(hours=1)
-        min_interest = Decimal("0.01")
-        margin_requirement = Decimal(0)
+        exchange_rates = {
+            Pair("BTC", "USD"): Decimal(70000),
+        }
+        precisions = {
+            "BTC": Decimal(8),
+            "USD": Decimal(2),
+        }
 
         loan_conditions = {
             loan_symbol: lending.LoanConditions(
@@ -126,27 +120,28 @@ def test_borrow_and_repay(
                 collateral_symbol=collateral_symbol, margin_requirement=margin_requirement
             ),
         }
-        loan_factory = lending.CollateralizedInterestLoans(conditions_by_symbol=loan_conditions)
-        e = exchange.Exchange(backtesting_dispatcher, initial_balances, loan_factory=loan_factory)
+        lending_strategy = lending.MarginLoans(conditions_by_symbol=loan_conditions)
+        e = exchange.Exchange(backtesting_dispatcher, initial_balances, lending_strategy=lending_strategy)
 
         # Configure the exchange.
-        for symbol in [loan_symbol, collateral_symbol]:
-            e.set_symbol_precision(symbol, 2)
+        for symbol, precision in precisions.items():
+            e.set_symbol_precision(symbol, precision)
 
         # This is necessary to have prices since we're not doing bar events.
         now = dt.local_now()
-        e._prices.on_bar_event(BarEvent(
-            now,
-            Bar(
+        for pair, exchange_rate in exchange_rates.items():
+            e._prices.on_bar_event(BarEvent(
                 now,
-                Pair(loan_symbol, collateral_symbol), Decimal(10), Decimal(10), Decimal(10), Decimal(10), Decimal(10)
-            )
-        ))
+                Bar(now, pair, exchange_rate, exchange_rate, exchange_rate, exchange_rate, Decimal(10))
+            ))
 
         loan = await e.create_loan(loan_symbol, loan_amount)
         loans = await e.get_open_loans()
         assert loans == [loan]
         assert await e.get_loan(loan.id) == loan
+        assert loan.is_open
+        assert loan.borrowed_symbol == loan_symbol
+        assert loan.borrowed_amount == loan_amount
 
         for symbol, expected_balance in intermediate_balances.items():
             balance = await e.get_balance(symbol)
@@ -166,13 +161,18 @@ def test_borrow_and_repay(
         loans = await e.get_open_loans()
         assert loans == []
 
+        loan = await e.get_loan(loan.id)
+        assert not loan.is_open
+        assert loan.borrowed_symbol == loan_symbol
+        assert loan.borrowed_amount == loan_amount
+
     asyncio.run(impl())
 
 
 def test_repay_inexistent(backtesting_dispatcher):
     async def impl():
-        loan_factory = lending.CollateralizedInterestLoans(conditions_by_symbol={}, default_conditions=None)
-        e = exchange.Exchange(backtesting_dispatcher, {}, loan_factory=loan_factory)
+        lending_strategy = lending.MarginLoans(conditions_by_symbol={}, default_conditions=None)
+        e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
 
         with pytest.raises(Exception, match="Loan not found"):
             await e.repay_loan("inexistent")
@@ -182,8 +182,8 @@ def test_repay_inexistent(backtesting_dispatcher):
 
 def test_invalid_borrow_amount(backtesting_dispatcher):
     async def impl():
-        loan_factory = lending.CollateralizedInterestLoans(conditions_by_symbol={}, default_conditions=None)
-        e = exchange.Exchange(backtesting_dispatcher, {}, loan_factory=loan_factory)
+        lending_strategy = lending.MarginLoans(conditions_by_symbol={}, default_conditions=None)
+        e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
 
         with pytest.raises(Exception, match="Invalid amount"):
             await e.create_loan("USD", Decimal(-10000))

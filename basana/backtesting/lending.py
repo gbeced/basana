@@ -88,9 +88,9 @@ class Loan(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class LoanFactory(metaclass=abc.ABCMeta):
+class LendingStrategy(metaclass=abc.ABCMeta):
     """
-    Base class for loan factories.
+    Base class for lending strategies.
     """
 
     @abc.abstractmethod
@@ -98,9 +98,9 @@ class LoanFactory(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
 
-class NoLoans(LoanFactory):
+class NoLoans(LendingStrategy):
     """
-    Lending is not supported.
+    Lending not supported.
     """
 
     def create_loan(self, symbol: str, amount: Decimal, created_at: datetime.datetime) -> Loan:
@@ -118,7 +118,7 @@ class LoanConditions:
     margin_requirement: Decimal
 
 
-class CollateralizedInterestLoan(Loan):
+class MarginLoan(Loan):
     def __init__(
             self, id: str, borrowed_symbol: str,  borrowed_amount: Decimal, created_at: datetime.datetime,
             conditions: LoanConditions
@@ -128,21 +128,30 @@ class CollateralizedInterestLoan(Loan):
 
     def calculate_interest(self, at: datetime.datetime, prices: prices.Prices) -> Dict[str, Decimal]:
         assert at > self._created_at
-        time_ellapsed = at - self._created_at
-        interest = self._conditions.interest_rate * self.borrowed_amount * \
-            Decimal(time_ellapsed / self._conditions.interest_period)
+
+        interest = self._conditions.interest_rate * self.borrowed_amount
+        if self._conditions.interest_period:
+            time_ellapsed = at - self._created_at
+            interest *= Decimal(time_ellapsed / self._conditions.interest_period)
         interest = max(interest, self._conditions.min_interest)
 
+        # Currency conversion if interest symbol is different from borrowed symbol.
         if self._conditions.interest_symbol != self.borrowed_symbol:
             interest = prices.convert(interest, self._borrowed_symbol, self._conditions.interest_symbol)
 
         return {self._conditions.interest_symbol: interest}
 
     def calculate_collateral(self, prices: prices.Prices) -> Dict[str, Decimal]:
-        return {}
+        collateral = self._conditions.margin_requirement * self.borrowed_amount
+
+        # Currency conversion if collateral symbol is different from borrowed symbol.
+        if self._conditions.collateral_symbol != self.borrowed_symbol:
+            collateral = prices.convert(collateral, self._borrowed_symbol, self._conditions.collateral_symbol)
+
+        return {self._conditions.collateral_symbol: collateral}
 
 
-class CollateralizedInterestLoans(LoanFactory):
+class MarginLoans(LendingStrategy):
     """
     Loan with interest and collateral.
 
@@ -160,4 +169,4 @@ class CollateralizedInterestLoans(LoanFactory):
         conditions = self._conditions.get(symbol, self._default_conditions)
         if not conditions:
             raise errors.Error(f"No lending conditions for {symbol}")
-        return CollateralizedInterestLoan(uuid.uuid4().hex, symbol, amount, created_at, conditions)
+        return MarginLoan(uuid.uuid4().hex, symbol, amount, created_at, conditions)
