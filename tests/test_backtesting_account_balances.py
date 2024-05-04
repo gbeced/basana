@@ -144,3 +144,20 @@ def test_balance_updates_as_orders_get_processed(order_fun, checkpoints, backtes
         assert mismatches == []
 
     asyncio.run(impl())
+
+
+def test_account_locked():
+    class LockAccount(account_balances.UpdateRule):
+        def check(
+                self, symbol: str,
+                balance: Decimal, balance_update: Decimal,
+                hold: Decimal, hold_update: Decimal,
+                borrowed: Decimal, borrowed_update: Decimal,
+        ):
+            raise Exception("Account locked")
+
+    balances = account_balances.AccountBalances({})
+    balances.push_update_rule(LockAccount())
+
+    with pytest.raises(Exception, match="Account locked"):
+        balances.update(balance_updates={"BTC": Decimal(1)})

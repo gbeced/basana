@@ -16,19 +16,57 @@
 
 from decimal import Decimal
 from typing import Dict, List
+import abc
 import itertools
 
 from basana.backtesting import errors, value_map
 
 
+class UpdateRule(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def check(
+            self, symbol: str,
+            balance: Decimal, balance_update: Decimal,
+            hold: Decimal, hold_update: Decimal,
+            borrowed: Decimal, borrowed_update: Decimal,
+    ):
+        raise NotImplementedError()
+
+
+class NonZero(UpdateRule):
+    # * balance >= 0
+    # * hold >= 0
+    # * borrowed >= 0
+    def check(
+        self, symbol: str,
+        balance: Decimal, balance_update: Decimal,
+        hold: Decimal, hold_update: Decimal,
+        borrowed: Decimal, borrowed_update: Decimal,
+    ):
+        if (balance + balance_update) < Decimal(0):
+            raise errors.NotEnoughBalance(f"Not enough {symbol} available", symbol, balance + balance_update)
+        if (hold + hold_update) < Decimal(0):
+            raise errors.Error(f"{symbol} hold update amount is invalid")
+        if (borrowed + borrowed_update) < Decimal(0):
+            raise errors.Error(f"{symbol} borrowed update amount is invalid")
+
+
+class ValidHold(UpdateRule):
+    # * hold <= balance
+    def check(
+        self, symbol: str,
+        balance: Decimal, balance_update: Decimal,
+        hold: Decimal, hold_update: Decimal,
+        borrowed: Decimal, borrowed_update: Decimal,
+    ):
+        if (hold + hold_update) > (balance + balance_update):
+            raise errors.NotEnoughBalance(
+                f"Not enough {symbol} available to hold", symbol, (balance + balance_update) - (hold + hold_update)
+            )
+
+
 class AccountBalances:
     def __init__(self, initial_balances: Dict[str, Decimal]):
-        # Class invariants.
-        # * balance >= 0
-        # * hold >= 0
-        # * borrowed >= 0
-        # * hold <= balance
-
         self._balances = value_map.ValueMap({
             symbol: balance for symbol, balance in initial_balances.items() if balance >= 0
         })
@@ -36,6 +74,13 @@ class AccountBalances:
         self._borrowed = value_map.ValueMap({
             symbol: -balance for symbol, balance in initial_balances.items() if balance < 0
         })
+        self._update_rules: List[UpdateRule] = [
+            NonZero(),
+            ValidHold()
+        ]
+
+    def push_update_rule(self, update_rule: UpdateRule):
+        self._update_rules.append(update_rule)
 
     def update(
             self, balance_updates: Dict[str, Decimal] = {}, hold_updates: Dict[str, Decimal] = {},
@@ -51,17 +96,8 @@ class AccountBalances:
             borrowed = self._borrowed.get(symbol, Decimal(0))
             borrowed_update = borrowed_updates.get(symbol, Decimal(0))
 
-            # Mantain class invariants.
-            if (balance + balance_update) < Decimal(0):
-                raise errors.NotEnoughBalance(f"Not enough {symbol} available", symbol, balance + balance_update)
-            if (hold + hold_update) < Decimal(0):
-                raise errors.Error(f"{symbol} hold update amount is invalid")
-            if (borrowed + borrowed_update) < Decimal(0):
-                raise errors.Error(f"{symbol} borrowed update amount is invalid")
-            if (balance + balance_update) - (hold + hold_update) < Decimal(0):
-                raise errors.NotEnoughBalance(
-                    f"Not enough {symbol} available", symbol, (balance + balance_update) - (hold + hold_update)
-                )
+            for rule in self._update_rules:
+                rule.check(symbol, balance, balance_update, hold, hold_update, borrowed, borrowed_update)
 
         # Update if no error ocurred.
         self._balances += balance_updates
