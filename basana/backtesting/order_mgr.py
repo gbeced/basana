@@ -87,9 +87,6 @@ class OrderManager:
         order.cancel()
         self._order_updated(order)
 
-    def get_balance_on_hold_for_order(self, order_id: str, symbol: str) -> Decimal:
-        return self._holds_by_order.get(order_id, value_map.ValueMap()).get(symbol, Decimal(0))
-
     def _update_balances(self, order: Order, balance_updates: Dict[str, Decimal]):
         # If we have holds associated with the order, it may be time to release some/all of those.
         hold_updates = {}

@@ -26,17 +26,12 @@ from basana.core.pair import Pair, PairInfo
 
 def test_updates_and_holds():
     balances = account_balances.AccountBalances({})
-    balances.update(balance_updates={"BTC": Decimal(0)})
-
-    with pytest.raises(Exception, match="Not enough BTC available"):
-        balances.update(balance_updates={"BTC": Decimal(-1)})
 
     balances.update(balance_updates={"BTC": Decimal(1)})
-
     with pytest.raises(Exception, match="Not enough USD available"):
         balances.update(balance_updates={"BTC": Decimal(2), "USD": Decimal(-1)})
-
     assert balances.get_available_balance("BTC") == Decimal(1)
+
     balances.update(hold_updates={"BTC": Decimal("0.8")})
     assert balances.get_available_balance("BTC") == Decimal("0.2")
     balances.update(hold_updates={"BTC": Decimal("0.1")})
@@ -45,7 +40,7 @@ def test_updates_and_holds():
     assert balances.get_available_balance("BTC") == Decimal("0")
     assert balances.get_balance_on_hold("BTC") == Decimal("1")
 
-    with pytest.raises(Exception, match="Not enough BTC available"):
+    with pytest.raises(Exception, match="Not enough BTC available to hold"):
         balances.update(hold_updates={"BTC": Decimal("0.001")})
 
     with pytest.raises(Exception, match="Not enough BTC available"):
@@ -62,6 +57,22 @@ def test_updates_and_holds():
     balances.update(hold_updates={"BTC": Decimal("-0.5")})
     assert balances.get_available_balance("BTC") == Decimal("0.5")
     assert balances.get_balance_on_hold("BTC") == Decimal("0")
+
+
+def test_invalid_updates_and_holds():
+    balances = account_balances.AccountBalances({})
+
+    with pytest.raises(Exception, match="Not enough BTC available"):
+        balances.update(balance_updates={"BTC": Decimal(-1)})
+
+    with pytest.raises(Exception, match="Not enough BTC available to hold"):
+        balances.update(hold_updates={"BTC": Decimal(1)})
+
+    with pytest.raises(Exception, match="hold update amount for BTC is invalid"):
+        balances.update(hold_updates={"BTC": Decimal(-1)})
+
+    with pytest.raises(Exception, match="borrowed update amount for BTC is invalid"):
+        balances.update(borrowed_updates={"BTC": Decimal(-1)})
 
 
 @pytest.mark.parametrize("order_fun, checkpoints", [

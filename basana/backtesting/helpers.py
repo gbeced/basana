@@ -48,11 +48,11 @@ def get_base_sign_for_operation(operation: OrderOperation) -> Decimal:
 
 class ExchangeObjectProto(Protocol):
     @property
-    def id(self) -> str:
+    def id(self) -> str:  # pragma: no cover
         ...
 
     @property
-    def is_open(self) -> bool:
+    def is_open(self) -> bool:  # pragma: no cover
         ...
 
 

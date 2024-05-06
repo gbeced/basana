@@ -46,9 +46,9 @@ class NonZero(UpdateRule):
         if (balance + balance_update) < Decimal(0):
             raise errors.NotEnoughBalance(f"Not enough {symbol} available", symbol, balance + balance_update)
         if (hold + hold_update) < Decimal(0):
-            raise errors.Error(f"{symbol} hold update amount is invalid")
+            raise errors.Error(f"hold update amount for {symbol} is invalid")
         if (borrowed + borrowed_update) < Decimal(0):
-            raise errors.Error(f"{symbol} borrowed update amount is invalid")
+            raise errors.Error(f"borrowed update amount for {symbol} is invalid")
 
 
 class ValidHold(UpdateRule):
