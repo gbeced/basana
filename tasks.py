@@ -5,6 +5,7 @@ from invoke import task
 def clean(c):
     patterns = [
         "__pycache__",
+        ".coverage",
         ".pytest_cache",
         ".mypy_cache",
         "*.pyc",
