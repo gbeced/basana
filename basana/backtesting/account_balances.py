@@ -15,63 +15,56 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Dict, List
+from typing import List
 import abc
 import itertools
 
-from basana.backtesting import errors, value_map
+from basana.backtesting import errors
+from basana.backtesting.value_map import ValueMap, ValueMapDict
 
 
 class UpdateRule(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def check(
-            self, symbol: str,
-            balance: Decimal, balance_update: Decimal,
-            hold: Decimal, hold_update: Decimal,
-            borrowed: Decimal, borrowed_update: Decimal,
-    ):
+    def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
         raise NotImplementedError()
 
 
 class NonZero(UpdateRule):
-    # * balance >= 0
-    # * hold >= 0
-    # * borrowed >= 0
-    def check(
-        self, symbol: str,
-        balance: Decimal, balance_update: Decimal,
-        hold: Decimal, hold_update: Decimal,
-        borrowed: Decimal, borrowed_update: Decimal,
-    ):
-        if (balance + balance_update) < Decimal(0):
-            raise errors.NotEnoughBalance(f"Not enough {symbol} available", symbol, balance + balance_update)
-        if (hold + hold_update) < Decimal(0):
-            raise errors.Error(f"hold update amount for {symbol} is invalid")
-        if (borrowed + borrowed_update) < Decimal(0):
-            raise errors.Error(f"borrowed update amount for {symbol} is invalid")
+    def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
+        # balance >= 0
+        for symbol, value in updated_balances.items():
+            if value < Decimal(0):
+                raise errors.NotEnoughBalance(f"Not enough {symbol} available", symbol, value)
+        # hold >= 0
+        for symbol, value in updated_holds.items():
+            if value < Decimal(0):
+                raise errors.Error(f"hold update amount for {symbol} is invalid")
+        # borrowed >= 0
+        for symbol, value in updated_borrowed.items():
+            if value < Decimal(0):
+                raise errors.Error(f"borrowed update amount for {symbol} is invalid")
 
 
 class ValidHold(UpdateRule):
     # * hold <= balance
-    def check(
-        self, symbol: str,
-        balance: Decimal, balance_update: Decimal,
-        hold: Decimal, hold_update: Decimal,
-        borrowed: Decimal, borrowed_update: Decimal,
-    ):
-        if (hold + hold_update) > (balance + balance_update):
-            raise errors.NotEnoughBalance(
-                f"Not enough {symbol} available to hold", symbol, (balance + balance_update) - (hold + hold_update)
-            )
+    def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
+        symbols = set(itertools.chain(updated_holds.keys(), updated_balances.keys()))
+        for symbol in symbols:
+            updated_hold = updated_holds.get(symbol, Decimal(0))
+            updated_balance = updated_balances.get(symbol, Decimal(0))
+            if updated_hold > updated_balance:
+                raise errors.NotEnoughBalance(
+                    f"Not enough {symbol} available to hold", symbol, updated_balance - updated_hold
+                )
 
 
 class AccountBalances:
-    def __init__(self, initial_balances: Dict[str, Decimal]):
-        self._balances = value_map.ValueMap({
+    def __init__(self, initial_balances: ValueMapDict):
+        self._balances = ValueMap({
             symbol: balance for symbol, balance in initial_balances.items() if balance >= 0
         })
-        self._holds = value_map.ValueMap()
-        self._borrowed = value_map.ValueMap({
+        self._holds = ValueMap()
+        self._borrowed = ValueMap({
             symbol: -balance for symbol, balance in initial_balances.items() if balance < 0
         })
         self._update_rules: List[UpdateRule] = [
@@ -83,26 +76,20 @@ class AccountBalances:
         self._update_rules.append(update_rule)
 
     def update(
-            self, balance_updates: Dict[str, Decimal] = {}, hold_updates: Dict[str, Decimal] = {},
-            borrowed_updates: Dict[str, Decimal] = {}
+            self, balance_updates: ValueMapDict = {}, hold_updates: ValueMapDict = {},
+            borrowed_updates: ValueMapDict = {}
     ):
-        # Check balances first.
-        symbols = set(itertools.chain(balance_updates.keys(), hold_updates.keys(), borrowed_updates.keys()))
-        for symbol in symbols:
-            balance = self._balances.get(symbol, Decimal(0))
-            balance_update = balance_updates.get(symbol, Decimal(0))
-            hold = self._holds.get(symbol, Decimal(0))
-            hold_update = hold_updates.get(symbol, Decimal(0))
-            borrowed = self._borrowed.get(symbol, Decimal(0))
-            borrowed_update = borrowed_updates.get(symbol, Decimal(0))
+        updated_balances = self._balances + balance_updates
+        updated_holds = self._holds + hold_updates
+        updated_borrowed = self._borrowed + borrowed_updates
 
-            for rule in self._update_rules:
-                rule.check(symbol, balance, balance_update, hold, hold_update, borrowed, borrowed_update)
+        for rule in self._update_rules:
+            rule.check(updated_balances, updated_holds, updated_borrowed)
 
         # Update if no error ocurred.
-        self._balances += balance_updates
-        self._holds += hold_updates
-        self._borrowed += borrowed_updates
+        self._balances = updated_balances
+        self._holds = updated_holds
+        self._borrowed = updated_borrowed
 
     def get_symbols(self) -> List[str]:
         symbols = set(self._balances.keys())

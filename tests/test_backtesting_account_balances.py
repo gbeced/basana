@@ -20,6 +20,7 @@ import asyncio
 import pytest
 
 from basana.backtesting import account_balances, exchange, liquidity, orders
+from basana.backtesting.value_map import ValueMap
 from basana.core import bar, dt, event
 from basana.core.pair import Pair, PairInfo
 
@@ -159,12 +160,7 @@ def test_balance_updates_as_orders_get_processed(order_fun, checkpoints, backtes
 
 def test_account_locked():
     class LockAccount(account_balances.UpdateRule):
-        def check(
-                self, symbol: str,
-                balance: Decimal, balance_update: Decimal,
-                hold: Decimal, hold_update: Decimal,
-                borrowed: Decimal, borrowed_update: Decimal,
-        ):
+        def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
             raise Exception("Account locked")
 
     balances = account_balances.AccountBalances({})
