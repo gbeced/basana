@@ -40,6 +40,7 @@ class LoanManager:
         self._prices = prices
         self._config = config
         self._collateral_by_loan: Dict[str, value_map.ValueMap] = {}
+        self._lending_strategy.set_exchange_ctx(account_balances, prices, config)
 
     def create_loan(
             self, symbol: str, amount: Decimal, now: datetime.datetime
@@ -96,9 +97,5 @@ class LoanManager:
             self._collateral_by_loan.pop(loan_id)
 
         except errors.NotEnoughBalance as e:
-            logger.debug(
-                logs.StructuredMessage(
-                    "Failed to repay the loan", error=str(e), symbol=symbol, loan_id=loan_id
-                )
-            )
+            logger.debug(logs.StructuredMessage("Failed to repay the loan", loan_id=loan_id, error=str(e)))
             raise

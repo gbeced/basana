@@ -17,13 +17,13 @@
 from decimal import Decimal
 from typing import Dict, Optional
 import abc
-import copy
 import dataclasses
 import datetime
 import logging
 import uuid
 
-from basana.backtesting import errors, prices
+from basana.backtesting import account_balances, config, errors, prices
+from basana.backtesting.value_map import ValueMap
 
 
 logger = logging.getLogger(__name__)
@@ -93,6 +93,15 @@ class LendingStrategy(metaclass=abc.ABCMeta):
     Base class for lending strategies.
     """
 
+    def set_exchange_ctx(
+            self, account_balances: account_balances.AccountBalances, prices: prices.Prices, config: config.Config
+    ):
+        """
+        This method will be called by the exchange during initialization to give lending strategies a chance to later
+        use those services.
+        """
+        pass
+
     @abc.abstractmethod
     def create_loan(self, symbol: str, amount: Decimal, created_at: datetime.datetime) -> Loan:
         raise NotImplementedError()
@@ -108,12 +117,11 @@ class NoLoans(LendingStrategy):
 
 
 @dataclasses.dataclass
-class LoanConditions:
+class MarginLoanConditions:
     interest_symbol: str
     interest_rate: Decimal
     interest_period: datetime.timedelta
     min_interest: Decimal
-    collateral_symbol: str
     # Minimum threshold for the value of the collateral relative to the loan amount.
     margin_requirement: Decimal
 
@@ -121,7 +129,7 @@ class LoanConditions:
 class MarginLoan(Loan):
     def __init__(
             self, id: str, borrowed_symbol: str,  borrowed_amount: Decimal, created_at: datetime.datetime,
-            conditions: LoanConditions
+            conditions: MarginLoanConditions
     ):
         super().__init__(id, borrowed_symbol, borrowed_amount, created_at)
         self._conditions = conditions
@@ -142,31 +150,94 @@ class MarginLoan(Loan):
         return {self._conditions.interest_symbol: interest}
 
     def calculate_collateral(self, prices: prices.Prices) -> Dict[str, Decimal]:
-        collateral = self._conditions.margin_requirement * self.borrowed_amount
-
-        # Currency conversion if collateral symbol is different from borrowed symbol.
-        if self._conditions.collateral_symbol != self.borrowed_symbol:
-            collateral = prices.convert(collateral, self._borrowed_symbol, self._conditions.collateral_symbol)
-
-        return {self._conditions.collateral_symbol: collateral}
+        # Collateral will be managed through CheckMarginLevel at the account level.
+        return {}
 
 
 class MarginLoans(LendingStrategy):
     """
-    Loan with interest and collateral.
+    This strategy will use the accounts assets as collateral for the loans.
 
-    :param conditions_by_symbol: Loan conditions by symbol.
-    :param default_conditions: Optional default conditions if the symbol was not found in conditions.
+    :param quote_symbol:
+    :param default_conditions:
     """
-    def __init__(
-            self, conditions_by_symbol: Dict[str, LoanConditions] = {},
-            default_conditions: Optional[LoanConditions] = None
-    ):
-        self._conditions = copy.copy(conditions_by_symbol)
+    def __init__(self, quote_symbol: str, default_conditions: Optional[MarginLoanConditions] = None):
+        self._quote_symbol = quote_symbol
+        self._conditions: Dict[str, MarginLoanConditions] = {}
         self._default_conditions = default_conditions
+        self._account_balances: Optional[account_balances.AccountBalances] = None
+        self._prices: Optional[prices.Prices] = None
+        self._config: Optional[config.Config] = None
 
-    def create_loan(self, symbol: str, amount: Decimal, created_at: datetime.datetime) -> Loan:
+    def set_conditions(self, symbol: str, conditions: MarginLoanConditions):
+        self._conditions[symbol] = conditions
+
+    def get_conditions(self, symbol: str) -> MarginLoanConditions:
         conditions = self._conditions.get(symbol, self._default_conditions)
         if not conditions:
             raise errors.Error(f"No lending conditions for {symbol}")
+        return conditions
+
+    def set_exchange_ctx(
+            self, account_balances: account_balances.AccountBalances, prices: prices.Prices, config: config.Config
+    ):
+        self._account_balances = account_balances
+        self._prices = prices
+        self._config = config
+        self._account_balances.push_update_rule(CheckMarginLevel(self))
+
+    def create_loan(self, symbol: str, amount: Decimal, created_at: datetime.datetime) -> Loan:
+        conditions = self.get_conditions(symbol)
         return MarginLoan(uuid.uuid4().hex, symbol, amount, created_at, conditions)
+
+    @property
+    def margin_level(self) -> Decimal:
+        assert self._account_balances, "Not yet connected with the exchange"
+        return self._calculate_margin_level(
+            self._account_balances.balances, self._account_balances.holds, self._account_balances.borrowed
+        )
+
+    def _calculate_margin_level(
+            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap
+    ) -> Decimal:
+        assert self._prices, "Not yet connected with the exchange"
+
+        # Calculate equity.
+        equity = Decimal(0)
+        for symbol, balance in updated_balances.items():
+            borrowed = updated_borrowed.get(symbol, Decimal(0))
+            net = balance - borrowed
+            if net <= Decimal(0):
+                continue
+
+            if symbol != self._quote_symbol:
+                net = self._prices.convert(net, symbol, self._quote_symbol)
+
+            equity += net
+
+        # Calculate used margin.
+        used_margin = Decimal(0)
+        for symbol, borrowed in updated_borrowed.items():
+            margin = borrowed * self.get_conditions(symbol).margin_requirement
+            if symbol != self._quote_symbol:
+                margin = self._prices.convert(margin, symbol, self._quote_symbol)
+
+            used_margin += margin
+
+        if used_margin == Decimal(0):
+            return Decimal(0)
+
+        return equity / used_margin * Decimal(100)
+
+    def _check_margin_level(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
+        margin_level = self._calculate_margin_level(updated_balances, updated_holds, updated_borrowed)
+        if margin_level > Decimal(0) and margin_level < Decimal(100):
+            raise errors.NotEnoughBalance(f"Margin level too low {margin_level}")
+
+
+class CheckMarginLevel(account_balances.UpdateRule):
+    def __init__(self, margin_loans: MarginLoans):
+        self._margin_loans = margin_loans
+
+    def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
+        self._margin_loans._check_margin_level(updated_balances, updated_holds, updated_borrowed)
