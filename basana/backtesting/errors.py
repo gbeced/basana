@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from decimal import Decimal
-
 
 class Error(Exception):
     """Base class for exceptions."""
@@ -24,10 +22,7 @@ class Error(Exception):
 
 class NotEnoughBalance(Error):
     """Not enough balance."""
-    def __init__(self, message: str, symbol: str, balance_short: Decimal):
-        super().__init__(message)
-        self.symbol = symbol
-        self.balance_short = balance_short
+    pass
 
 
 class NoPrice(Error):

@@ -64,8 +64,7 @@ class OrderManager:
 
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage(
-                "Not enough balance to accept order", order=order.get_debug_info(), symbol=e.symbol,
-                short=e.balance_short
+                "Not enough balance to accept order", order=order.get_debug_info(), error=str(e)
             ))
             raise
 
@@ -175,8 +174,7 @@ class OrderManager:
 
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage(
-                "Not enough balance processing order", order=order.get_debug_info(), symbol=e.symbol,
-                short=e.balance_short
+                "Balance short processing order", order=order.get_debug_info(), error=str(e)
             ))
             order_not_filled()
 

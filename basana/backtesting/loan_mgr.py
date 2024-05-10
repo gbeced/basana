@@ -98,7 +98,7 @@ class LoanManager:
         except errors.NotEnoughBalance as e:
             logger.debug(
                 logs.StructuredMessage(
-                    "Failed to repay the loan", error=str(e), symbol=symbol, short=e.balance_short, loan_id=loan_id
+                    "Failed to repay the loan", error=str(e), symbol=symbol, loan_id=loan_id
                 )
             )
             raise

@@ -34,7 +34,7 @@ class NonZero(UpdateRule):
         # balance >= 0
         for symbol, value in updated_balances.items():
             if value < Decimal(0):
-                raise errors.NotEnoughBalance(f"Not enough {symbol} available", symbol, value)
+                raise errors.NotEnoughBalance(f"Not enough {symbol} available")
         # hold >= 0
         for symbol, value in updated_holds.items():
             if value < Decimal(0):
@@ -53,9 +53,7 @@ class ValidHold(UpdateRule):
             updated_hold = updated_holds.get(symbol, Decimal(0))
             updated_balance = updated_balances.get(symbol, Decimal(0))
             if updated_hold > updated_balance:
-                raise errors.NotEnoughBalance(
-                    f"Not enough {symbol} available to hold", symbol, updated_balance - updated_hold
-                )
+                raise errors.NotEnoughBalance(f"Not enough {symbol} available to hold")
 
 
 class AccountBalances:
