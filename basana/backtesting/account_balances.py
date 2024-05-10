@@ -58,11 +58,11 @@ class ValidHold(UpdateRule):
 
 class AccountBalances:
     def __init__(self, initial_balances: ValueMapDict):
-        self._balances = ValueMap({
+        self.balances = ValueMap({
             symbol: balance for symbol, balance in initial_balances.items() if balance >= 0
         })
-        self._holds = ValueMap()
-        self._borrowed = ValueMap({
+        self.holds = ValueMap()
+        self.borrowed = ValueMap({
             symbol: -balance for symbol, balance in initial_balances.items() if balance < 0
         })
         self._update_rules: List[UpdateRule] = [
@@ -77,29 +77,29 @@ class AccountBalances:
             self, balance_updates: ValueMapDict = {}, hold_updates: ValueMapDict = {},
             borrowed_updates: ValueMapDict = {}
     ):
-        updated_balances = self._balances + balance_updates
-        updated_holds = self._holds + hold_updates
-        updated_borrowed = self._borrowed + borrowed_updates
+        updated_balances = self.balances + balance_updates
+        updated_holds = self.holds + hold_updates
+        updated_borrowed = self.borrowed + borrowed_updates
 
         for rule in self._update_rules:
             rule.check(updated_balances, updated_holds, updated_borrowed)
 
         # Update if no error ocurred.
-        self._balances = updated_balances
-        self._holds = updated_holds
-        self._borrowed = updated_borrowed
+        self.balances = updated_balances
+        self.holds = updated_holds
+        self.borrowed = updated_borrowed
 
     def get_symbols(self) -> List[str]:
-        symbols = set(self._balances.keys())
-        symbols.update(self._holds.keys())
-        symbols.update(self._borrowed.keys())
+        symbols = set(self.balances.keys())
+        symbols.update(self.holds.keys())
+        symbols.update(self.borrowed.keys())
         return list(symbols)
 
     def get_available_balance(self, symbol: str) -> Decimal:
-        return self._balances.get(symbol, Decimal(0)) - self._holds.get(symbol, Decimal(0))
+        return self.balances.get(symbol, Decimal(0)) - self.holds.get(symbol, Decimal(0))
 
     def get_balance_on_hold(self, symbol: str) -> Decimal:
-        return self._holds.get(symbol, Decimal(0))
+        return self.holds.get(symbol, Decimal(0))
 
     def get_borrowed_balance(self, symbol: str) -> Decimal:
-        return self._borrowed.get(symbol, Decimal(0))
+        return self.borrowed.get(symbol, Decimal(0))
