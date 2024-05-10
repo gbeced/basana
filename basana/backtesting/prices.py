@@ -56,6 +56,9 @@ class Prices:
         return last_bar.close
 
     def convert(self, amount: Decimal, from_symbol: str, to_symbol: str):
+        if amount == Decimal(0):
+            return Decimal(0)
+
         for pair, price_fun in [
                 (Pair(from_symbol, to_symbol), lambda price: price),
                 (Pair(to_symbol, from_symbol), lambda price: Decimal(1) / price),
