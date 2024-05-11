@@ -135,7 +135,7 @@ class MarginLoan(Loan):
         self._conditions = conditions
 
     def calculate_interest(self, at: datetime.datetime, prices: prices.Prices) -> Dict[str, Decimal]:
-        assert at > self._created_at
+        assert at >= self._created_at
 
         interest = self._conditions.interest_rate * self.borrowed_amount
         if self._conditions.interest_period:

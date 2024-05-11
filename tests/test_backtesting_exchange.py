@@ -195,11 +195,10 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
         e.add_bar_source(bars.CSVBarSource(p, abs_data_path("orcl-2001-yahoo.csv"), sort=True))
         e.subscribe_to_bar_events(p, on_bar)
 
-        diff = (backtesting_dispatcher.now() - dt.utc_now())
-        assert abs(diff.total_seconds()) < 1
         await backtesting_dispatcher.run()
-        diff = (backtesting_dispatcher.now() - dt.utc_now())
-        assert abs(diff.total_seconds()) > 60
+        assert backtesting_dispatcher.now().date() == datetime.date(2002, 1, 1)
+        # This will soon be deprecated.
+        assert backtesting_dispatcher.current_event_dt.date() == datetime.date(2002, 1, 1)
 
         assert bar_events[0].when == datetime.datetime(2001, 1, 3, tzinfo=tz.tzlocal())
         assert bar_events[0].bar.open == Decimal("29.56")
