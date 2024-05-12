@@ -20,7 +20,7 @@ import dataclasses
 import logging
 import uuid
 
-from basana.backtesting import account_balances, config, errors, fees, lending, loan_mgr, liquidity, \
+from basana.backtesting import account_balances, config, errors, fees, lending, liquidity, \
     orders, order_mgr, prices, requests
 from basana.core import bar, dispatcher, enums, event, logs
 from basana.core.pair import Pair, PairInfo
@@ -104,7 +104,7 @@ class Exchange:
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
         self._config = config.Config(None, default_pair_info)
         self._prices = prices.Prices(bid_ask_spread, self._config)
-        self._loan_mgr = loan_mgr.LoanManager(
+        self._loan_mgr = lending.LoanManager(
             lending_strategy,
             lending.ExchangeContext(
                 dispatcher=dispatcher,

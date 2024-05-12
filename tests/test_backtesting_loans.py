@@ -20,7 +20,7 @@ import datetime
 
 import pytest
 
-from basana.backtesting import errors, exchange, lending
+from basana.backtesting import errors, exchange, margin
 from basana.core import dt
 from basana.core.bar import Bar, BarEvent
 from basana.core.pair import Pair
@@ -125,13 +125,13 @@ def test_borrow_and_repay(
         }
 
         loan_conditions = {
-            loan_symbol: lending.MarginLoanConditions(
+            loan_symbol: margin.MarginLoanConditions(
                 interest_symbol=interest_symbol, interest_rate=interest_rate,
                 interest_period=interest_period, min_interest=min_interest,
                 margin_requirement=margin_requirement
             ),
         }
-        lending_strategy = lending.MarginLoans("USD")
+        lending_strategy = margin.MarginLoans("USD")
         for symbol, conditions in loan_conditions.items():
             lending_strategy.set_conditions(symbol, conditions)
 
@@ -208,13 +208,13 @@ def test_margin_exceeded(backtesting_dispatcher):
         }
 
         loan_conditions = {
-            "USD": lending.MarginLoanConditions(
+            "USD": margin.MarginLoanConditions(
                 interest_symbol="USD", interest_rate=Decimal("0.15"),
                 interest_period=datetime.timedelta(days=365), min_interest=Decimal(0),
                 margin_requirement=Decimal("0.2")
             ),
         }
-        lending_strategy = lending.MarginLoans("USD")
+        lending_strategy = margin.MarginLoans("USD")
         for symbol, conditions in loan_conditions.items():
             lending_strategy.set_conditions(symbol, conditions)
 
@@ -251,7 +251,7 @@ def test_margin_exceeded(backtesting_dispatcher):
 
 def test_repay_inexistent(backtesting_dispatcher):
     async def impl():
-        lending_strategy = lending.MarginLoans("USD", default_conditions=None)
+        lending_strategy = margin.MarginLoans("USD", default_conditions=None)
         e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
 
         # This is necessary to have prices since we're not doing bar events.
@@ -265,7 +265,7 @@ def test_repay_inexistent(backtesting_dispatcher):
 
 def test_invalid_borrow_amount(backtesting_dispatcher):
     async def impl():
-        lending_strategy = lending.MarginLoans("USD")
+        lending_strategy = margin.MarginLoans("USD")
         e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
 
         # This is necessary to have prices since we're not doing bar events.
@@ -279,7 +279,7 @@ def test_invalid_borrow_amount(backtesting_dispatcher):
 
 def test_no_lending_conditions_for_symbol(backtesting_dispatcher):
     async def impl():
-        lending_strategy = lending.MarginLoans("USD")
+        lending_strategy = margin.MarginLoans("USD")
         e = exchange.Exchange(backtesting_dispatcher, {"USD": 1000}, lending_strategy=lending_strategy)
 
         # This is necessary to have prices since we're not doing bar events.
@@ -293,9 +293,9 @@ def test_no_lending_conditions_for_symbol(backtesting_dispatcher):
 
 def test_repay_twice(backtesting_dispatcher):
     async def impl():
-        lending_strategy = lending.MarginLoans(
+        lending_strategy = margin.MarginLoans(
             "USD",
-            default_conditions=lending.MarginLoanConditions(
+            default_conditions=margin.MarginLoanConditions(
                 interest_symbol="USD", interest_rate=Decimal(0), interest_period=datetime.timedelta(days=1),
                 min_interest=Decimal(0), margin_requirement=Decimal(0)
             )
@@ -316,9 +316,9 @@ def test_repay_twice(backtesting_dispatcher):
 
 def test_not_enough_balance_to_repay(backtesting_dispatcher):
     async def impl():
-        lending_strategy = lending.MarginLoans(
+        lending_strategy = margin.MarginLoans(
             "USD",
-            default_conditions=lending.MarginLoanConditions(
+            default_conditions=margin.MarginLoanConditions(
                 interest_symbol="USD", interest_rate=Decimal(0), interest_period=datetime.timedelta(days=1),
                 min_interest=Decimal(1), margin_requirement=Decimal(0)
             )
