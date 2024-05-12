@@ -24,6 +24,7 @@ import uuid
 
 from basana.backtesting import account_balances, config, errors, prices
 from basana.backtesting.value_map import ValueMap
+from basana.core import dispatcher
 
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,14 @@ class LoanInfo:
     borrowed_symbol: str
     #: The amount being borrowed.
     borrowed_amount: Decimal
+
+
+@dataclasses.dataclass
+class ExchangeContext:
+    dispatcher: dispatcher.EventDispatcher
+    account_balances: account_balances.AccountBalances
+    prices: prices.Prices
+    config: config.Config
 
 
 class Loan(metaclass=abc.ABCMeta):
@@ -93,9 +102,7 @@ class LendingStrategy(metaclass=abc.ABCMeta):
     Base class for lending strategies.
     """
 
-    def set_exchange_ctx(
-            self, account_balances: account_balances.AccountBalances, prices: prices.Prices, config: config.Config
-    ):
+    def set_exchange_context(self, exchange_context: ExchangeContext):
         """
         This method will be called by the exchange during initialization to give lending strategies a chance to later
         use those services.
@@ -165,9 +172,7 @@ class MarginLoans(LendingStrategy):
         self._quote_symbol = quote_symbol
         self._conditions: Dict[str, MarginLoanConditions] = {}
         self._default_conditions = default_conditions
-        self._account_balances: Optional[account_balances.AccountBalances] = None
-        self._prices: Optional[prices.Prices] = None
-        self._config: Optional[config.Config] = None
+        self._exchange_ctx: Optional[ExchangeContext] = None
 
     def set_conditions(self, symbol: str, conditions: MarginLoanConditions):
         self._conditions[symbol] = conditions
@@ -178,13 +183,9 @@ class MarginLoans(LendingStrategy):
             raise errors.Error(f"No lending conditions for {symbol}")
         return conditions
 
-    def set_exchange_ctx(
-            self, account_balances: account_balances.AccountBalances, prices: prices.Prices, config: config.Config
-    ):
-        self._account_balances = account_balances
-        self._prices = prices
-        self._config = config
-        self._account_balances.push_update_rule(CheckMarginLevel(self))
+    def set_exchange_context(self, exchange_context: ExchangeContext):
+        self._exchange_ctx = exchange_context
+        self._exchange_ctx.account_balances.push_update_rule(CheckMarginLevel(self))
 
     def create_loan(self, symbol: str, amount: Decimal, created_at: datetime.datetime) -> Loan:
         conditions = self.get_conditions(symbol)
@@ -192,15 +193,16 @@ class MarginLoans(LendingStrategy):
 
     @property
     def margin_level(self) -> Decimal:
-        assert self._account_balances, "Not yet connected with the exchange"
+        assert self._exchange_ctx, "Not yet connected with the exchange"
+        acc_balances = self._exchange_ctx.account_balances
         return self._calculate_margin_level(
-            self._account_balances.balances, self._account_balances.holds, self._account_balances.borrowed
+            acc_balances.balances, acc_balances.holds, acc_balances.borrowed
         )
 
     def _calculate_margin_level(
             self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap
     ) -> Decimal:
-        assert self._prices, "Not yet connected with the exchange"
+        assert self._exchange_ctx, "Not yet connected with the exchange"
 
         # Calculate equity.
         equity = Decimal(0)
@@ -211,7 +213,7 @@ class MarginLoans(LendingStrategy):
                 continue
 
             if symbol != self._quote_symbol:
-                net = self._prices.convert(net, symbol, self._quote_symbol)
+                net = self._exchange_ctx.prices.convert(net, symbol, self._quote_symbol)
 
             equity += net
 
@@ -220,7 +222,7 @@ class MarginLoans(LendingStrategy):
         for symbol, borrowed in updated_borrowed.items():
             margin = borrowed * self.get_conditions(symbol).margin_requirement
             if symbol != self._quote_symbol:
-                margin = self._prices.convert(margin, symbol, self._quote_symbol)
+                margin = self._exchange_ctx.prices.convert(margin, symbol, self._quote_symbol)
 
             used_margin += margin
 

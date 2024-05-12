@@ -19,9 +19,8 @@ from typing import Dict, Optional, List
 import datetime
 import logging
 
-from basana.backtesting import config, errors, helpers as bt_helpers, prices, value_map
-from basana.backtesting.account_balances import AccountBalances
-from basana.backtesting.lending import Loan, LoanInfo, LendingStrategy
+from basana.backtesting import errors, helpers as bt_helpers, value_map
+from basana.backtesting.lending import ExchangeContext, Loan, LoanInfo, LendingStrategy
 from basana.core import logs
 import basana.core.helpers as core_helpers
 
@@ -31,16 +30,13 @@ logger = logging.getLogger(__name__)
 
 class LoanManager:
     def __init__(
-            self, lending_strategy: LendingStrategy, account_balances: AccountBalances, prices: prices.Prices,
-            config: config.Config
+            self, lending_strategy: LendingStrategy, exchange_ctx: ExchangeContext
     ):
         self._loans = bt_helpers.ExchangeObjectContainer[Loan]()
+        self._exchange_ctx = exchange_ctx
         self._lending_strategy = lending_strategy
-        self._balances = account_balances
-        self._prices = prices
-        self._config = config
         self._collateral_by_loan: Dict[str, value_map.ValueMap] = {}
-        self._lending_strategy.set_exchange_ctx(account_balances, prices, config)
+        self._lending_strategy.set_exchange_context(exchange_ctx)
 
     def create_loan(
             self, symbol: str, amount: Decimal, now: datetime.datetime
@@ -50,8 +46,8 @@ class LoanManager:
 
         # Create the loan and update balances.
         loan = self._lending_strategy.create_loan(symbol, amount, now)
-        required_collateral = loan.calculate_collateral(self._prices)
-        self._balances.update(
+        required_collateral = loan.calculate_collateral(self._exchange_ctx.prices)
+        self._exchange_ctx.account_balances.update(
             balance_updates={loan.borrowed_symbol: loan.borrowed_amount},
             borrowed_updates={loan.borrowed_symbol: loan.borrowed_amount},
             hold_updates=required_collateral
@@ -77,16 +73,18 @@ class LoanManager:
         if not loan.is_open:
             raise errors.Error("Loan is not open")
 
-        interest = loan.calculate_interest(now, self._prices)
+        interest = loan.calculate_interest(now, self._exchange_ctx.prices)
         for symbol, amount in interest.items():
-            interest[symbol] = core_helpers.truncate_decimal(amount, self._config.get_symbol_info(symbol).precision)
+            interest[symbol] = core_helpers.truncate_decimal(
+                amount, self._exchange_ctx.config.get_symbol_info(symbol).precision
+            )
         collateral = self._collateral_by_loan[loan_id]
 
         try:
             # Update balances.
             balance_updates = value_map.ValueMap({loan.borrowed_symbol: -loan.borrowed_amount})
             balance_updates -= interest
-            self._balances.update(
+            self._exchange_ctx.account_balances.update(
                 balance_updates=balance_updates,
                 borrowed_updates={loan.borrowed_symbol: -loan.borrowed_amount},
                 hold_updates={symbol: -amount for symbol, amount in collateral.items()}

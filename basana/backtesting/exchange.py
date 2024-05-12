@@ -104,7 +104,15 @@ class Exchange:
         self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
         self._config = config.Config(None, default_pair_info)
         self._prices = prices.Prices(bid_ask_spread, self._config)
-        self._loan_mgr = loan_mgr.LoanManager(lending_strategy, self._balances, self._prices, self._config)
+        self._loan_mgr = loan_mgr.LoanManager(
+            lending_strategy,
+            lending.ExchangeContext(
+                dispatcher=dispatcher,
+                account_balances=self._balances,
+                prices=self._prices,
+                config=self._config
+            )
+        )
         self._order_mgr = order_mgr.OrderManager(
             self._balances, self._prices, fee_strategy, liquidity_strategy_factory, self._config
         )
