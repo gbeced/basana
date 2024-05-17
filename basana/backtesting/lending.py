@@ -102,9 +102,9 @@ class LendingStrategy(metaclass=abc.ABCMeta):
     Base class for lending strategies.
     """
 
-    def set_exchange_context(self, exchange_context: ExchangeContext):
+    def set_exchange_context(self, loan_mgr: "LoanManager", exchange_context: ExchangeContext):
         """
-        This method will be called by the exchange during initialization to give lending strategies a chance to later
+        This method will be called during exchange initialization to give lending strategies a chance to later
         use those services.
         """
         pass
@@ -131,7 +131,7 @@ class LoanManager:
         self._exchange_ctx = exchange_ctx
         self._lending_strategy = lending_strategy
         self._collateral_by_loan: Dict[str, value_map.ValueMap] = {}
-        self._lending_strategy.set_exchange_context(exchange_ctx)
+        self._lending_strategy.set_exchange_context(self, exchange_ctx)
 
     def create_loan(
             self, symbol: str, amount: Decimal, now: datetime.datetime

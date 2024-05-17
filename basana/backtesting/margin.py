@@ -74,6 +74,7 @@ class MarginLoans(lending.LendingStrategy):
         self._quote_symbol = quote_symbol
         self._conditions: Dict[str, MarginLoanConditions] = {}
         self._default_conditions = default_conditions
+        self._loan_mgr: Optional[lending.LoanManager] = None
         self._exchange_ctx: Optional[lending.ExchangeContext] = None
 
     def set_conditions(self, symbol: str, conditions: MarginLoanConditions):
@@ -85,7 +86,8 @@ class MarginLoans(lending.LendingStrategy):
             raise errors.Error(f"No lending conditions for {symbol}")
         return conditions
 
-    def set_exchange_context(self, exchange_context: lending.ExchangeContext):
+    def set_exchange_context(self, loan_mgr: lending.LoanManager, exchange_context: lending.ExchangeContext):
+        self._loan_mgr = loan_mgr
         self._exchange_ctx = exchange_context
         self._exchange_ctx.account_balances.push_update_rule(CheckMarginLevel(self))
 
