@@ -48,14 +48,14 @@ def test_no_loans(backtesting_dispatcher):
         "interest_rate, interest_symbol, interest_period, min_interest, "
         "repay_after, "
         "initial_balances, intermediate_balances, final_balances, "
-        "intermediate_margin_level"
+        "intermediate_margin_level, intermediate_interest"
     ),
     [
         # Borrow USD using USD as collateral.
         # Minimum interest charged in USD.
         (
             Decimal(10000), "USD", Decimal("0.04"),
-            Decimal("0.07"), "USD", datetime.timedelta(days=360), Decimal("1"),
+            Decimal("0.07"), "USD", datetime.timedelta(days=360), Decimal(1),
             datetime.timedelta(seconds=0),
             {
                 "USD": Decimal(400)
@@ -67,6 +67,7 @@ def test_no_loans(backtesting_dispatcher):
                 "USD": dict(available=Decimal(399), borrowed=Decimal(0))
             },
             Decimal("99.75"),  # Minimum interest accrued in margin level calculation.
+            {"USD": Decimal(1)},
         ),
         # Borrow BTC using USD as collateral.
         # No interest.
@@ -86,6 +87,7 @@ def test_no_loans(backtesting_dispatcher):
                 "USD": dict(available=Decimal(14000), borrowed=Decimal(0))
             },
             Decimal(100),
+            {},
         ),
         # Borrow BTC. No collateral required. Proportional interest in USD.
         (
@@ -104,6 +106,7 @@ def test_no_loans(backtesting_dispatcher):
                 "USD": dict(available=Decimal(7000), borrowed=Decimal(0))
             },
             Decimal(0),
+            {"USD": Decimal(7000)},
         ),
         # Borrow BTC using BTC as collateral. No interest.
         (
@@ -120,6 +123,7 @@ def test_no_loans(backtesting_dispatcher):
                 "BTC": dict(available=Decimal("0.1"), borrowed=Decimal(0)),
             },
             Decimal(100),
+            {},
         ),
     ]
 )
@@ -128,7 +132,7 @@ def test_borrow_and_repay(
         interest_rate, interest_symbol, interest_period, min_interest,
         repay_after,
         initial_balances, intermediate_balances, final_balances,
-        intermediate_margin_level,
+        intermediate_margin_level, intermediate_interest,
         backtesting_dispatcher
 ):
     async def impl():
@@ -157,7 +161,7 @@ def test_borrow_and_repay(
         for symbol, precision in precisions.items():
             e.set_symbol_precision(symbol, precision)
 
-        # This is necessary to have prices since we're not doing bar events.
+        # This is necessary to have prices and dates since we're not doing bar events.
         now = dt.local_now()
         for pair, exchange_rate in exchange_rates.items():
             e._prices.on_bar_event(BarEvent(
@@ -178,22 +182,26 @@ def test_borrow_and_repay(
         assert loan.borrowed_symbol == loan_symbol
         assert loan.borrowed_amount == loan_amount
 
+        # Time to repay. Move clock if necessary.
+        backtesting_dispatcher._last_dt = dt.local_now()
+        if repay_after:
+            backtesting_dispatcher._last_dt = backtesting_dispatcher.now() + repay_after
+
+        # Checks before repay.
         assert helpers.round_decimal(lending_strategy.margin_level, 2) == intermediate_margin_level
 
-        # Check balances.
         for symbol, expected_balance in intermediate_balances.items():
             balance = await e.get_balance(symbol)
             assert balance.available == expected_balance["available"], symbol
             assert balance.borrowed == expected_balance["borrowed"], symbol
             assert balance.hold == Decimal(0)
 
-        # Repay loan.
-        backtesting_dispatcher._last_dt = dt.local_now()
-        if repay_after:
-            backtesting_dispatcher._last_dt = backtesting_dispatcher.now() + repay_after
+        loan = await e.get_loan(loan.id)
+        assert loan.outstanding_interest == intermediate_interest
+
         await e.repay_loan(loan.id)
 
-        # Check balances.
+        # Checks after repay.
         for symbol, expected_balance in final_balances.items():
             balance = await e.get_balance(symbol)
             assert balance.available == expected_balance["available"], symbol
@@ -207,6 +215,7 @@ def test_borrow_and_repay(
         assert not loan.is_open
         assert loan.borrowed_symbol == loan_symbol
         assert loan.borrowed_amount == loan_amount
+        assert loan.outstanding_interest == {}
 
         assert lending_strategy.margin_level == Decimal(0)
 

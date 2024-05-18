@@ -21,10 +21,9 @@ import dataclasses
 import datetime
 import logging
 
-from basana.backtesting import account_balances, config, errors, helpers as bt_helpers, prices, value_map
-from basana.backtesting.value_map import ValueMapDict
+from basana.backtesting import account_balances, config, errors, helpers as bt_helpers, prices
+from basana.backtesting.value_map import ValueMap, ValueMapDict
 from basana.core import dispatcher, logs
-import basana.core.helpers as core_helpers
 
 
 logger = logging.getLogger(__name__)
@@ -40,6 +39,8 @@ class LoanInfo:
     borrowed_symbol: str
     #: The amount being borrowed.
     borrowed_amount: Decimal
+    #: The outstanding interest. Only valid for open loans.
+    outstanding_interest: Dict[str, Decimal]
 
 
 class Loan(metaclass=abc.ABCMeta):
@@ -53,12 +54,6 @@ class Loan(metaclass=abc.ABCMeta):
         self._borrowed_amount = borrowed_amount
         self._is_open = True
         self._created_at = created_at
-
-    def get_loan_info(self) -> LoanInfo:
-        return LoanInfo(
-            id=self._id, is_open=self._is_open, borrowed_symbol=self._borrowed_symbol,
-            borrowed_amount=self._borrowed_amount
-        )
 
     @property
     def id(self) -> str:
@@ -130,7 +125,7 @@ class LoanManager:
         self._loans = bt_helpers.ExchangeObjectContainer[Loan]()
         self._exchange_ctx = exchange_ctx
         self._lending_strategy = lending_strategy
-        self._collateral_by_loan: Dict[str, value_map.ValueMap] = {}
+        self._collateral_by_loan: Dict[str, ValueMap] = {}
         self._lending_strategy.set_exchange_context(self, exchange_ctx)
 
     def create_loan(
@@ -150,16 +145,16 @@ class LoanManager:
 
         # Save the loan now that balance updates succeeded.
         self._loans.add(loan)
-        self._collateral_by_loan[loan.id] = value_map.ValueMap(required_collateral)
+        self._collateral_by_loan[loan.id] = ValueMap(required_collateral)
 
-        return loan.get_loan_info()
+        return self._build_loan_info(loan)
 
     def get_open_loans(self) -> List[LoanInfo]:
-        return list(map(lambda loan: loan.get_loan_info(), self._loans.get_open()))
+        return list(map(lambda loan: self._build_loan_info(loan), self._loans.get_open()))
 
     def get_loan(self, loan_id: str) -> Optional[LoanInfo]:
         loan = self._loans.get(loan_id)
-        return None if loan is None else loan.get_loan_info()
+        return None if loan is None else self._build_loan_info(loan)
 
     def repay_loan(self, loan_id: str, now: datetime.datetime):
         loan = self._loans.get(loan_id)
@@ -168,16 +163,14 @@ class LoanManager:
         if not loan.is_open:
             raise errors.Error("Loan is not open")
 
-        interest = loan.calculate_interest(now, self._exchange_ctx.prices)
-        for symbol, amount in interest.items():
-            interest[symbol] = core_helpers.truncate_decimal(
-                amount, self._exchange_ctx.config.get_symbol_info(symbol).precision
-            )
+        interest = ValueMap()
+        interest += loan.calculate_interest(now, self._exchange_ctx.prices)
+        interest.truncate(self._exchange_ctx.config)
         collateral = self._collateral_by_loan[loan_id]
 
         try:
             # Update balances.
-            balance_updates = value_map.ValueMap({loan.borrowed_symbol: -loan.borrowed_amount})
+            balance_updates = ValueMap({loan.borrowed_symbol: -loan.borrowed_amount})
             balance_updates -= interest
             self._exchange_ctx.account_balances.update(
                 balance_updates=balance_updates,
@@ -192,3 +185,17 @@ class LoanManager:
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage("Failed to repay the loan", loan_id=loan_id, error=str(e)))
             raise
+
+    def _build_loan_info(self, loan: Loan) -> LoanInfo:
+        outstanding_interest = ValueMap()
+        if loan.is_open:
+            outstanding_interest += loan.calculate_interest(
+                self._exchange_ctx.dispatcher.now(), self._exchange_ctx.prices
+            )
+            outstanding_interest.truncate(self._exchange_ctx.config)
+            outstanding_interest.prune()
+
+        return LoanInfo(
+            id=loan.id, is_open=loan.is_open, borrowed_symbol=loan.borrowed_symbol,
+            borrowed_amount=loan.borrowed_amount, outstanding_interest=outstanding_interest
+        )

@@ -19,6 +19,10 @@ from typing import Dict
 import itertools
 
 
+from basana.backtesting import config
+from basana.core import helpers
+
+
 ZERO = Decimal(0)
 ValueMapDict = Dict[str, Decimal]
 
@@ -28,6 +32,11 @@ class ValueMap(ValueMapDict):
         keys = [key for key, value in self.items() if not value]
         for key in keys:
             del self[key]
+
+    def truncate(self, config: config.Config):
+        for symbol, amount in self.items():
+            symbol_info = config.get_symbol_info(symbol)
+            self[symbol] = helpers.truncate_decimal(amount, symbol_info.precision)
 
     def __add__(self, other: ValueMapDict) -> "ValueMap":
         keys = set(itertools.chain(self.keys(), other.keys()))
