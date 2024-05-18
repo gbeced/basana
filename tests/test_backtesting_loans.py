@@ -21,7 +21,7 @@ import datetime
 import pytest
 
 from basana.backtesting import errors, exchange, margin
-from basana.core import dt
+from basana.core import dt, helpers
 from basana.core.bar import Bar, BarEvent
 from basana.core.pair import Pair
 
@@ -66,7 +66,7 @@ def test_no_loans(backtesting_dispatcher):
             {
                 "USD": dict(available=Decimal(399), borrowed=Decimal(0))
             },
-            Decimal(100),
+            Decimal("99.75"),  # Minimum interest accrued in margin level calculation.
         ),
         # Borrow BTC using USD as collateral.
         # No interest.
@@ -89,7 +89,7 @@ def test_no_loans(backtesting_dispatcher):
         ),
         # Borrow BTC. No collateral required. Proportional interest in USD.
         (
-            Decimal(1), "BTC", Decimal("0.1"),
+            Decimal(1), "BTC", Decimal("0"),
             Decimal("0.2"), "USD", datetime.timedelta(days=360), Decimal("0"),
             datetime.timedelta(days=180),
             {
@@ -103,7 +103,23 @@ def test_no_loans(backtesting_dispatcher):
                 "BTC": dict(available=Decimal("0.01"), borrowed=Decimal(0)),
                 "USD": dict(available=Decimal(7000), borrowed=Decimal(0))
             },
-            Decimal(210),
+            Decimal(0),
+        ),
+        # Borrow BTC using BTC as collateral. No interest.
+        (
+            Decimal(1), "BTC", Decimal("0.1"),
+            Decimal("0"), "USD", datetime.timedelta(days=360), Decimal("0"),
+            datetime.timedelta(days=180),
+            {
+                "BTC": Decimal("0.1")
+            },
+            {
+                "BTC": dict(available=Decimal("1.1"), borrowed=Decimal(1)),
+            },
+            {
+                "BTC": dict(available=Decimal("0.1"), borrowed=Decimal(0)),
+            },
+            Decimal(100),
         ),
     ]
 )
@@ -162,7 +178,7 @@ def test_borrow_and_repay(
         assert loan.borrowed_symbol == loan_symbol
         assert loan.borrowed_amount == loan_amount
 
-        assert lending_strategy.margin_level == intermediate_margin_level
+        assert helpers.round_decimal(lending_strategy.margin_level, 2) == intermediate_margin_level
 
         # Check balances.
         for symbol, expected_balance in intermediate_balances.items():

@@ -17,7 +17,7 @@
 from decimal import Decimal
 from typing import Dict, Tuple
 
-from basana.backtesting import config, errors
+from basana.backtesting import config, errors, value_map
 from basana.core import helpers as core_helpers
 from basana.core.bar import Bar, BarEvent
 from basana.core.pair import Pair
@@ -55,7 +55,7 @@ class Prices:
             raise errors.NoPrice(f"No price for {pair}")
         return last_bar.close
 
-    def convert(self, amount: Decimal, from_symbol: str, to_symbol: str):
+    def convert(self, amount: Decimal, from_symbol: str, to_symbol: str) -> Decimal:
         if amount == Decimal(0):
             return Decimal(0)
 
@@ -67,3 +67,11 @@ class Prices:
             if last_bar:
                 return amount * price_fun(last_bar.close)
         raise errors.NoPrice(f"No price to convert from {from_symbol} to {to_symbol}")
+
+    def convert_value_map(self, values: value_map.ValueMapDict, to_symbol: str) -> Decimal:
+        ret = Decimal(0)
+        for symbol, value in values.items():
+            if symbol != to_symbol:
+                value = self.convert(value, symbol, to_symbol)
+            ret += value
+        return ret

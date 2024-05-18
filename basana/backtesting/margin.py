@@ -22,7 +22,7 @@ import datetime
 import uuid
 
 from basana.backtesting import account_balances, errors, lending, prices
-from basana.backtesting.value_map import ValueMapDict
+from basana.backtesting.value_map import ValueMap, ValueMapDict
 
 
 @dataclasses.dataclass
@@ -106,7 +106,25 @@ class MarginLoans(lending.LendingStrategy):
     def _calculate_margin_level(
             self, updated_balances: ValueMapDict, updated_holds: ValueMapDict, updated_borrowed: ValueMapDict
     ) -> Decimal:
-        assert self._exchange_ctx, "Not yet connected with the exchange"
+        assert self._exchange_ctx and self._loan_mgr, "Not yet connected with the exchange"
+
+        # Calculate used margin.
+        margin_requirements = ValueMap(
+            {symbol: self.get_conditions(symbol).margin_requirement for symbol in updated_borrowed}
+        )
+        used_margin_by_symbol = margin_requirements * updated_borrowed
+        used_margin = self._exchange_ctx.prices.convert_value_map(used_margin_by_symbol, self._quote_symbol)
+        if used_margin == Decimal(0):
+            return Decimal(0)
+
+        # Calculate outstanding interest.
+        interest_by_symbol = ValueMap()
+        for loan in self._loan_mgr.get_open_loans():
+            interest_by_symbol += loan.calculate_interest(
+                self._exchange_ctx.dispatcher.now(),
+                self._exchange_ctx.prices
+            )
+        interest = self._exchange_ctx.prices.convert_value_map(interest_by_symbol, self._quote_symbol)
 
         # Calculate equity.
         equity = Decimal(0)
@@ -121,19 +139,7 @@ class MarginLoans(lending.LendingStrategy):
 
             equity += net
 
-        # Calculate used margin.
-        used_margin = Decimal(0)
-        for symbol, borrowed in updated_borrowed.items():
-            margin = borrowed * self.get_conditions(symbol).margin_requirement
-            if symbol != self._quote_symbol:
-                margin = self._exchange_ctx.prices.convert(margin, symbol, self._quote_symbol)
-
-            used_margin += margin
-
-        if used_margin == Decimal(0):
-            return Decimal(0)
-
-        return equity / used_margin * Decimal(100)
+        return equity / (used_margin + interest) * Decimal(100)
 
     def _check_margin_level(
             self, updated_balances: ValueMapDict, updated_holds: ValueMapDict, updated_borrowed: ValueMapDict
