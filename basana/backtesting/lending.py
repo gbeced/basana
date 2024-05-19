@@ -169,7 +169,7 @@ class LoanManager:
     def repay_loan(self, loan_id: str, now: datetime.datetime):
         loan = self._loans.get(loan_id)
         if not loan:
-            raise errors.Error("Loan not found")
+            raise errors.NotFound("Loan not found")
         if not loan.is_open:
             raise errors.Error("Loan is not open")
 

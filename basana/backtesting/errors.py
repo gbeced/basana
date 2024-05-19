@@ -27,5 +27,9 @@ class NotEnoughBalance(Error):
     pass
 
 
+class NotFound(Error):
+    pass
+
+
 class NoPrice(Error):
     pass

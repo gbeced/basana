@@ -246,7 +246,7 @@ class Exchange:
         """
         order = self._order_mgr.get_order(order_id)
         if not order:
-            raise Error("Order not found")
+            raise errors.NotFound("Order not found")
         return order.get_order_info()
 
     async def get_open_orders(self, pair: Optional[Pair] = None) -> List[OpenOrder]:
@@ -319,8 +319,11 @@ class Exchange:
     async def get_open_loans(self) -> List[LoanInfo]:
         return self._loan_mgr.get_open_loans()
 
-    async def get_loan(self, loan_id: str) -> Optional[LoanInfo]:
-        return self._loan_mgr.get_loan(loan_id)
+    async def get_loan(self, loan_id: str) -> LoanInfo:
+        loan_info = self._loan_mgr.get_loan(loan_id)
+        if not loan_info:
+            raise errors.NotFound("Loan not found")
+        return loan_info
 
     async def repay_loan(self, loan_id: str):
         return self._loan_mgr.repay_loan(loan_id, self._dispatcher.now())

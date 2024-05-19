@@ -290,6 +290,8 @@ def test_repay_inexistent(backtesting_dispatcher):
 
         with pytest.raises(Exception, match="Loan not found"):
             await e.repay_loan("inexistent")
+        with pytest.raises(Exception, match="Loan not found"):
+            await e.get_loan("inexistent")
 
     asyncio.run(impl())
 
