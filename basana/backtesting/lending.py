@@ -41,6 +41,8 @@ class LoanInfo:
     borrowed_amount: Decimal
     #: The outstanding interest. Only valid for open loans.
     outstanding_interest: Dict[str, Decimal]
+    #: The paid interest. Only valid for closed loans.
+    paid_interest: Dict[str, Decimal]
 
 
 class Loan(metaclass=abc.ABCMeta):
@@ -54,6 +56,7 @@ class Loan(metaclass=abc.ABCMeta):
         self._borrowed_amount = borrowed_amount
         self._is_open = True
         self._created_at = created_at
+        self._paid_interest = ValueMap()
 
     @property
     def id(self) -> str:
@@ -71,9 +74,16 @@ class Loan(metaclass=abc.ABCMeta):
     def borrowed_amount(self) -> Decimal:
         return self._borrowed_amount
 
+    @property
+    def paid_interest(self) -> ValueMapDict:
+        return self._paid_interest
+
     def close(self):
         assert self._is_open
         self._is_open = False
+
+    def add_paid_interest(self, interest: ValueMapDict):
+        self._paid_interest += interest
 
     @abc.abstractmethod
     def calculate_interest(self, at: datetime.datetime, prices: prices.Prices) -> ValueMapDict:
@@ -166,6 +176,7 @@ class LoanManager:
         interest = ValueMap()
         interest += loan.calculate_interest(now, self._exchange_ctx.prices)
         interest.truncate(self._exchange_ctx.config)
+        interest.prune()
         collateral = self._collateral_by_loan[loan_id]
 
         try:
@@ -179,6 +190,7 @@ class LoanManager:
             )
 
             # Close the loan now that balance updates succeeded.
+            loan.add_paid_interest(interest)
             loan.close()
             self._collateral_by_loan.pop(loan_id)
 
@@ -197,5 +209,6 @@ class LoanManager:
 
         return LoanInfo(
             id=loan.id, is_open=loan.is_open, borrowed_symbol=loan.borrowed_symbol,
-            borrowed_amount=loan.borrowed_amount, outstanding_interest=outstanding_interest
+            borrowed_amount=loan.borrowed_amount, outstanding_interest=outstanding_interest,
+            paid_interest=loan.paid_interest
         )

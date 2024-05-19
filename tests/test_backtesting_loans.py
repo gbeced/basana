@@ -48,7 +48,7 @@ def test_no_loans(backtesting_dispatcher):
         "interest_rate, interest_symbol, interest_period, min_interest, "
         "repay_after, "
         "initial_balances, intermediate_balances, final_balances, "
-        "intermediate_margin_level, intermediate_interest"
+        "intermediate_margin_level, intermediate_interest, paid_interest"
     ),
     [
         # Borrow USD using USD as collateral.
@@ -67,6 +67,7 @@ def test_no_loans(backtesting_dispatcher):
                 "USD": dict(available=Decimal(399), borrowed=Decimal(0))
             },
             Decimal("99.75"),  # Minimum interest accrued in margin level calculation.
+            {"USD": Decimal(1)},
             {"USD": Decimal(1)},
         ),
         # Borrow BTC using USD as collateral.
@@ -88,6 +89,7 @@ def test_no_loans(backtesting_dispatcher):
             },
             Decimal(100),
             {},
+            {},
         ),
         # Borrow BTC. No collateral required. Proportional interest in USD.
         (
@@ -107,6 +109,7 @@ def test_no_loans(backtesting_dispatcher):
             },
             Decimal(0),
             {"USD": Decimal(7000)},
+            {"USD": Decimal(7000)},
         ),
         # Borrow BTC using BTC as collateral. No interest.
         (
@@ -124,6 +127,7 @@ def test_no_loans(backtesting_dispatcher):
             },
             Decimal(100),
             {},
+            {},
         ),
     ]
 )
@@ -132,7 +136,7 @@ def test_borrow_and_repay(
         interest_rate, interest_symbol, interest_period, min_interest,
         repay_after,
         initial_balances, intermediate_balances, final_balances,
-        intermediate_margin_level, intermediate_interest,
+        intermediate_margin_level, intermediate_interest, paid_interest,
         backtesting_dispatcher
 ):
     async def impl():
@@ -198,6 +202,7 @@ def test_borrow_and_repay(
 
         loan = await e.get_loan(loan.id)
         assert loan.outstanding_interest == intermediate_interest
+        assert loan.paid_interest == {}
 
         await e.repay_loan(loan.id)
 
@@ -216,6 +221,7 @@ def test_borrow_and_repay(
         assert loan.borrowed_symbol == loan_symbol
         assert loan.borrowed_amount == loan_amount
         assert loan.outstanding_interest == {}
+        assert loan.paid_interest == paid_interest
 
         assert lending_strategy.margin_level == Decimal(0)
 
