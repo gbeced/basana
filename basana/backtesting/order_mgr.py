@@ -58,7 +58,7 @@ class OrderManager:
             # filled.
             if required_balances := self._estimate_required_balances(order):
                 self._balances.update(hold_updates=required_balances)
-                self._holds_by_order[order.id] = value_map.ValueMap(required_balances)
+                self._holds_by_order[order.id] = required_balances
 
             self._orders.add(order)
 
@@ -86,7 +86,7 @@ class OrderManager:
         order.cancel()
         self._order_updated(order)
 
-    def _update_balances(self, order: Order, balance_updates: Dict[str, Decimal]):
+    def _update_balances(self, order: Order, balance_updates: value_map.ValueMapDict):
         # If we have holds associated with the order, it may be time to release some/all of those.
         hold_updates = {}
         order_holds = self._holds_by_order.get(order.id, value_map.ValueMap())
@@ -133,7 +133,7 @@ class OrderManager:
             }
         ))
         prev_state = order.state
-        balance_updates = order.get_balance_updates(bar_event.bar, liquidity_strategy)
+        balance_updates = value_map.ValueMap(order.get_balance_updates(bar_event.bar, liquidity_strategy))
         assert order.state == prev_state, "The order state should not change inside get_balance_updates"
 
         # If there are no balance updates then there is nothing left to do.
@@ -147,17 +147,17 @@ class OrderManager:
         assert_balance_update_value(balance_updates, order.pair.quote_symbol, -base_sign)
 
         # If base/quote amounts were removed after rounding then there is nothing left to do.
-        balance_updates = self._round_balance_updates(balance_updates, order.pair)
+        self._round_balance_updates(balance_updates, order.pair)
         logger.debug(logs.StructuredMessage("Processing order", order_id=order.id, balance_updates=balance_updates))
         if order.pair.base_symbol not in balance_updates or order.pair.quote_symbol not in balance_updates:
             order_not_filled()
             return
 
         # Get fees, round them, and combine them with the balance updates.
-        fees = self._fee_strategy.calculate_fees(order, balance_updates)
-        fees = self._round_fees(fees, order.pair)
+        fees = value_map.ValueMap(self._fee_strategy.calculate_fees(order, balance_updates))
+        self._round_fees(fees, order.pair)
         logger.debug(logs.StructuredMessage("Processing order", order_id=order.id, fees=fees))
-        final_updates = value_map.ValueMap(balance_updates) + fees
+        final_updates = balance_updates + fees
         final_updates.prune()
 
         try:
@@ -178,41 +178,30 @@ class OrderManager:
             ))
             order_not_filled()
 
-    def _round_balance_updates(self, balance_updates: Dict[str, Decimal], pair: Pair) -> value_map.ValueMap:
-        ret = value_map.ValueMap(balance_updates)
+    def _round_balance_updates(self, balance_updates: value_map.ValueMap, pair: Pair):
         pair_info = self._config.get_pair_info(pair)
 
         # For the base amount we truncate instead of rounding to avoid exceeding available liquidity.
-        base_amount = ret.get(pair.base_symbol)
-        if base_amount:
-            base_amount = core_helpers.truncate_decimal(base_amount, pair_info.base_precision)
-            ret[pair.base_symbol] = base_amount
+        if (base_amount := balance_updates.get(pair.base_symbol)) is not None:
+            balance_updates[pair.base_symbol] = core_helpers.truncate_decimal(base_amount, pair_info.base_precision)
 
         # For the quote amount we simply round.
-        quote_amount = ret.get(pair.quote_symbol)
-        if quote_amount:
-            quote_amount = core_helpers.round_decimal(quote_amount, pair_info.quote_precision)
-            ret[pair.quote_symbol] = quote_amount
+        if (quote_amount := balance_updates.get(pair.quote_symbol)) is not None:
+            balance_updates[pair.quote_symbol] = core_helpers.round_decimal(quote_amount, pair_info.quote_precision)
 
-        ret.prune()
-        return ret
+        balance_updates.prune()
 
-    def _round_fees(self, fees: Dict[str, Decimal], pair: Pair) -> value_map.ValueMap:
-        ret = value_map.ValueMap(fees)
+    def _round_fees(self, fees: value_map.ValueMap, pair: Pair):
         pair_info = self._config.get_pair_info(pair)
         precisions = {
             pair.base_symbol: pair_info.base_precision,
             pair.quote_symbol: pair_info.quote_precision,
         }
-        for symbol in ret.keys():
-            amount = ret.get(symbol)
-            # If there is a fee in a symbol other that base/quote we won't round it since we don't know the precision.
-            if amount and (precision := precisions.get(symbol)) is not None:
-                amount = core_helpers.round_decimal(amount, precision, rounding=decimal.ROUND_UP)
-                ret[symbol] = amount
+        for symbol, precision in precisions.items():
+            if (amount := fees.get(symbol)) is not None:
+                fees[symbol] = core_helpers.round_decimal(amount, precision, rounding=decimal.ROUND_UP)
 
-        ret.prune()
-        return ret
+        fees.prune()
 
     def _estimate_required_balances(self, order: Order) -> value_map.ValueMap:
         # Get an estimated fill price. If the order can't provide one, use the last price available.
@@ -225,20 +214,19 @@ class OrderManager:
 
         # Build a dictionary of balance updates suitable for calculating fees.
         base_sign = helpers.get_base_sign_for_operation(order.operation)
-        estimated_balance_updates = {
+        estimated_balance_updates = value_map.ValueMap({
             order.pair.base_symbol: order.amount * base_sign
-        }
+        })
         if estimated_fill_price:
-            estimated_balance_updates[order.pair.quote_symbol] = \
-                order.amount * estimated_fill_price * -base_sign
-        estimated_balance_updates = self._round_balance_updates(estimated_balance_updates, order.pair)
+            estimated_balance_updates[order.pair.quote_symbol] = order.amount * estimated_fill_price * -base_sign
+        self._round_balance_updates(estimated_balance_updates, order.pair)
 
         # Calculate fees.
-        fees = {}
+        fees = value_map.ValueMap()
         if len(estimated_balance_updates) == 2:
-            fees = self._fee_strategy.calculate_fees(order, estimated_balance_updates)
-            fees = self._round_fees(fees, order.pair)
-        estimated_balance_updates = value_map.ValueMap(estimated_balance_updates) + fees
+            fees += self._fee_strategy.calculate_fees(order, estimated_balance_updates)
+            self._round_fees(fees, order.pair)
+        estimated_balance_updates += fees
 
         # Return only negative balance updates as required balances.
         return value_map.ValueMap({
