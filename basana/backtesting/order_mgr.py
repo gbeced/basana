@@ -16,6 +16,7 @@
 
 from decimal import Decimal
 from typing import Callable, Dict, Generator, Iterable, Optional
+import dataclasses
 import decimal
 import logging
 
@@ -30,24 +31,25 @@ logger = logging.getLogger(__name__)
 LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
 
 
+@dataclasses.dataclass
+class ExchangeContext:
+    account_balances: account_balances.AccountBalances
+    prices: prices.Prices
+    fee_strategy: fees.FeeStrategy
+    liquidity_strategy_factory: LiquidityStrategyFactory
+    config: config.Config
+
+
 class OrderManager:
-    def __init__(
-            self, balances: account_balances.AccountBalances, prices: prices.Prices,
-            fee_strategy: fees.FeeStrategy, liquidity_strategy_factory: LiquidityStrategyFactory,
-            config: config.Config
-    ):
-        self._balances = balances
-        self._prices = prices
-        self._fee_strategy = fee_strategy
-        self._liquidity_strategy_factory = liquidity_strategy_factory
-        self._config = config
+    def __init__(self, exchange_ctx: ExchangeContext):
+        self._ctx = exchange_ctx
         self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
         self._orders = helpers.ExchangeObjectContainer[Order]()
         self._holds_by_order: Dict[str, value_map.ValueMap] = {}
 
     def on_bar_event(self, bar_event: bar.BarEvent):
         if (liquidity_strategy := self._liquidity_strategies.get(bar_event.bar.pair)) is None:
-            liquidity_strategy = self._liquidity_strategy_factory()
+            liquidity_strategy = self._ctx.liquidity_strategy_factory()
         liquidity_strategy.on_bar(bar_event.bar)
         for order in filter(lambda o: o.pair == bar_event.bar.pair, self._orders.get_open()):
             self._process_order(order, bar_event, liquidity_strategy)
@@ -57,7 +59,7 @@ class OrderManager:
             # When an order gets accepted we need to hold any required balance that will be debited as the order gets
             # filled.
             if required_balances := self._estimate_required_balances(order):
-                self._balances.update(hold_updates=required_balances)
+                self._ctx.account_balances.update(hold_updates=required_balances)
                 self._holds_by_order[order.id] = required_balances
 
             self._orders.add(order)
@@ -102,7 +104,7 @@ class OrderManager:
 
         # Update holds and balances.
         if balance_updates or hold_updates:
-            self._balances.update(balance_updates=balance_updates, hold_updates=hold_updates)
+            self._ctx.account_balances.update(balance_updates=balance_updates, hold_updates=hold_updates)
 
         # Update holds by order.
         if order_holds:
@@ -154,7 +156,7 @@ class OrderManager:
             return
 
         # Get fees, round them, and combine them with the balance updates.
-        fees = value_map.ValueMap(self._fee_strategy.calculate_fees(order, balance_updates))
+        fees = value_map.ValueMap(self._ctx.fee_strategy.calculate_fees(order, balance_updates))
         self._round_fees(fees, order.pair)
         logger.debug(logs.StructuredMessage("Processing order", order_id=order.id, fees=fees))
         final_updates = balance_updates + fees
@@ -179,7 +181,7 @@ class OrderManager:
             order_not_filled()
 
     def _round_balance_updates(self, balance_updates: value_map.ValueMap, pair: Pair):
-        pair_info = self._config.get_pair_info(pair)
+        pair_info = self._ctx.config.get_pair_info(pair)
 
         # For the base amount we truncate instead of rounding to avoid exceeding available liquidity.
         if (base_amount := balance_updates.get(pair.base_symbol)) is not None:
@@ -192,7 +194,7 @@ class OrderManager:
         balance_updates.prune()
 
     def _round_fees(self, fees: value_map.ValueMap, pair: Pair):
-        pair_info = self._config.get_pair_info(pair)
+        pair_info = self._ctx.config.get_pair_info(pair)
         precisions = {
             pair.base_symbol: pair_info.base_precision,
             pair.quote_symbol: pair_info.quote_precision,
@@ -208,7 +210,7 @@ class OrderManager:
         estimated_fill_price = order.calculate_estimated_fill_price()
         if not estimated_fill_price:
             try:
-                estimated_fill_price = self._prices.get_price(order.pair)
+                estimated_fill_price = self._ctx.prices.get_price(order.pair)
             except errors.NoPrice:
                 pass
 
@@ -224,7 +226,7 @@ class OrderManager:
         # Calculate fees.
         fees = value_map.ValueMap()
         if len(estimated_balance_updates) == 2:
-            fees += self._fee_strategy.calculate_fees(order, estimated_balance_updates)
+            fees += self._ctx.fee_strategy.calculate_fees(order, estimated_balance_updates)
             self._round_fees(fees, order.pair)
         estimated_balance_updates += fees
 

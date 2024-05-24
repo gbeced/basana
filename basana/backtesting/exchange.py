@@ -114,7 +114,10 @@ class Exchange:
             )
         )
         self._order_mgr = order_mgr.OrderManager(
-            self._balances, self._prices, fee_strategy, liquidity_strategy_factory, self._config
+            order_mgr.ExchangeContext(
+                account_balances=self._balances, prices=self._prices, fee_strategy=fee_strategy,
+                liquidity_strategy_factory=liquidity_strategy_factory, config=self._config
+            )
         )
 
     async def get_balance(self, symbol: str) -> Balance:
