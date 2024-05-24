@@ -133,7 +133,7 @@ class LoanManager:
             self, lending_strategy: LendingStrategy, exchange_ctx: ExchangeContext
     ):
         self._loans = bt_helpers.ExchangeObjectContainer[Loan]()
-        self._exchange_ctx = exchange_ctx
+        self._ctx = exchange_ctx
         self._lending_strategy = lending_strategy
         self._collateral_by_loan: Dict[str, ValueMap] = {}
         self._lending_strategy.set_exchange_context(self, exchange_ctx)
@@ -146,8 +146,8 @@ class LoanManager:
 
         # Create the loan and update balances.
         loan = self._lending_strategy.create_loan(symbol, amount, now)
-        required_collateral = loan.calculate_collateral(self._exchange_ctx.prices)
-        self._exchange_ctx.account_balances.update(
+        required_collateral = loan.calculate_collateral(self._ctx.prices)
+        self._ctx.account_balances.update(
             balance_updates={loan.borrowed_symbol: loan.borrowed_amount},
             borrowed_updates={loan.borrowed_symbol: loan.borrowed_amount},
             hold_updates=required_collateral
@@ -174,8 +174,8 @@ class LoanManager:
             raise errors.Error("Loan is not open")
 
         interest = ValueMap()
-        interest += loan.calculate_interest(now, self._exchange_ctx.prices)
-        interest.truncate(self._exchange_ctx.config)
+        interest += loan.calculate_interest(now, self._ctx.prices)
+        interest.truncate(self._ctx.config)
         interest.prune()
         collateral = self._collateral_by_loan[loan_id]
 
@@ -183,7 +183,7 @@ class LoanManager:
             # Update balances.
             balance_updates = ValueMap({loan.borrowed_symbol: -loan.borrowed_amount})
             balance_updates -= interest
-            self._exchange_ctx.account_balances.update(
+            self._ctx.account_balances.update(
                 balance_updates=balance_updates,
                 borrowed_updates={loan.borrowed_symbol: -loan.borrowed_amount},
                 hold_updates={symbol: -amount for symbol, amount in collateral.items()}
@@ -202,9 +202,9 @@ class LoanManager:
         outstanding_interest = ValueMap()
         if loan.is_open:
             outstanding_interest += loan.calculate_interest(
-                self._exchange_ctx.dispatcher.now(), self._exchange_ctx.prices
+                self._ctx.dispatcher.now(), self._ctx.prices
             )
-            outstanding_interest.truncate(self._exchange_ctx.config)
+            outstanding_interest.truncate(self._ctx.config)
             outstanding_interest.prune()
 
         return LoanInfo(
