@@ -34,7 +34,7 @@ def test_no_loans(backtesting_dispatcher):
         amount = Decimal(10000)
 
         # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._last_dt = dt.local_now()
+        backtesting_dispatcher._set_now(dt.local_now())
 
         with pytest.raises(Exception, match="Lending is not supported"):
             await e.create_loan(symbol, amount)
@@ -172,7 +172,7 @@ def test_borrow_and_repay(
                 now,
                 Bar(now, pair, exchange_rate, exchange_rate, exchange_rate, exchange_rate, Decimal(10))
             ))
-        backtesting_dispatcher._last_dt = now
+        backtesting_dispatcher._set_now(now)
 
         # Create loan
         assert lending_strategy.margin_level == Decimal(0)
@@ -187,9 +187,9 @@ def test_borrow_and_repay(
         assert loan.borrowed_amount == loan_amount
 
         # Time to repay. Move clock if necessary.
-        backtesting_dispatcher._last_dt = dt.local_now()
+        backtesting_dispatcher._set_now(dt.local_now())
         if repay_after:
-            backtesting_dispatcher._last_dt = backtesting_dispatcher.now() + repay_after
+            backtesting_dispatcher._set_now(backtesting_dispatcher.now() + repay_after)
 
         # Checks before repay.
         assert helpers.round_decimal(lending_strategy.margin_level, 2) == intermediate_margin_level
@@ -263,7 +263,7 @@ def test_margin_exceeded(backtesting_dispatcher):
                 now,
                 Bar(now, pair, exchange_rate, exchange_rate, exchange_rate, exchange_rate, Decimal(10))
             ))
-        backtesting_dispatcher._last_dt = dt.local_now()
+        backtesting_dispatcher._set_now(dt.local_now())
 
         # We should be able to borrow up to 5k.
         assert lending_strategy.margin_level == Decimal(0)
@@ -286,7 +286,7 @@ def test_repay_inexistent(backtesting_dispatcher):
         e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
 
         # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._last_dt = dt.local_now()
+        backtesting_dispatcher._set_now(dt.local_now())
 
         with pytest.raises(Exception, match="Loan not found"):
             await e.repay_loan("inexistent")
@@ -302,7 +302,7 @@ def test_invalid_borrow_amount(backtesting_dispatcher):
         e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
 
         # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._last_dt = dt.local_now()
+        backtesting_dispatcher._set_now(dt.local_now())
 
         with pytest.raises(Exception, match="Invalid amount"):
             await e.create_loan("USD", Decimal(-10000))
@@ -316,7 +316,7 @@ def test_no_lending_conditions_for_symbol(backtesting_dispatcher):
         e = exchange.Exchange(backtesting_dispatcher, {"USD": 1000}, lending_strategy=lending_strategy)
 
         # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._last_dt = dt.local_now()
+        backtesting_dispatcher._set_now(dt.local_now())
 
         with pytest.raises(Exception, match="No lending conditions for USD"):
             await e.create_loan("USD", Decimal(700))
@@ -337,7 +337,7 @@ def test_repay_twice(backtesting_dispatcher):
         e.set_symbol_precision("USD", 2)
 
         # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._last_dt = dt.local_now()
+        backtesting_dispatcher._set_now(dt.local_now())
 
         loan = await e.create_loan("USD", Decimal("1000"))
         await e.repay_loan(loan.id)
@@ -360,7 +360,7 @@ def test_not_enough_balance_to_repay(backtesting_dispatcher):
         e.set_symbol_precision("USD", 2)
 
         # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._last_dt = dt.local_now()
+        backtesting_dispatcher._set_now(dt.local_now())
 
         loan = await e.create_loan("USD", Decimal("1000"))
         with pytest.raises(Exception, match="Not enough USD available"):

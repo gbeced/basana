@@ -322,6 +322,11 @@ class BacktestingDispatcher(EventDispatcher):
             raise errors.Error("No events processed yet")
         return self._last_dt
 
+    def _set_now(self, now: datetime.datetime):
+        # For testing purposes.
+        assert self._last_dt is None or now >= self._last_dt
+        self._last_dt = now
+
     async def _dispatch_loop(self):
         while not self.stopped:
             next_dt = self._event_mux.peek_next_event_dt()
