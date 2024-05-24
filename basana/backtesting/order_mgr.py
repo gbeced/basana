@@ -86,7 +86,7 @@ class OrderManager:
         if not order.is_open:
             raise errors.Error("Order {} is in {} state and can't be canceled".format(order_id, order.state))
         order.cancel()
-        self._order_updated(order)
+        self._order_closed(order)
 
     def _update_balances(self, order: Order, balance_updates: value_map.ValueMapDict):
         # If we have holds associated with the order, it may be time to release some/all of those.
@@ -113,20 +113,20 @@ class OrderManager:
             else:
                 del self._holds_by_order[order.id]
 
-    def _order_updated(self, order: Order):
-        if not order.is_open:
-            # The order is closed and there might be balances on hold that have to be released.
-            self._update_balances(order, {})
+    def _order_closed(self, order: Order):
+        # The order is closed and there might be balances on hold that have to be released.
+        self._update_balances(order, {})
 
     def _process_order(
             self, order: Order, bar_event: bar.BarEvent, liquidity_strategy: liquidity.LiquidityStrategy
     ):
         def order_not_filled():
             order.not_filled()
-            self._order_updated(order)
+            logger.debug(logs.StructuredMessage("Order not filled", order_id=order.id, order_state=order.state))
             if not order.is_open:
-                logger.debug(logs.StructuredMessage("Order closed", order_id=order.id, order_state=order.state))
+                self._order_closed(order)
 
+        # Calculate balance updates for the current bar.
         logger.debug(logs.StructuredMessage(
             "Processing order", order=order.get_debug_info(),
             bar={
@@ -137,6 +137,9 @@ class OrderManager:
         prev_state = order.state
         balance_updates = value_map.ValueMap(order.get_balance_updates(bar_event.bar, liquidity_strategy))
         assert order.state == prev_state, "The order state should not change inside get_balance_updates"
+        logger.debug(logs.StructuredMessage(
+            "Balance updates before rounding", order_id=order.id, balance_updates=balance_updates
+        ))
 
         # If there are no balance updates then there is nothing left to do.
         if not balance_updates:
@@ -150,7 +153,9 @@ class OrderManager:
 
         # If base/quote amounts were removed after rounding then there is nothing left to do.
         self._round_balance_updates(balance_updates, order.pair)
-        logger.debug(logs.StructuredMessage("Processing order", order_id=order.id, balance_updates=balance_updates))
+        logger.debug(logs.StructuredMessage(
+            "Balance updates after rounding", order_id=order.id, balance_updates=balance_updates
+        ))
         if order.pair.base_symbol not in balance_updates or order.pair.quote_symbol not in balance_updates:
             order_not_filled()
             return
@@ -158,12 +163,14 @@ class OrderManager:
         # Get fees, round them, and combine them with the balance updates.
         fees = value_map.ValueMap(self._ctx.fee_strategy.calculate_fees(order, balance_updates))
         self._round_fees(fees, order.pair)
-        logger.debug(logs.StructuredMessage("Processing order", order_id=order.id, fees=fees))
-        final_updates = balance_updates + fees
-        final_updates.prune()
+        logger.debug(logs.StructuredMessage(
+            "Fees after rounding", order_id=order.id, fees=fees
+        ))
 
         try:
             # Update balances. This may fail if there is not enough balance, so we do this first.
+            final_updates = balance_updates + fees
+            final_updates.prune()
             self._update_balances(order, final_updates)
             logger.debug(logs.StructuredMessage(
                 "Order updated", order_id=order.id, final_updates=final_updates, order_state=order.state
@@ -172,7 +179,8 @@ class OrderManager:
             liquidity_strategy.take_liquidity(abs(balance_updates[bar_event.bar.pair.base_symbol]))
             # Update the order and release any pending balance on hold if the order is now closed.
             order.add_fill(bar_event.when, balance_updates, fees)
-            self._order_updated(order)
+            if not order.is_open:
+                self._order_closed(order)
 
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage(
