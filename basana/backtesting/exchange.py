@@ -317,7 +317,7 @@ class Exchange:
         self._config.set_symbol_info(symbol, config.SymbolInfo(precision=precision))
 
     async def create_loan(self, symbol: str, amount: Decimal) -> LoanInfo:
-        return self._loan_mgr.create_loan(symbol, amount, self._dispatcher.now())
+        return self._loan_mgr.create_loan(symbol, amount)
 
     async def get_open_loans(self) -> List[LoanInfo]:
         return self._loan_mgr.get_open_loans()
@@ -329,7 +329,7 @@ class Exchange:
         return loan_info
 
     async def repay_loan(self, loan_id: str):
-        return self._loan_mgr.repay_loan(loan_id, self._dispatcher.now())
+        return self._loan_mgr.repay_loan(loan_id)
 
     def _get_pair_info(self, pair: Pair) -> PairInfo:
         return self._config.get_pair_info(pair)

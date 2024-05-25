@@ -138,14 +138,12 @@ class LoanManager:
         self._collateral_by_loan: Dict[str, ValueMap] = {}
         self._lending_strategy.set_exchange_context(self, exchange_ctx)
 
-    def create_loan(
-            self, symbol: str, amount: Decimal, now: datetime.datetime
-    ) -> LoanInfo:
+    def create_loan(self, symbol: str, amount: Decimal) -> LoanInfo:
         if amount <= 0:
             raise errors.Error("Invalid amount")
 
         # Create the loan and update balances.
-        loan = self._lending_strategy.create_loan(symbol, amount, now)
+        loan = self._lending_strategy.create_loan(symbol, amount, self._ctx.dispatcher.now())
         required_collateral = loan.calculate_collateral(self._ctx.prices)
         self._ctx.account_balances.update(
             balance_updates={loan.borrowed_symbol: loan.borrowed_amount},
@@ -166,7 +164,7 @@ class LoanManager:
         loan = self._loans.get(loan_id)
         return None if loan is None else self._build_loan_info(loan)
 
-    def repay_loan(self, loan_id: str, now: datetime.datetime):
+    def repay_loan(self, loan_id: str):
         loan = self._loans.get(loan_id)
         if not loan:
             raise errors.NotFound("Loan not found")
@@ -174,7 +172,7 @@ class LoanManager:
             raise errors.Error("Loan is not open")
 
         interest = ValueMap()
-        interest += loan.calculate_interest(now, self._ctx.prices)
+        interest += loan.calculate_interest(self._ctx.dispatcher.now(), self._ctx.prices)
         interest.truncate(self._ctx.config)
         interest.prune()
         collateral = self._collateral_by_loan[loan_id]
