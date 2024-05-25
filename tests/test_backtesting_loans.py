@@ -367,3 +367,33 @@ def test_not_enough_balance_to_repay(backtesting_dispatcher):
             await e.repay_loan(loan.id)
 
     asyncio.run(impl())
+
+
+def test_cancel_loan(backtesting_dispatcher):
+    async def impl():
+        lending_strategy = margin.MarginLoans(
+            "USD",
+            default_conditions=margin.MarginLoanConditions(
+                interest_symbol="USD", interest_rate=Decimal(0), interest_period=datetime.timedelta(days=1),
+                min_interest=Decimal(1), margin_requirement=Decimal(0)
+            )
+        )
+        e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal(0)}, lending_strategy=lending_strategy)
+        e.set_symbol_precision("USD", 2)
+
+        # This is necessary to have prices since we're not doing bar events.
+        backtesting_dispatcher._set_now(dt.local_now())
+
+        balances_pre = await e.get_balances()
+        loan = await e.create_loan("USD", Decimal("1000"))
+        e._loan_mgr.cancel_loan(loan.id)
+        balances_post = await e.get_balances()
+
+        loan = await e.get_loan(loan.id)
+        assert loan.is_open is False
+        assert loan.outstanding_interest == {}
+        assert loan.paid_interest == {}
+
+        assert balances_pre == balances_post
+
+    asyncio.run(impl())

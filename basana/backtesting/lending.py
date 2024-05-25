@@ -75,6 +75,10 @@ class Loan(metaclass=abc.ABCMeta):
         return self._borrowed_amount
 
     @property
+    def created_at(self) -> datetime.datetime:
+        return self._created_at
+
+    @property
     def paid_interest(self) -> ValueMapDict:
         return self._paid_interest
 
@@ -165,11 +169,7 @@ class LoanManager:
         return None if loan is None else self._build_loan_info(loan)
 
     def repay_loan(self, loan_id: str):
-        loan = self._loans.get(loan_id)
-        if not loan:
-            raise errors.NotFound("Loan not found")
-        if not loan.is_open:
-            raise errors.Error("Loan is not open")
+        loan = self._get_open_loan(loan_id)
 
         interest = ValueMap()
         interest += loan.calculate_interest(self._ctx.dispatcher.now(), self._ctx.prices)
@@ -195,6 +195,33 @@ class LoanManager:
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage("Failed to repay the loan", loan_id=loan_id, error=str(e)))
             raise
+
+    def cancel_loan(self, loan_id: str):
+        loan = self._get_open_loan(loan_id)
+
+        # Only loans that have just been created can be canceled
+        assert loan.created_at == self._ctx.dispatcher.now()
+
+        # Update balances.
+        collateral = self._collateral_by_loan[loan_id]
+        balance_updates = ValueMap({loan.borrowed_symbol: -loan.borrowed_amount})
+        self._ctx.account_balances.update(
+            balance_updates=balance_updates,
+            borrowed_updates=balance_updates,
+            hold_updates={symbol: -amount for symbol, amount in collateral.items()}
+        )
+
+        # Close the loan now that balance updates succeeded.
+        loan.close()
+        self._collateral_by_loan.pop(loan_id)
+
+    def _get_open_loan(self, loan_id: str) -> Loan:
+        loan = self._loans.get(loan_id)
+        if not loan:
+            raise errors.NotFound("Loan not found")
+        if not loan.is_open:
+            raise errors.Error("Loan is not open")
+        return loan
 
     def _build_loan_info(self, loan: Loan) -> LoanInfo:
         outstanding_interest = ValueMap()
