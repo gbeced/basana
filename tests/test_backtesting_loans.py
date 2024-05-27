@@ -45,7 +45,7 @@ def test_no_loans(backtesting_dispatcher):
 @pytest.mark.parametrize(
     (
         "loan_amount, loan_symbol, margin_requirement, "
-        "interest_rate, interest_symbol, interest_period, min_interest, "
+        "interest_percentage, interest_symbol, interest_period, min_interest, "
         "repay_after, "
         "initial_balances, intermediate_balances, final_balances, "
         "intermediate_margin_level, intermediate_interest, paid_interest"
@@ -55,7 +55,7 @@ def test_no_loans(backtesting_dispatcher):
         # Minimum interest charged in USD.
         (
             Decimal(10000), "USD", Decimal("0.04"),
-            Decimal("0.07"), "USD", datetime.timedelta(days=360), Decimal(1),
+            Decimal("7"), "USD", datetime.timedelta(days=360), Decimal(1),
             datetime.timedelta(seconds=0),
             {
                 "USD": Decimal(400)
@@ -94,7 +94,7 @@ def test_no_loans(backtesting_dispatcher):
         # Borrow BTC. No collateral required. Proportional interest in USD.
         (
             Decimal(1), "BTC", Decimal("0"),
-            Decimal("0.2"), "USD", datetime.timedelta(days=360), Decimal("0"),
+            Decimal("20"), "USD", datetime.timedelta(days=360), Decimal("0"),
             datetime.timedelta(days=180),
             {
                 "BTC": Decimal("0.01"), "USD": Decimal(14000)
@@ -133,7 +133,7 @@ def test_no_loans(backtesting_dispatcher):
 )
 def test_borrow_and_repay(
         loan_amount, loan_symbol, margin_requirement,
-        interest_rate, interest_symbol, interest_period, min_interest,
+        interest_percentage, interest_symbol, interest_period, min_interest,
         repay_after,
         initial_balances, intermediate_balances, final_balances,
         intermediate_margin_level, intermediate_interest, paid_interest,
@@ -150,7 +150,7 @@ def test_borrow_and_repay(
 
         loan_conditions = {
             loan_symbol: margin.MarginLoanConditions(
-                interest_symbol=interest_symbol, interest_rate=interest_rate,
+                interest_symbol=interest_symbol, interest_percentage=interest_percentage,
                 interest_period=interest_period, min_interest=min_interest,
                 margin_requirement=margin_requirement
             ),
@@ -240,7 +240,7 @@ def test_margin_exceeded(backtesting_dispatcher):
 
         loan_conditions = {
             "USD": margin.MarginLoanConditions(
-                interest_symbol="USD", interest_rate=Decimal("0.15"),
+                interest_symbol="USD", interest_percentage=Decimal("15"),
                 interest_period=datetime.timedelta(days=365), min_interest=Decimal(0),
                 margin_requirement=Decimal("0.2")
             ),
@@ -329,7 +329,7 @@ def test_repay_twice(backtesting_dispatcher):
         lending_strategy = margin.MarginLoans(
             "USD",
             default_conditions=margin.MarginLoanConditions(
-                interest_symbol="USD", interest_rate=Decimal(0), interest_period=datetime.timedelta(days=1),
+                interest_symbol="USD", interest_percentage=Decimal(0), interest_period=datetime.timedelta(days=1),
                 min_interest=Decimal(0), margin_requirement=Decimal(0)
             )
         )
@@ -352,7 +352,7 @@ def test_not_enough_balance_to_repay(backtesting_dispatcher):
         lending_strategy = margin.MarginLoans(
             "USD",
             default_conditions=margin.MarginLoanConditions(
-                interest_symbol="USD", interest_rate=Decimal(0), interest_period=datetime.timedelta(days=1),
+                interest_symbol="USD", interest_percentage=Decimal(0), interest_period=datetime.timedelta(days=1),
                 min_interest=Decimal(1), margin_requirement=Decimal(0)
             )
         )
@@ -374,7 +374,7 @@ def test_cancel_loan(backtesting_dispatcher):
         lending_strategy = margin.MarginLoans(
             "USD",
             default_conditions=margin.MarginLoanConditions(
-                interest_symbol="USD", interest_rate=Decimal(0), interest_period=datetime.timedelta(days=1),
+                interest_symbol="USD", interest_percentage=Decimal(0), interest_period=datetime.timedelta(days=1),
                 min_interest=Decimal(1), margin_requirement=Decimal(0)
             )
         )

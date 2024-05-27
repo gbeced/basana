@@ -28,7 +28,7 @@ from basana.backtesting.value_map import ValueMap, ValueMapDict
 @dataclasses.dataclass
 class MarginLoanConditions:
     interest_symbol: str
-    interest_rate: Decimal
+    interest_percentage: Decimal
     interest_period: datetime.timedelta
     min_interest: Decimal
     # Minimum threshold for the value of the collateral relative to the loan amount + outstanding interests.
@@ -46,16 +46,16 @@ class MarginLoan(lending.Loan):
     def calculate_interest(self, at: datetime.datetime, prices: prices.Prices) -> Dict[str, Decimal]:
         assert at >= self._created_at
 
-        interest = self._conditions.interest_rate * self.borrowed_amount
+        interest = self._conditions.interest_percentage / Decimal(100) * self.borrowed_amount
         if self._conditions.interest_period:
             time_ellapsed = at - self._created_at
-            interest *= Decimal(time_ellapsed / self._conditions.interest_period)
-        interest = max(interest, self._conditions.min_interest)
+            interest *= Decimal(time_ellapsed.total_seconds() / self._conditions.interest_period.total_seconds())
 
         # Currency conversion if interest symbol is different from borrowed symbol.
         if self._conditions.interest_symbol != self.borrowed_symbol:
             interest = prices.convert(interest, self._borrowed_symbol, self._conditions.interest_symbol)
 
+        interest = max(interest, self._conditions.min_interest)
         return {self._conditions.interest_symbol: interest}
 
     def calculate_collateral(self, prices: prices.Prices) -> Dict[str, Decimal]:
