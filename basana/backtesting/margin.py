@@ -119,7 +119,7 @@ class MarginLoans(lending.LendingStrategy):
 
         # Calculate outstanding interest.
         interest_by_symbol = ValueMap()
-        for loan in self._loan_mgr.get_open_loans():
+        for loan in self._loan_mgr.get_loans(is_open=True):
             interest_by_symbol += loan.outstanding_interest
         interest = self._exchange_ctx.prices.convert_value_map(interest_by_symbol, self._quote_symbol)
 

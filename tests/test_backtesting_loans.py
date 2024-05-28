@@ -179,7 +179,7 @@ def test_borrow_and_repay(
         loan = await e.create_loan(loan_symbol, loan_amount)
 
         # Checks while loan is open.
-        loans = await e.get_open_loans()
+        loans = await e.get_loans(is_open=True)
         assert loans == [loan]
         assert await e.get_loan(loan.id) == loan
         assert loan.is_open
@@ -213,7 +213,7 @@ def test_borrow_and_repay(
             assert balance.borrowed == expected_balance["borrowed"], symbol
             assert balance.hold == Decimal(0)
 
-        loans = await e.get_open_loans()
+        loans = await e.get_loans(borrowed_symbol=loan_symbol, is_open=True)
         assert loans == []
 
         loan = await e.get_loan(loan.id)

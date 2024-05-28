@@ -83,7 +83,8 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
                 "USD": Decimal("50000"),
             }
         )
-        order_request = requests.MarketOrder(OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"))
+        pair = Pair("BTC", "USD")
+        order_request = requests.MarketOrder(OrderOperation.BUY, pair, Decimal("1"))
         created_order = await e.create_order(order_request)
         assert created_order is not None
 
@@ -95,11 +96,21 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         assert order_info is not None
         assert order_info.is_open
 
+        await e.get_orders() == [order_info]
+        await e.get_orders(pair=pair) == [order_info]
+        await e.get_orders(pair=Pair("BTC", "ARS")) == []
+        await e.get_orders(pair=pair, is_open=True) == [order_info]
+
         await e.cancel_order(created_order.id)
 
         order_info = await e.get_order_info(created_order.id)
         assert order_info is not None
         assert not order_info.is_open
+
+        await e.get_orders() == [order_info]
+        await e.get_orders(pair=pair) == [order_info]
+        await e.get_orders(pair=pair, is_open=False) == [order_info]
+        await e.get_orders(pair=pair, is_open=True) == []
 
         with pytest.raises(exchange.Error):
             await e.cancel_order(created_order.id)

@@ -292,6 +292,21 @@ class Exchange:
             if pair is None or order.pair == pair
         ]
 
+    async def get_orders(self, pair: Optional[Pair] = None, is_open: Optional[bool] = None) -> List[OrderInfo]:
+        """
+        Returns orders filtered by various conditions.
+
+        :param pair: If set, only orders matching this pair will be returned.
+        :param is_open: If set, only open or closed orders will be returned.
+        """
+
+        orders = self._order_mgr.get_all_orders()
+        if pair:
+            orders = filter(lambda order: order.pair == pair, orders)
+        if is_open is not None:
+            orders = filter(lambda order: order.is_open == is_open, orders)
+        return [order.get_order_info() for order in orders]
+
     def add_bar_source(self, bar_source: event.EventSource):
         """Adds an event source that produces :class:`basana.BarEvent` instances.
 
@@ -342,8 +357,14 @@ class Exchange:
     async def create_loan(self, symbol: str, amount: Decimal) -> LoanInfo:
         return self._loan_mgr.create_loan(symbol, amount)
 
-    async def get_open_loans(self) -> List[LoanInfo]:
-        return self._loan_mgr.get_open_loans()
+    async def get_loans(self, borrowed_symbol: Optional[str] = None, is_open: Optional[bool] = None) -> List[LoanInfo]:
+        """
+        Returns loans filtered by various conditions.
+
+        :param borrowed_symbol: If set, only loans matching this borrowed symbol will be returned.
+        :param is_open: If set, only open or closed loans will be returned.
+        """
+        return self._loan_mgr.get_loans(borrowed_symbol=borrowed_symbol, is_open=is_open)
 
     async def get_loan(self, loan_id: str) -> LoanInfo:
         loan_info = self._loan_mgr.get_loan(loan_id)

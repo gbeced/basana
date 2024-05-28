@@ -136,7 +136,7 @@ def test_entry_and_exit_ok(
             assert order_info.amount_remaining == Decimal(0)
 
         # There should be no open loans.
-        open_loans = await e.get_open_loans()
+        open_loans = await e.get_loans(is_open=True)
         assert open_loans == []
 
         # Check available balances.
@@ -215,7 +215,7 @@ def test_rollback_if_borrowing_fails(backtesting_dispatcher, caplog):
         assert len(order_ids) == 0
 
         # There should be no open loans.
-        open_loans = await e.get_open_loans()
+        open_loans = await e.get_loans(is_open=True)
         assert open_loans == []
 
         # Check available balances.
@@ -296,7 +296,7 @@ def test_repay_fails(backtesting_dispatcher, caplog):
             assert order_info.amount_remaining == Decimal(0)
 
         # There should be 1 open loans.
-        open_loans = await e.get_open_loans()
+        open_loans = await e.get_loans(is_open=True)
         assert len(open_loans) == 1
 
         # Check balances.

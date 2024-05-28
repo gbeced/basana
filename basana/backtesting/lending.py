@@ -161,8 +161,13 @@ class LoanManager:
 
         return self._build_loan_info(loan)
 
-    def get_open_loans(self) -> List[LoanInfo]:
-        return list(map(lambda loan: self._build_loan_info(loan), self._loans.get_open()))
+    def get_loans(self, borrowed_symbol: Optional[str] = None, is_open: Optional[bool] = None) -> List[LoanInfo]:
+        loans = self._loans.get_all()
+        if borrowed_symbol:
+            loans = filter(lambda loan: loan.borrowed_symbol == borrowed_symbol, loans)
+        if is_open is not None:
+            loans = filter(lambda loan: loan.is_open == is_open, loans)
+        return [self._build_loan_info(loan) for loan in loans]
 
     def get_loan(self, loan_id: str) -> Optional[LoanInfo]:
         loan = self._loans.get(loan_id)

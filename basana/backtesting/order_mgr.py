@@ -150,7 +150,7 @@ class OrderManager:
 
     def _repay_loans(self, symbol: str):
         candidate_loans = [
-            loan for loan in self._ctx.loan_mgr.get_open_loans()
+            loan for loan in self._ctx.loan_mgr.get_loans(is_open=True)
             if loan.borrowed_symbol == symbol
         ]
         # Try to cancel bigger loans first.
