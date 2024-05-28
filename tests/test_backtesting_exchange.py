@@ -31,12 +31,6 @@ from basana.core.pair import Pair, PairInfo
 from basana.external.yahoo import bars
 
 
-def build_bar(dt, pair, open, high, low, close, adj_close, volume, adjust_ohlc):
-    if adjust_ohlc:
-        open, high, low, close = bars.adjust_ohlc(open, high, low, close, adj_close)
-    return bar.Bar(dt, pair, open, high, low, close, volume)
-
-
 def test_account_balances(backtesting_dispatcher):
     async def impl():
         e = exchange.Exchange(
