@@ -115,8 +115,9 @@ class Exchange:
         )
         self._order_mgr = order_mgr.OrderManager(
             order_mgr.ExchangeContext(
-                account_balances=self._balances, prices=self._prices, fee_strategy=fee_strategy,
-                liquidity_strategy_factory=liquidity_strategy_factory, config=self._config
+                dispatcher=dispatcher, account_balances=self._balances, prices=self._prices,
+                fee_strategy=fee_strategy, liquidity_strategy_factory=liquidity_strategy_factory,
+                loan_mgr=self._loan_mgr, config=self._config
             )
         )
 
@@ -154,7 +155,10 @@ class Exchange:
         logger.debug(logs.StructuredMessage("Request accepted", order_id=order.id))
         return CreatedOrder(id=order.id)
 
-    async def create_market_order(self, operation: OrderOperation, pair: Pair, amount: Decimal) -> CreatedOrder:
+    async def create_market_order(
+            self, operation: OrderOperation, pair: Pair, amount: Decimal, auto_borrow: bool = False,
+            auto_repay: bool = False
+    ) -> CreatedOrder:
         """Creates a market order.
 
         A market order is an order to immediately buy or sell at the best available price.
@@ -167,11 +171,16 @@ class Exchange:
         :param operation: The order operation.
         :param pair: The pair to trade.
         :param amount: The base amount to buy/sell.
+        :param auto_borrow:
+        :param auto_repay:
         """
-        return await self.create_order(requests.MarketOrder(operation, pair, amount))
+        return await self.create_order(requests.MarketOrder(
+            operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay
+        ))
 
     async def create_limit_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal
+            self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
+            auto_borrow: bool = False, auto_repay: bool = False
     ) -> CreatedOrder:
         """Creates a limit order.
 
@@ -185,11 +194,16 @@ class Exchange:
         :param pair: The pair to trade.
         :param amount: The base amount to buy/sell.
         :param limit_price: The limit price.
+        :param auto_borrow:
+        :param auto_repay:
         """
-        return await self.create_order(requests.LimitOrder(operation, pair, amount, limit_price))
+        return await self.create_order(requests.LimitOrder(
+            operation, pair, amount, limit_price, auto_borrow=auto_borrow, auto_repay=auto_repay
+        ))
 
     async def create_stop_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal
+            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
+            auto_borrow: bool = False, auto_repay: bool = False
     ) -> CreatedOrder:
         """Creates a stop order.
 
@@ -208,11 +222,16 @@ class Exchange:
         :param pair: The pair to trade.
         :param amount: The base amount to buy/sell.
         :param stop_price: The stop price.
+        :param auto_borrow:
+        :param auto_repay:
         """
-        return await self.create_order(requests.StopOrder(operation, pair, amount, stop_price))
+        return await self.create_order(requests.StopOrder(
+            operation, pair, amount, stop_price, auto_borrow=auto_borrow, auto_repay=auto_repay
+        ))
 
     async def create_stop_limit_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal, limit_price: Decimal
+            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal, limit_price: Decimal,
+            auto_borrow: bool = False, auto_repay: bool = False
     ) -> CreatedOrder:
         """Creates a stop limit order.
 
@@ -227,8 +246,12 @@ class Exchange:
         :param amount: The base amount to buy/sell.
         :param stop_price: The stop price.
         :param limit_price: The limit price.
+        :param auto_borrow:
+        :param auto_repay:
         """
-        return await self.create_order(requests.StopLimitOrder(operation, pair, amount, stop_price, limit_price))
+        return await self.create_order(requests.StopLimitOrder(
+            operation, pair, amount, stop_price, limit_price, auto_borrow=auto_borrow, auto_repay=auto_repay
+        ))
 
     async def cancel_order(self, order_id: str) -> CanceledOrder:
         """Cancels an order.

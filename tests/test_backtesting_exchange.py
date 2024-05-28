@@ -26,6 +26,7 @@ import pytest
 from .helpers import abs_data_path
 from basana.backtesting import errors, exchange, fees, helpers as bt_helpers, orders, requests
 from basana.core import bar, dt, event, helpers
+from basana.core.enums import OrderOperation
 from basana.core.pair import Pair, PairInfo
 from basana.external.yahoo import bars
 
@@ -64,7 +65,7 @@ def test_order_container():
     for i in range(1, 3):
         idx.add(
             orders.MarketOrder(
-                str(i), orders.OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), orders.OrderState.OPEN
+                str(i), OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), orders.OrderState.OPEN
             )
         )
     assert "1" in [o.id for o in idx.get_open()]
@@ -88,7 +89,7 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
                 "USD": Decimal("50000"),
             }
         )
-        order_request = requests.MarketOrder(exchange.OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"))
+        order_request = requests.MarketOrder(OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"))
         created_order = await e.create_order(order_request)
         assert created_order is not None
 
@@ -132,7 +133,7 @@ def test_open_orders(backtesting_dispatcher):
         open_orders.extend(await e.get_open_orders(Pair("BTC", "USD")))
         assert len(open_orders) == 0
 
-        order_request = requests.MarketOrder(exchange.OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"))
+        order_request = requests.MarketOrder(OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"))
         created_order = await e.create_order(order_request)
         assert created_order is not None
 
@@ -141,7 +142,7 @@ def test_open_orders(backtesting_dispatcher):
         assert len(open_orders) == 2
         for open_order in open_orders:
             assert open_order.id is not None
-            assert open_order.operation == exchange.OrderOperation.BUY
+            assert open_order.operation == OrderOperation.BUY
             assert open_order.amount == Decimal(1)
             assert open_order.amount_filled == Decimal(0)
 
@@ -225,7 +226,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # accepted, but to fail as soon as it gets processed.
             (
                 lambda e: e.create_stop_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("1e6"), Decimal("0.01")
+                    OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("1e6"), Decimal("0.01")
                 ),
                 []
             ),
@@ -237,7 +238,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # to fail as soon as it gets processed.
             (
                 lambda e: e.create_market_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("9649")
+                    OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("9649")
                 ),
                 []
             ),
@@ -248,7 +249,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Buy market.
             (
                 lambda e: e.create_market_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("2")
+                    OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("2")
                 ),
                 [
                     orders.Fill(
@@ -261,7 +262,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Limit order within bar.
             (
                 lambda e: e.create_limit_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("4"), Decimal("110.01")
+                    OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("4"), Decimal("110.01")
                 ),
                 [
                     orders.Fill(
@@ -276,7 +277,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Sell market.
             (
                 lambda e: e.create_market_order(
-                    exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1")
+                    OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1")
                 ),
                 [
                     orders.Fill(
@@ -289,7 +290,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Limit order within bar.
             (
                 lambda e: e.create_limit_order(
-                    exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("108")
+                    OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("108")
                 ),
                 [
                     orders.Fill(
@@ -302,7 +303,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Sell stop.
             (
                 lambda e: e.create_stop_order(
-                    exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("108")
+                    OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("108")
                 ),
                 [
                     orders.Fill(
@@ -317,7 +318,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Stop price should be hit on 2000-01-20 and order should be filled on 2000-01-24.
             (
                 lambda e: e.create_stop_limit_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("5"), Decimal("59.5"),
+                    OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("5"), Decimal("59.5"),
                     Decimal("58.03")
                 ),
                 [
@@ -333,7 +334,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Stop price should be hit on 2000-03-10 and order should be filled on 2000-03-13 at open price.
             (
                 lambda e: e.create_stop_limit_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("10"), Decimal("81.62"),
+                    OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("10"), Decimal("81.62"),
                     Decimal("80.24")
                 ),
                 [
@@ -347,7 +348,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Stop price should be hit on 2000-03-10 and order should be filled on 2000-03-10.
             (
                 lambda e: e.create_stop_limit_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("9"), Decimal("81.62"),
+                    OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("9"), Decimal("81.62"),
                     Decimal("81")
                 ),
                 [
@@ -361,7 +362,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Stop price should be hit on 2000-03-13 and order should be filled on 2000-03-13.
             (
                 lambda e: e.create_stop_limit_order(
-                    exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("79"),
+                    OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("79"),
                     Decimal("78.75")
                 ),
                 [
@@ -375,7 +376,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Stop price should be hit on 2000-03-13 and order should be filled on 2000-03-14.
             (
                 lambda e: e.create_stop_limit_order(
-                    exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("79"),
+                    OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("79"),
                     Decimal("83.65")
                 ),
                 [
@@ -389,7 +390,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Stop price should be hit on 2000-03-13 and order should be filled on 2000-03-15 at open.
             (
                 lambda e: e.create_stop_limit_order(
-                    exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("79"),
+                    OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("79"),
                     Decimal("83.80")
                 ),
                 [
@@ -407,7 +408,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Limit order is filled in multiple bars.
             (
                 lambda e: e.create_limit_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("50"), Decimal("10")
+                    OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("50"), Decimal("10")
                 ),
                 [
                     orders.Fill(
@@ -429,7 +430,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             # Regression test.
             (
                 lambda e: e.create_limit_order(
-                    exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("8600"), Decimal("115.50")
+                    OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("8600"), Decimal("115.50")
                 ),
                 [
                     orders.Fill(
@@ -519,50 +520,50 @@ def test_order_requests(order_plan, backtesting_dispatcher):
 
 @pytest.mark.parametrize("order_request", [
     # Market order: Invalid amount.
-    requests.MarketOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(0)),
-    requests.MarketOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(-1)),
-    requests.MarketOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("0.1")),
-    requests.MarketOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("1.1")),
-    requests.MarketOrder(exchange.OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1.000000001")),
+    requests.MarketOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(0)),
+    requests.MarketOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(-1)),
+    requests.MarketOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("0.1")),
+    requests.MarketOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("1.1")),
+    requests.MarketOrder(OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1.000000001")),
     # Limit order: Invalid amount/price.
-    requests.LimitOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(0), Decimal("1")),
-    requests.LimitOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0")),
-    requests.LimitOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0.001")),
-    requests.LimitOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1.001")),
-    requests.LimitOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("-0.1")),
+    requests.LimitOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(0), Decimal("1")),
+    requests.LimitOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0")),
+    requests.LimitOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0.001")),
+    requests.LimitOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1.001")),
+    requests.LimitOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("-0.1")),
     # Stop order: Invalid amount/price.
-    requests.StopOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(0), Decimal("1")),
-    requests.StopOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0")),
-    requests.StopOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0.001")),
-    requests.StopOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1.001")),
-    requests.StopOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("-0.1")),
+    requests.StopOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(0), Decimal("1")),
+    requests.StopOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0")),
+    requests.StopOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0.001")),
+    requests.StopOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1.001")),
+    requests.StopOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("-0.1")),
     # Stop limit order: Invalid amount/price.
     requests.StopLimitOrder(
-        exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(0), Decimal("1"), Decimal("1")
+        OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(0), Decimal("1"), Decimal("1")
     ),
     requests.StopLimitOrder(
-        exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0"), Decimal("1")
+        OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0"), Decimal("1")
     ),
     requests.StopLimitOrder(
-        exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0.001"), Decimal("1")
+        OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("0.001"), Decimal("1")
     ),
     requests.StopLimitOrder(
-        exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1.001"), Decimal("1")
+        OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1.001"), Decimal("1")
     ),
     requests.StopLimitOrder(
-        exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("-0.1"), Decimal("1")
+        OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("-0.1"), Decimal("1")
     ),
     requests.StopLimitOrder(
-        exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1"), Decimal("0")
+        OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1"), Decimal("0")
     ),
     requests.StopLimitOrder(
-        exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1"), Decimal("0.001")
+        OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1"), Decimal("0.001")
     ),
     requests.StopLimitOrder(
-        exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1"), Decimal("1.001")
+        OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1"), Decimal("1.001")
     ),
     requests.StopLimitOrder(
-        exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1"), Decimal("-0.1")
+        OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1), Decimal("1"), Decimal("-0.1")
     ),
 ])
 def test_invalid_parameter(order_request, backtesting_dispatcher):
@@ -587,16 +588,16 @@ def test_invalid_parameter(order_request, backtesting_dispatcher):
 
 
 balance_test_requests = [
-    requests.MarketOrder(exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal(1)),
-    requests.LimitOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1000), Decimal("1")),
-    requests.LimitOrder(exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal(1), Decimal("1")),
-    requests.StopOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1000), Decimal("1")),
-    requests.StopOrder(exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal(1), Decimal("1")),
+    requests.MarketOrder(OrderOperation.SELL, Pair("ORCL", "USD"), Decimal(1)),
+    requests.LimitOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1000), Decimal("1")),
+    requests.LimitOrder(OrderOperation.SELL, Pair("ORCL", "USD"), Decimal(1), Decimal("1")),
+    requests.StopOrder(OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1000), Decimal("1")),
+    requests.StopOrder(OrderOperation.SELL, Pair("ORCL", "USD"), Decimal(1), Decimal("1")),
     requests.StopLimitOrder(
-        exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1000), Decimal("1"), Decimal("1")
+        OrderOperation.BUY, Pair("ORCL", "USD"), Decimal(1000), Decimal("1"), Decimal("1")
     ),
     requests.StopLimitOrder(
-        exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal(1), Decimal("1"), Decimal("1")
+        OrderOperation.SELL, Pair("ORCL", "USD"), Decimal(1), Decimal("1"), Decimal("1")
     ),
 ]
 
@@ -648,7 +649,7 @@ def test_small_fill_is_ignored_after_rounding(backtesting_dispatcher):
 
     async def impl():
         created_order = await e.create_order(
-            requests.LimitOrder(exchange.OrderOperation.BUY, p, Decimal("0.1"), Decimal("2"))
+            requests.LimitOrder(OrderOperation.BUY, p, Decimal("0.1"), Decimal("2"))
         )
         await backtesting_dispatcher.run()
 
@@ -699,12 +700,12 @@ def test_liquidity_is_exhausted_and_order_is_canceled(backtesting_dispatcher):
         # Should get filled in the first bar.
         amount_1 = Decimal(int(98122000 * 0.25))
         created_order_1 = await e.create_order(
-            requests.MarketOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), amount_1)
+            requests.MarketOrder(OrderOperation.BUY, Pair("ORCL", "USD"), amount_1)
         )
         # Should get canceled because all liquidity was consumed by the previous order.
         amount_2 = Decimal(1)
         created_order_2 = await e.create_order(
-            requests.MarketOrder(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), amount_2)
+            requests.MarketOrder(OrderOperation.BUY, Pair("ORCL", "USD"), amount_2)
         )
         await backtesting_dispatcher.run()
 
@@ -737,14 +738,14 @@ def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
         p = Pair("ORCL", "USD")
 
         created_order_1 = await e.create_order(
-            requests.LimitOrder(exchange.OrderOperation.BUY, p, Decimal(1), Decimal(750))
+            requests.LimitOrder(OrderOperation.BUY, p, Decimal(1), Decimal(750))
         )
         assert (await e.get_balance("ORCL")).available == Decimal(0)
         assert (await e.get_balance("USD")).available == Decimal(250)
         assert (await e.get_balance("USD")).hold == Decimal(750)
 
         created_order_2 = await e.create_order(requests.LimitOrder(
-            exchange.OrderOperation.BUY, p, Decimal(1), Decimal(200)
+            OrderOperation.BUY, p, Decimal(1), Decimal(200)
         ))
         assert (await e.get_balance("ORCL")).available == Decimal(0)
         assert (await e.get_balance("USD")).available == Decimal(50)
@@ -752,7 +753,7 @@ def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
 
         with pytest.raises(exchange.Error):
             await e.create_order(requests.LimitOrder(
-                exchange.OrderOperation.BUY, p, Decimal("1"), Decimal(760)
+                OrderOperation.BUY, p, Decimal("1"), Decimal(760)
             ))
 
         await e.cancel_order(created_order_2.id)

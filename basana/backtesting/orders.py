@@ -79,7 +79,10 @@ class Fill:
 
 # This is an internal abstraction to be used by the exchange.
 class Order(metaclass=abc.ABCMeta):
-    def __init__(self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState):
+    def __init__(
+            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState,
+            auto_borrow: bool = False, auto_repay: bool = False
+    ):
         assert amount > Decimal(0), f"Invalid amount {amount}"
 
         self._id = id
@@ -90,6 +93,8 @@ class Order(metaclass=abc.ABCMeta):
         self._balance_updates = value_map.ValueMap()
         self._fees = value_map.ValueMap()
         self._fills: List[Fill] = []
+        self._auto_borrow = auto_borrow
+        self._auto_repay = auto_repay
 
     @property
     def id(self) -> str:
@@ -138,6 +143,14 @@ class Order(metaclass=abc.ABCMeta):
     @property
     def fills(self) -> List[Fill]:
         return self._fills
+
+    @property
+    def auto_borrow(self) -> bool:
+        return self._auto_borrow
+
+    @property
+    def auto_repay(self) -> bool:
+        return self._auto_repay
 
     def cancel(self):
         assert self._state == OrderState.OPEN
@@ -201,9 +214,10 @@ class Order(metaclass=abc.ABCMeta):
 
 class MarketOrder(Order):
     def __init__(
-            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState
+            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState,
+            auto_borrow: bool = False, auto_repay: bool = False
     ):
-        super().__init__(id, operation, pair, amount, state)
+        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
 
     def not_filled(self):
         # Fill or kill market orders.
@@ -232,11 +246,11 @@ class MarketOrder(Order):
 class LimitOrder(Order):
     def __init__(
             self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            state: OrderState
+            state: OrderState, auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert limit_price > Decimal(0), "Invalid limit_price {limit_price}"
 
-        super().__init__(id, operation, pair, amount, state)
+        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._limit_price = limit_price
 
     def get_balance_updates(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Dict[str, Decimal]:
@@ -286,11 +300,11 @@ class LimitOrder(Order):
 class StopOrder(Order):
     def __init__(
             self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
-            state: OrderState
+            state: OrderState, auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert stop_price > Decimal(0), "Invalid stop_price {stop_price}"
 
-        super().__init__(id, operation, pair, amount, state)
+        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
 
     def not_filled(self):
@@ -354,12 +368,12 @@ class StopOrder(Order):
 class StopLimitOrder(Order):
     def __init__(
             self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
-            limit_price: Decimal, state: OrderState
+            limit_price: Decimal, state: OrderState, auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert stop_price > Decimal(0), "Invalid stop_price {stop_price}"
         assert limit_price > Decimal(0), "Invalid limit_price {limit_price}"
 
-        super().__init__(id, operation, pair, amount, state)
+        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
         self._limit_price = limit_price
         self._stop_price_hit = False
