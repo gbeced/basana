@@ -264,7 +264,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
 
     async def _dispatch_event(self, event_dispatch: EventDispatch):
         logger.debug(logs.StructuredMessage(
-            "Dispatching event", when=event_dispatch.event.when, type=type(event_dispatch.event)
+            "Dispatching event", when=event_dispatch.event.when, type=helpers.classpath(event_dispatch.event)
         ))
         if self._sniffers_pre:
             await asyncio.gather(

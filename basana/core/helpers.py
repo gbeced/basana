@@ -170,3 +170,10 @@ def truncate_decimal(value: Decimal, precision: int) -> Decimal:
 
 def deprecation(message: str):
     warnings.warn(message, DeprecationWarning, stacklevel=2)
+
+
+def classpath(obj: object):
+    cls = obj.__class__
+    module = cls.__module__
+    parts = [str(module), cls.__qualname__] if module else [cls.__qualname__]
+    return ".".join(parts)
