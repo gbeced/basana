@@ -6,6 +6,12 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+import os
+import sys
+
+# To get rid of 'WARNING: autodoc: failed to import class'
+sys.path.append(os.path.abspath(".."))
+
 project = 'Basana'
 copyright = '2022, Gabriel Martin Becedillas Ruiz'
 author = 'Gabriel Martin Becedillas Ruiz'
