@@ -9,10 +9,9 @@ build:
       # Install poetry
       # https://python-poetry.org/docs/#installing-manually
       - pip install poetry
-      # Tell poetry to not use a virtual environment
-      - poetry config virtualenvs.create false
-    post_install:
-      - poetry install --all-extras
+      # Build and install basana.
+      - poetry build
+      - pip install dist/basana-`poetry version -s`.tar.gz[charts]
 
 sphinx:
   configuration: docs/conf.py
