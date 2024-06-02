@@ -32,3 +32,22 @@ class OrderOperation(enum.Enum):
             OrderOperation.BUY: "buy",
             OrderOperation.SELL: "sell",
         }[self]
+
+
+@enum.unique
+class Position(enum.Enum):
+    """Enumeration for positions."""
+
+    #:
+    LONG = 200
+    #:
+    SHORT = 201
+    #:
+    NEUTRAL = 202
+
+    def __str__(self):
+        return {
+            Position.LONG: "long",
+            Position.SHORT: "short",
+            Position.NEUTRAL: "neutral",
+        }[self]

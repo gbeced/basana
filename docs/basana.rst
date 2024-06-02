@@ -45,6 +45,8 @@ you define. Take a look at the :doc:`quickstart` section for examples on how to 
     :members:
 .. autoclass:: basana.PairInfo
     :members:
+.. autoclass:: basana.Position
+    :members:
 
 .. autoclass:: basana.TradingSignal
     :show-inheritance:
