@@ -147,7 +147,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
 
     @property
     def current_event_dt(self) -> Optional[datetime.datetime]:  # pragma: no cover
-        helpers.deprecation("Use now() instead")
+        helpers.deprecation_warning("Use now() instead")
         return self.now()
 
     @abc.abstractmethod

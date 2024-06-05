@@ -168,7 +168,7 @@ def truncate_decimal(value: Decimal, precision: int) -> Decimal:
     return round_decimal(value, precision, rounding=decimal.ROUND_DOWN)
 
 
-def deprecation(message: str):
+def deprecation_warning(message: str):
     warnings.warn(message, DeprecationWarning, stacklevel=2)
 
 
