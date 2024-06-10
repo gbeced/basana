@@ -44,6 +44,10 @@ class OrderInfo:
     id: str
     #: True if the order is open, False otherwise.
     is_open: bool
+    #: The operation.
+    operation: OrderOperation
+    #: The original amount.
+    amount: Decimal
     #: The amount filled.
     amount_filled: Decimal
     #: The amount remaining.
@@ -52,6 +56,10 @@ class OrderInfo:
     quote_amount_filled: Decimal
     #: The fees charged.
     fees: Dict[str, Decimal]
+    #: The limit price.
+    limit_price: Optional[Decimal] = None
+    #: The stop price.
+    stop_price: Optional[Decimal] = None
 
     @property
     def fill_price(self) -> Optional[Decimal]:
@@ -144,8 +152,9 @@ class Order:
 
     def get_order_info(self) -> OrderInfo:
         return OrderInfo(
-            id=self.id, is_open=self._state == OrderState.OPEN, amount_filled=self.amount_filled,
-            amount_remaining=self.amount_pending, quote_amount_filled=self.quote_amount_filled,
+            id=self.id, is_open=self._state == OrderState.OPEN, operation=self.operation,
+            amount=self.amount, amount_filled=self.amount_filled, amount_remaining=self.amount_pending,
+            quote_amount_filled=self.quote_amount_filled,
             fees={symbol: -amount for symbol, amount in self._fees.items() if amount}
         )
 
@@ -242,6 +251,11 @@ class LimitOrder(Order):
             }
         return ret
 
+    def get_order_info(self) -> OrderInfo:
+        ret = super().get_order_info()
+        ret.limit_price = self._limit_price
+        return ret
+
 
 class StopOrder(Order):
     def __init__(
@@ -294,6 +308,11 @@ class StopOrder(Order):
                 self.pair.base_symbol: amount * base_sign,
                 self.pair.quote_symbol: price * amount * -base_sign
             }
+        return ret
+
+    def get_order_info(self) -> OrderInfo:
+        ret = super().get_order_info()
+        ret.stop_price = self._stop_price
         return ret
 
 
@@ -406,6 +425,12 @@ class StopLimitOrder(Order):
             ret = self.get_balance_updates_before_stop_hit(bar, liquidity_strategy)
         else:
             ret = self.get_balance_updates_after_stop_hit(bar, liquidity_strategy)
+        return ret
+
+    def get_order_info(self) -> OrderInfo:
+        ret = super().get_order_info()
+        ret.limit_price = self._limit_price
+        ret.stop_price = self._stop_price
         return ret
 
 

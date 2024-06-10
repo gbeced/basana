@@ -650,6 +650,9 @@ def test_small_fill_is_ignored_after_rounding(backtesting_dispatcher):
         assert order_info is not None
         assert not order_info.is_open
         assert order_info.fill_price == Decimal(2)
+        assert order_info.operation == exchange.OrderOperation.BUY
+        assert order_info.amount == Decimal("0.1")
+        assert order_info.limit_price == Decimal("2")
 
         # There should be no holds in place since the order is completed.
         assert sum(e._balances._holds_by_symbol.values()) == 0
