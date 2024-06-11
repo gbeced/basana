@@ -17,7 +17,7 @@
 from typing import cast, Any, Awaitable, Callable, Dict, Iterable, List, Optional, Union
 import datetime
 
-from basana.core import dispatcher, enums, errors, event, pair
+from basana.core import dispatcher, enums, errors, event, helpers, pair
 
 
 class BaseTradingSignal(event.Event):
@@ -55,6 +55,10 @@ class TradingSignal(BaseTradingSignal):
         super().__init__(when)
 
         if isinstance(op_or_pos, enums.OrderOperation):
+            helpers.deprecation_warning(
+                "Support for bs.OrderOperation in trading signals will be removed soon."
+                " Switch to bs.Position"
+            )
             op_or_pos = {
                 enums.OrderOperation.BUY: enums.Position.LONG,
                 enums.OrderOperation.SELL: enums.Position.SHORT,
