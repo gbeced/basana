@@ -15,58 +15,55 @@
 # limitations under the License.
 
 # Bars can be downloaded using this command:
-# python -m basana.external.bitstamp.tools.download_bars -c BTC/USD -p 1d -s 2021-01-01 -e 2021-12-31 \
-# -o bitstamp_btcusd_day.csv
+# python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2021-01-01 -e 2021-12-31 \
+# -o binance_btcusdt_day.csv
 
 from decimal import Decimal
 import asyncio
 import logging
 
 from basana.backtesting import charts
-from basana.external.bitstamp import csv
+from basana.core.logs import StructuredMessage
+from basana.external.binance import csv
 import basana as bs
 import basana.backtesting.exchange as backtesting_exchange
 
 from samples.backtesting import position_manager
-from samples.strategies import rsi
+from samples.strategies import sma
 
 
 async def main():
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
 
     event_dispatcher = bs.backtesting_dispatcher()
-    quote_symbol = "USD"
+    quote_symbol = "USDT"
     pair = bs.Pair("BTC", quote_symbol)
     exchange = backtesting_exchange.Exchange(
         event_dispatcher,
-        initial_balances={"BTC": Decimal(0), "USD": Decimal(1200)}
+        initial_balances={"BTC": Decimal(0), quote_symbol: Decimal(1200)},
     )
     exchange.set_pair_info(pair, bs.PairInfo(8, 2))
     exchange.set_symbol_precision(quote_symbol, 2)
 
     # Connect the strategy to the bar events from the exchange.
-    oversold_level = 30
-    overbought_level = 70
-    strategy = rsi.Strategy(event_dispatcher, 7, oversold_level, overbought_level)
+    strategy = sma.Strategy(event_dispatcher, 12)
     exchange.subscribe_to_bar_events(pair, strategy.on_bar_event)
 
     # Connect the position manager to the strategy signals and to bar events. Borrowing is disabled in this example.
     position_mgr = position_manager.PositionManager(
-        exchange, Decimal(1000), quote_symbol, Decimal(6), borrowing_disabled=True
+        exchange, Decimal(1000), quote_symbol, Decimal(5), borrowing_disabled=True
     )
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
     exchange.subscribe_to_bar_events(pair, position_mgr.on_bar_event)
 
     # Load bars from the CSV file.
-    exchange.add_bar_source(csv.BarSource(pair, "bitstamp_btcusd_day.csv", "1d"))
+    exchange.add_bar_source(csv.BarSource(pair, "binance_btcusdt_day.csv", "1d"))
 
     # Setup chart.
     chart = charts.LineCharts(exchange)
     chart.add_pair(pair)
-    chart.add_portfolio_value("USD")
-    chart.add_custom("RSI", "RSI", charts.DataPointFromSequence(strategy.rsi))
-    chart.add_custom("RSI", "Overbought", lambda _: overbought_level)
-    chart.add_custom("RSI", "Oversold", lambda _: oversold_level)
+    chart.add_pair_indicator("SMA", pair, charts.DataPointFromSequence(strategy.sma))
+    chart.add_portfolio_value("USDT")
 
     # Run the backtest.
     await event_dispatcher.run()
@@ -74,9 +71,12 @@ async def main():
     # Log balances.
     balances = await exchange.get_balances()
     for currency, balance in balances.items():
-        logging.info("%s balance: %s", currency, balance.available)
+        logging.info(StructuredMessage(
+            f"{currency} balance", available=balance.available
+        ))
 
     chart.show()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -18,9 +18,9 @@ from decimal import Decimal
 
 import pytest
 
-from samples.backtesting_bbands import PositionInfo
-import basana as bs
 from basana.backtesting import exchange
+from samples.backtesting.position_manager import PositionInfo
+import basana as bs
 
 
 def test_long_partially_filled():
