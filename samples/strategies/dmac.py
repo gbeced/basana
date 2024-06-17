@@ -37,9 +37,9 @@ class Strategy(bs.TradingSignalSource):
                 or self._st_sma[-2] is None or self._lt_sma[-2] is None:
             return
 
-        # Short term MA crossed above long term MA ?
+        # Go long when short-term MA crosses above long-term MA.
         if self._st_sma[-2] <= self._lt_sma[-2] and self._st_sma[-1] > self._lt_sma[-1]:
-            self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair))
-        # Short term MA crossed below long term MA ?
+            self.push(bs.TradingSignal(bar_event.when, bs.Position.LONG, bar_event.bar.pair))
+        # Go short when short-term MA crosses below long-term MA.
         elif self._st_sma[-2] >= self._lt_sma[-2] and self._st_sma[-1] < self._lt_sma[-1]:
-            self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair))
+            self.push(bs.TradingSignal(bar_event.when, bs.Position.SHORT, bar_event.bar.pair))
