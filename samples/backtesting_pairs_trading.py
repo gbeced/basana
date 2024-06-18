@@ -20,7 +20,6 @@
 # python -m basana.external.binance.tools.download_bars -c CVC/USDT -p 1h -s 2021-12-01 -e 2021-12-26 \
 # -o binance_cvcusdt_hourly.csv
 
-
 from decimal import Decimal
 import asyncio
 import datetime

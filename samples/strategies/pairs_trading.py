@@ -28,6 +28,7 @@ def get_p_value(values_1, values_2):
     return stattools.coint(values_1, values_2)[1]
 
 
+# Strategy based on https://notebook.community/gwulfs/research_public/lectures/pairs_trading/Pairs%20Trading
 class Strategy(bs.TradingSignalSource):
     def __init__(
             self, dispatcher: bs.EventDispatcher, pair_1: bs.Pair, pair_2: bs.Pair, window_size: int,

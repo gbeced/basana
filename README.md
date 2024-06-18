@@ -18,27 +18,30 @@
 
 ### Installation
 
-The examples use [TALIpp](https://github.com/nardew/talipp) for the technical indicators, so we need to install talipp as well.
+The examples use [TALIpp](https://github.com/nardew/talipp) for the technical indicators, pandas and statsmodels.
 
 ```
-$ pip install basana[charts] talipp
+$ pip install basana[charts] talipp pandas statsmodels
 ```
 
-### Download historical data for backtesting
+### Backtest a pairs trading strategy
+
+#### Download historical data for backtesting
 
 ```
-$ python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2021-01-01 -e 2021-12-31 -o binance_btcusdt_day.csv
+$ python -m basana.external.binance.tools.download_bars -c BCH/USDT -p 1h -s 2021-12-01 -e 2021-12-26 -o binance_bchusdt_hourly.csv
+$ python -m basana.external.binance.tools.download_bars -c CVC/USDT -p 1h -s 2021-12-01 -e 2021-12-26 -o binance_cvcusdt_hourly.csv
 ```
 
-### Backtesting using SMA and market orders
+#### Run the backtest
 
 ```
-$ python -m samples.backtesting_sma
+$ python -m samples.backtesting_pairs_trading
 ```
 
-![./docs/_static/readme_sma.png](./docs/_static/readme_sma.png)
+![./docs/_static/readme_pairs_trading.png](./docs/_static/readme_pairs_trading.png)
 
-The Basana repository comes with a number of [examples](./samples) you can experiment with or use as a template for your own projects.
+The Basana repository comes with a number of [examples](./samples) you can experiment with or use as a template for your own projects:
 
 **Note that these examples are provided for educational purposes only. Use at your own risk.**
 
