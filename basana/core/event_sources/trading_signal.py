@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import cast, Any, Awaitable, Callable, Dict, Iterable, List, Optional, Union
+from typing import cast, Any, Awaitable, Callable, Dict, Iterable, List, Optional, Tuple, Union
 import datetime
 
 from basana.core import dispatcher, enums, errors, event, helpers, pair
@@ -24,20 +24,15 @@ class BaseTradingSignal(event.Event):
     def __init__(self, when: datetime.datetime):
         super().__init__(when)
         self._positions: Dict[pair.Pair, enums.Position] = {}
-        self._extras: Dict[pair.Pair, Dict[str, Any]] = {}
 
-    def add_pair(self, pair: pair.Pair, position: enums.Position, extras: Dict[str, Any] = {}):
+    def add_pair(self, pair: pair.Pair, position: enums.Position):
         self._positions[pair] = position
-        self._extras.setdefault(pair, {}).update(extras)
 
-    def get_pairs(self) -> Iterable[pair.Pair]:
-        return self._positions.keys()
+    def get_pairs(self) -> Iterable[Tuple[pair.Pair, enums.Position]]:
+        return self._positions.items()
 
-    def get_pair_position(self, pair: pair.Pair) -> enums.Position:
+    def get_position(self, pair: pair.Pair) -> enums.Position:
         return self._positions[pair]
-
-    # def get_pair_extras(self, pair: pair.Pair) -> Dict[str, Any]:
-    #     return self._extras.get(pair, {})
 
 
 class TradingSignal(BaseTradingSignal):
@@ -67,11 +62,12 @@ class TradingSignal(BaseTradingSignal):
 
     @property
     def pair(self) -> pair.Pair:
-        return next(iter(self.get_pairs()))
+        pair, _ = next(iter(self.get_pairs()))
+        return pair
 
     @property
     def position(self) -> enums.Position:
-        return self.get_pair_position(self.pair)
+        return self.get_position(self.pair)
 
     @property
     def operation(self) -> enums.OrderOperation:

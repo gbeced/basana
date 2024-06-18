@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Dict, Optional
 import asyncio
 import dataclasses
+import datetime
 import logging
 
 from basana.core.logs import StructuredMessage
@@ -94,6 +95,7 @@ class PositionManager:
         self._positions: Dict[bs.Pair, PositionInfo] = {}
         self._stop_loss_pct = stop_loss_pct
         self._borrowing_disabled = borrowing_disabled
+        self._last_check_loss: Optional[datetime.datetime] = None
 
     async def cancel_open_orders(self, pair: bs.Pair):
         open_orders = await self._exchange.get_open_orders(pair)
@@ -192,22 +194,25 @@ class PositionManager:
         self._positions[pair] = pos_info
 
     async def on_trading_signal(self, trading_signal: bs.TradingSignal):
-        logging.info(StructuredMessage(
-            "Trading signal", pair=trading_signal.pair, target_position=trading_signal.position
-        ))
+        pairs = list(trading_signal.get_pairs())
+        logging.info(StructuredMessage("Trading signal", pairs=pairs))
 
         try:
-            target_position = trading_signal.position
-            if self._borrowing_disabled and target_position == bs.Position.SHORT:
-                target_position = bs.Position.NEUTRAL
-            await self.switch_position(trading_signal.pair, target_position)
+            coros = []
+            for pair, target_position in pairs:
+                if self._borrowing_disabled and target_position == bs.Position.SHORT:
+                    target_position = bs.Position.NEUTRAL
+                coros.append(self.switch_position(pair, target_position))
+            await asyncio.gather(*coros)
         except Exception as e:
             logging.exception(e)
 
     async def on_bar_event(self, bar_event: bs.BarEvent):
         bar = bar_event.bar
         logging.info(StructuredMessage(bar.pair, close=bar.close))
-        await self.check_loss()
+        if self._last_check_loss is None or self._last_check_loss < bar_event.when:
+            self._last_check_loss = bar_event.when
+            await self.check_loss()
 
 
 def signed_to_position(signed):
