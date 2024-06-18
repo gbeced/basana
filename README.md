@@ -36,7 +36,7 @@ $ python -m basana.external.binance.tools.download_bars -c CVC/USDT -p 1h -s 202
 #### Run the backtest
 
 ```
-$ python -m samples.backtesting_pairs_trading
+$ python -m samples.backtest_pairs_trading
 ```
 
 ![./docs/_static/readme_pairs_trading.png](./docs/_static/readme_pairs_trading.png)
