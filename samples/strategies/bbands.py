@@ -21,9 +21,9 @@ import basana as bs
 
 # Strategy based on Bollinger Bands: https://www.investopedia.com/articles/trading/07/bollinger.asp
 class Strategy(bs.TradingSignalSource):
-    def __init__(self, dispatcher: bs.EventDispatcher, period: int, std_dev_multiplier: float):
+    def __init__(self, dispatcher: bs.EventDispatcher, period: int, std_dev: float):
         super().__init__(dispatcher)
-        self.bb = BB(period, std_dev_multiplier)
+        self.bb = BB(period, std_dev)
         self._values = (None, None)
 
     async def on_bar_event(self, bar_event: bs.BarEvent):

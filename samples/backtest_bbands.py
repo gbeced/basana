@@ -39,6 +39,10 @@ async def main():
     event_dispatcher = bs.backtesting_dispatcher()
     quote_symbol = "USDT"
     pair = bs.Pair("BTC", quote_symbol)
+    position_amount = Decimal(1000)
+    stop_loss_pct = Decimal(5)
+
+    # We'll be opening short positions so we need to set a lending strategy when initializing the exchange.
     lending_strategy = margin.MarginLoans(quote_symbol, default_conditions=margin.MarginLoanConditions(
         interest_symbol=quote_symbol, interest_percentage=Decimal("7"),
         interest_period=datetime.timedelta(days=365), min_interest=Decimal("0.01"),
@@ -51,18 +55,18 @@ async def main():
     )
     exchange.set_pair_info(pair, bs.PairInfo(8, 2))
     exchange.set_symbol_precision(quote_symbol, 2)
+    exchange.add_bar_source(csv.BarSource(pair, "binance_btcusdt_day.csv", "1d"))
 
     # Connect the strategy to the bar events from the exchange.
-    strategy = bbands.Strategy(event_dispatcher, 30, 2)
+    strategy = bbands.Strategy(event_dispatcher, period=30, std_dev=2)
     exchange.subscribe_to_bar_events(pair, strategy.on_bar_event)
 
     # Connect the position manager to the strategy signals and to bar events.
-    position_mgr = position_manager.PositionManager(exchange, Decimal(1000), quote_symbol, Decimal(5))
+    position_mgr = position_manager.PositionManager(
+        exchange, position_amount, quote_symbol, stop_loss_pct
+    )
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
     exchange.subscribe_to_bar_events(pair, position_mgr.on_bar_event)
-
-    # Load bars from the CSV file.
-    exchange.add_bar_source(csv.BarSource(pair, "binance_btcusdt_day.csv", "1d"))
 
     # Setup chart.
     chart = charts.LineCharts(exchange)
@@ -86,9 +90,7 @@ async def main():
     # Log balances.
     balances = await exchange.get_balances()
     for currency, balance in balances.items():
-        logging.info(StructuredMessage(
-            f"{currency} balance", available=balance.available
-        ))
+        logging.info(StructuredMessage(f"{currency} balance", available=balance.available))
 
     chart.show()
 

@@ -28,23 +28,25 @@ from samples.strategies import bbands
 async def main():
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
 
+    event_dispatcher = bs.realtime_dispatcher()
     quote_symbol = "USDT"
     pair = bs.Pair("ETH", "USDT")
-    position_amount = Decimal("100")
-    event_dispatcher = bs.realtime_dispatcher()
+    position_amount = Decimal(100)
+    stop_loss_pct = Decimal(5)
+    checkpoint_fname = "binance_bbands_positions.json"
     api_key = "YOUR_API_KEY"
     api_secret = "YOUR_API_SECRET"
-    exchange = binance_exchange.Exchange(event_dispatcher, api_key=api_key, api_secret=api_secret)
-    position_mgr = position_manager.SpotAccountPositionManager(
-        exchange, position_amount, quote_symbol, Decimal(5), "binance_bbands_positions.json"
-    )
 
-    # position_mgr.load()
+    exchange = binance_exchange.Exchange(event_dispatcher, api_key=api_key, api_secret=api_secret)
 
     # Connect the strategy to the bar events from the exchange.
-    strategy = bbands.Strategy(event_dispatcher, 20, 1.5)
+    strategy = bbands.Strategy(event_dispatcher, period=20, std_dev=1.5)
     exchange.subscribe_to_bar_events(pair, "1m", strategy.on_bar_event)
 
+    # We'll be using the spot account, so there will be no short positions opened.
+    position_mgr = position_manager.SpotAccountPositionManager(
+        exchange, position_amount, quote_symbol, stop_loss_pct, checkpoint_fname
+    )
     # Connect the position manager to the strategy signals and to bar events just for logging.
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
     exchange.subscribe_to_bar_events(pair, "1m", position_mgr.on_bar_event)

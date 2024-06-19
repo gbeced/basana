@@ -15,8 +15,9 @@ The framework has 3 main components:
 * External integrations, where you'll find support for live trading at `Binance <https://www.binance.com/>`_ and
   `Bitstamp <https://www.bitstamp.net/>`_ crypto currency exchanges.
 
-Basana doesn't ship with technical indicators. The examples take advantage of `TALIpp <https://github.com/nardew/talipp>`_ which is a good fit
-for event driven and real time applications, but you're free to use any other library that you prefer.
+Basana doesn't ship with technical indicators. The `examples at GitHub <https://github.com/gbeced/basana/tree/master/samples>`_
+take advantage of `TALIpp <https://github.com/nardew/talipp>`_ which is a good fit for event driven and real time applications,
+but you're free to use any other library that you prefer.
 
 Check out the :doc:`quickstart` section for further information, including how to :ref:`install <quickstart_installation>` the package,
 do a :ref:`backtest <quickstart_backtesting>` and :ref:`live trade <quickstart_livetrading>`.
