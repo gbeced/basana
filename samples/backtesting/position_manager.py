@@ -127,7 +127,7 @@ class PositionManager:
                 f"Position for {pos_info.pair}", current=pos_info.current, target=pos_info.target,
                 avg_price=pos_info.avg_price, pnl_pct=pnl_pct, order_open=pos_info.order_open
             ))
-            if pnl_pct < self._stop_loss_pct * -1:
+            if pnl_pct <= self._stop_loss_pct * -1:
                 logging.info(f"Stop loss for {pos_info.pair}")
                 await self.switch_position(pos_info.pair, bs.Position.NEUTRAL, force=True)
 
