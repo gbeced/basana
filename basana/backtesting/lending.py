@@ -20,14 +20,10 @@ import abc
 import copy
 import dataclasses
 import datetime
-import logging
 
 from basana.backtesting import account_balances, config, errors, helpers as bt_helpers, prices
 from basana.backtesting.value_map import ValueMap, ValueMapDict
-from basana.core import dispatcher, logs
-
-
-logger = logging.getLogger(__name__)
+from basana.core import dispatcher
 
 
 @dataclasses.dataclass
@@ -183,24 +179,19 @@ class LoanManager:
         interest.prune()
         collateral = self._collateral_by_loan[loan_id]
 
-        try:
-            # Update balances.
-            balance_updates = ValueMap({loan.borrowed_symbol: -loan.borrowed_amount})
-            balance_updates -= interest
-            self._ctx.account_balances.update(
-                balance_updates=balance_updates,
-                borrowed_updates={loan.borrowed_symbol: -loan.borrowed_amount},
-                hold_updates={symbol: -amount for symbol, amount in collateral.items()}
-            )
+        # Update balances.
+        balance_updates = ValueMap({loan.borrowed_symbol: -loan.borrowed_amount})
+        balance_updates -= interest
+        self._ctx.account_balances.update(
+            balance_updates=balance_updates,
+            borrowed_updates={loan.borrowed_symbol: -loan.borrowed_amount},
+            hold_updates={symbol: -amount for symbol, amount in collateral.items()}
+        )
 
-            # Close the loan now that balance updates succeeded.
-            loan.add_paid_interest(interest)
-            loan.close()
-            self._collateral_by_loan.pop(loan_id)
-
-        except errors.NotEnoughBalance as e:
-            logger.debug(logs.StructuredMessage("Failed to repay the loan", loan_id=loan_id, error=str(e)))
-            raise
+        # Close the loan now that balance updates succeeded.
+        loan.add_paid_interest(interest)
+        loan.close()
+        self._collateral_by_loan.pop(loan_id)
 
     def cancel_loan(self, loan_id: str):
         loan = self._get_open_loan(loan_id)

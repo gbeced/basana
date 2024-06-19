@@ -312,5 +312,3 @@ def test_repay_fails(backtesting_dispatcher, caplog):
         assert balances["USD"].hold == 0
 
     asyncio.run(impl())
-
-    assert caplog.text.count("Not enough balance to repay loan") == 1

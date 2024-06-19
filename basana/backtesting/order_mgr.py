@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Callable, Dict, Generator, Iterable, List, Optional
+from typing import cast, Callable, Dict, Generator, Iterable, List, Optional
 import dataclasses
 import decimal
 import logging
@@ -157,10 +157,11 @@ class OrderManager:
         candidate_loans.sort(key=lambda loan: loan.borrowed_amount, reverse=True)
         for loan in candidate_loans:
             try:
-                logger.debug(logs.StructuredMessage("Repaying loan", loan=loan))
                 self._ctx.loan_mgr.repay_loan(loan.id)
-            except errors.NotEnoughBalance as e:
-                logger.debug(logs.StructuredMessage("Not enough balance to repay loan", loan_id=loan.id, error=e))
+                loan = cast(lending.LoanInfo, self._ctx.loan_mgr.get_loan(loan.id))
+                logger.debug(logs.StructuredMessage("Repayed loan", loan=dataclasses.asdict(loan)))
+            except errors.NotEnoughBalance:
+                pass
 
     def _order_closed(self, order: Order):
         # The order is closed and there might be balances on hold that have to be released.
@@ -193,24 +194,9 @@ class OrderManager:
         prev_state = order.state
         balance_updates = ValueMap(order.get_balance_updates(bar_event.bar, liquidity_strategy))
         assert order.state == prev_state, "The order state should not change inside get_balance_updates"
-        logger.debug(logs.StructuredMessage(
-            "Balance updates before rounding", order_id=order.id, balance_updates=balance_updates
-        ))
-
-        # If there are no balance updates then there is nothing left to do.
-        if not balance_updates:
-            order_not_filled()
-            return
-
-        # Sanity checks. Base and quote amounts should be there.
-        base_sign = helpers.get_base_sign_for_operation(order.operation)
-        assert_balance_update_value(balance_updates, order.pair.base_symbol, base_sign)
-        assert_balance_update_value(balance_updates, order.pair.quote_symbol, -base_sign)
-
-        # If base/quote amounts were removed after rounding then there is nothing left to do.
         self._round_balance_updates(balance_updates, order.pair)
         logger.debug(logs.StructuredMessage(
-            "Balance updates after rounding", order_id=order.id, balance_updates=balance_updates
+            "Order balance updates", order_id=order.id, balance_updates=balance_updates
         ))
         if order.pair.base_symbol not in balance_updates or order.pair.quote_symbol not in balance_updates:
             order_not_filled()
@@ -220,7 +206,7 @@ class OrderManager:
         fees = ValueMap(self._ctx.fee_strategy.calculate_fees(order, balance_updates))
         self._round_fees(fees, order.pair)
         logger.debug(logs.StructuredMessage(
-            "Fees after rounding", order_id=order.id, fees=fees
+            "Order fees", order_id=order.id, fees=fees
         ))
 
         try:
@@ -300,10 +286,3 @@ class OrderManager:
             symbol: -amount for symbol, amount in estimated_balance_updates.items()
             if amount < Decimal(0)
         })
-
-
-def assert_balance_update_value(balance_updates: Dict[str, Decimal], symbol: str, sign: Decimal):
-    value = balance_updates.get(symbol)
-    assert value is not None, f"{symbol} is missing"
-    assert value != Decimal(0), f"{symbol} is zero"
-    assert helpers.get_sign(value) == sign, f"{symbol} sign is wrong. It should be {sign}"

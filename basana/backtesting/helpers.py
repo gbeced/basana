@@ -20,23 +20,6 @@ from typing import Dict, Generator, Generic, Iterable, List, Optional, Protocol,
 from basana.core.enums import OrderOperation
 
 
-ZERO = Decimal(0)
-
-
-def copy_sign(x: Decimal, y: Decimal) -> Decimal:
-    assert isinstance(x, Decimal)
-    assert isinstance(y, Decimal)
-
-    ret = x
-    if x > ZERO and y < ZERO or x < ZERO and y > ZERO:
-        ret = -x
-    return ret
-
-
-def get_sign(value: Decimal) -> Decimal:
-    return copy_sign(Decimal(1), value)
-
-
 def get_base_sign_for_operation(operation: OrderOperation) -> Decimal:
     if operation == OrderOperation.BUY:
         base_sign = Decimal(1)
