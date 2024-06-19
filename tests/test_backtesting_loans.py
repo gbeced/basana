@@ -205,6 +205,7 @@ def test_borrow_and_repay(
         assert loan.paid_interest == {}
 
         await e.repay_loan(loan.id)
+        assert loan.paid_interest == {}  # Regression check.
 
         # Checks after repay.
         for symbol, expected_balance in final_balances.items():

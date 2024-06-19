@@ -17,6 +17,7 @@
 from decimal import Decimal
 from typing import Dict, List, Optional
 import abc
+import copy
 import dataclasses
 import datetime
 import logging
@@ -240,5 +241,5 @@ class LoanManager:
         return LoanInfo(
             id=loan.id, is_open=loan.is_open, borrowed_symbol=loan.borrowed_symbol,
             borrowed_amount=loan.borrowed_amount, outstanding_interest=outstanding_interest,
-            paid_interest=loan.paid_interest
+            paid_interest=copy.copy(loan.paid_interest)
         )
