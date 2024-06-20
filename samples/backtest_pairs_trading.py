@@ -25,7 +25,8 @@ import asyncio
 import datetime
 import logging
 
-from basana.backtesting import charts, margin
+from basana.backtesting import charts
+from basana.backtesting.lending import margin
 from basana.core.logs import StructuredMessage
 from basana.external.binance import csv
 import basana as bs
@@ -43,6 +44,7 @@ async def main():
     pair_1 = bs.Pair("BCH", quote_symbol)
     pair_2 = bs.Pair("CVC", quote_symbol)
 
+    # We'll be opening short positions so we need to set a lending strategy when initializing the exchange.
     lending_strategy = margin.MarginLoans(quote_symbol, default_conditions=margin.MarginLoanConditions(
         interest_symbol=quote_symbol, interest_percentage=Decimal("10"),
         interest_period=datetime.timedelta(days=365), min_interest=Decimal("0.01"),
@@ -55,13 +57,17 @@ async def main():
     )
     exchange.set_symbol_precision(quote_symbol, 2)
 
+    # When opening positions, either long or short, size each order to 1000 USDT and close the position if the loss
+    # is greater than, or equal to, 5%.
+    position_mgr = position_manager.PositionManager(
+        exchange, position_amount=Decimal(1000), quote_symbol=quote_symbol, stop_loss_pct=Decimal(5)
+    )
+
+    # The pairs trading strategy.
     p_value_threshold = 0.01
     trading_strategy = pairs_trading.Strategy(
         event_dispatcher, pair_1, pair_2, window_size=24 * 10, p_value_threshold=p_value_threshold,
         z_score_entry_ge=2.3, z_score_exit_lt=1.5
-    )
-    position_mgr = position_manager.PositionManager(
-        exchange, position_amount=Decimal(1000), quote_symbol=quote_symbol, stop_loss_pct=Decimal(5)
     )
     # Connect the position manager to the strategy signals.
     trading_strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
