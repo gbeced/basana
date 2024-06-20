@@ -46,6 +46,7 @@ def build_bar_source(
 
 
 @pytest.mark.parametrize("entry_dt, entry_limit_price, exit_dt, exit_limit_price, amount, final_balances", [
+    # Limit order buy.
     (
         dt.local_datetime(2000, 1, 2), Decimal(1000),
         dt.local_datetime(2000, 1, 3), Decimal(2000),
@@ -55,9 +56,30 @@ def build_bar_source(
             "USD": Decimal("1000") + Decimal("5000") - Decimal("12.50") - Decimal("25") - Decimal("2.19")
         },
     ),
+    # Limit order sell.
     (
         dt.local_datetime(2000, 1, 4), Decimal(3000),
         dt.local_datetime(2000, 1, 6), Decimal(1000),
+        Decimal("-1"),
+        {
+            "BTC": Decimal(0),
+            "USD": Decimal("1000") + Decimal("2000") - Decimal("7.5") - Decimal("2.5") - Decimal("1")
+        },
+    ),
+    # Market order buy.
+    (
+        dt.local_datetime(2000, 1, 2), None,
+        dt.local_datetime(2000, 1, 3), None,
+        Decimal("5"),
+        {
+            "BTC": Decimal(0),
+            "USD": Decimal("1000") + Decimal("5000") - Decimal("12.50") - Decimal("25") - Decimal("2.19")
+        },
+    ),
+    # Market order sell.
+    (
+        dt.local_datetime(2000, 1, 4), None,
+        dt.local_datetime(2000, 1, 6), None,
         Decimal("-1"),
         {
             "BTC": Decimal(0),
@@ -86,17 +108,21 @@ def test_entry_and_exit_ok(
     )
 
     async def enter_position():
-        order = await e.create_limit_order(
-            OrderOperation.BUY if amount > Decimal(0) else OrderOperation.SELL,
-            pair, abs(amount), entry_limit_price, auto_borrow=True
-        )
+        operation = OrderOperation.BUY if amount > Decimal(0) else OrderOperation.SELL
+        if entry_limit_price:
+            coro = e.create_limit_order(operation, pair, abs(amount), entry_limit_price, auto_borrow=True)
+        else:
+            coro = e.create_market_order(operation, pair, abs(amount), auto_borrow=True)
+        order = await coro
         order_ids.append(order.id)
 
     async def exit_position():
-        order = await e.create_limit_order(
-            OrderOperation.SELL if amount > Decimal(0) else OrderOperation.BUY,
-            pair, abs(amount), exit_limit_price, auto_repay=True
-        )
+        operation = OrderOperation.SELL if amount > Decimal(0) else OrderOperation.BUY
+        if entry_limit_price:
+            coro = e.create_limit_order(operation, pair, abs(amount), exit_limit_price, auto_repay=True)
+        else:
+            coro = e.create_market_order(operation, pair, abs(amount), auto_repay=True)
+        order = await coro
         order_ids.append(order.id)
 
     async def on_bar(bar_event):
