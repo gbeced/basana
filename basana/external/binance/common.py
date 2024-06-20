@@ -172,6 +172,11 @@ class OrderInfo(OrderWrapper):
                 self._fees[trade.commission_asset] += trade.commission
 
     @property
+    def operation(self) -> OrderOperation:
+        """The operation."""
+        return helpers.side_to_order_operation(self.json["side"])
+
+    @property
     def amount_remaining(self) -> Decimal:
         """The amount remaining to be filled."""
         return self.amount - self.amount_filled

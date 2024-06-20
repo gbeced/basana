@@ -1,6 +1,10 @@
 # Changelog
 
-## 1.5.1
+## 1.6
+
+### Features
+
+* Support for borrowing funds and opening short positions.
 
 ### Bug fixes
 

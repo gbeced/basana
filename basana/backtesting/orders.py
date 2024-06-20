@@ -22,7 +22,7 @@ import datetime
 import enum
 import logging
 
-from basana.backtesting import helpers, liquidity
+from basana.backtesting import helpers, liquidity, value_map
 from basana.core import bar, logs
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
@@ -78,8 +78,11 @@ class Fill:
 
 
 # This is an internal abstraction to be used by the exchange.
-class Order:
-    def __init__(self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState):
+class Order(metaclass=abc.ABCMeta):
+    def __init__(
+            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState,
+            auto_borrow: bool = False, auto_repay: bool = False
+    ):
         assert amount > Decimal(0), f"Invalid amount {amount}"
 
         self._id = id
@@ -87,9 +90,11 @@ class Order:
         self._pair = pair
         self._amount = amount
         self._state = state
-        self._balance_updates: Dict[str, Decimal] = {}
-        self._fees: Dict[str, Decimal] = {}
+        self._balance_updates = value_map.ValueMap()
+        self._fees = value_map.ValueMap()
         self._fills: List[Fill] = []
+        self._auto_borrow = auto_borrow
+        self._auto_repay = auto_repay
 
     @property
     def id(self) -> str:
@@ -116,11 +121,11 @@ class Order:
         return self._state == OrderState.OPEN
 
     @property
-    def balance_updates(self) -> Dict[str, Decimal]:
+    def balance_updates(self) -> value_map.ValueMap:
         return self._balance_updates
 
     @property
-    def fees(self) -> Dict[str, Decimal]:
+    def fees(self) -> value_map.ValueMap:
         return self._fees
 
     @property
@@ -139,13 +144,21 @@ class Order:
     def fills(self) -> List[Fill]:
         return self._fills
 
+    @property
+    def auto_borrow(self) -> bool:
+        return self._auto_borrow
+
+    @property
+    def auto_repay(self) -> bool:
+        return self._auto_repay
+
     def cancel(self):
         assert self._state == OrderState.OPEN
         self._state = OrderState.CANCELED
 
     def add_fill(self, when: datetime.datetime, balance_updates: Dict[str, Decimal], fees: Dict[str, Decimal]):
-        self._balance_updates = helpers.add_amounts(self._balance_updates, balance_updates)
-        self._fees = helpers.add_amounts(self._fees, fees)
+        self._balance_updates += balance_updates
+        self._fees += fees
         if self.amount_filled >= self.amount:
             self._state = OrderState.COMPLETED
         self._fills.append(Fill(when=when, balance_updates=balance_updates, fees=fees))
@@ -162,7 +175,8 @@ class Order:
     def get_balance_updates(
             self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy
     ) -> Dict[str, Decimal]:
-        """Returns the balance updates required to fill the order.
+        """
+        Returns the balance updates required to fill the order.
 
         :param bar: The bar that summarizes the trading activity.
         :param liquidity_strategy: The strategy used to model available liquidity.
@@ -177,16 +191,33 @@ class Order:
         """
         raise NotImplementedError()
 
+    def calculate_estimated_fill_price(self) -> Optional[Decimal]:
+        """
+        Optionally override to return an estimate for the fill price.
+        This will be used to reserve the funds that will be required later for processing the order.
+        """
+        return None
+
     def not_filled(self):
         """Called every time the order was processed but no fill took place."""
         pass
 
+    def get_debug_info(self) -> dict:
+        return {
+            "id": self.id,
+            "pair": self.pair,
+            "operation": self.operation,
+            "amount": self.amount,
+            "amount_filled": self.amount_filled,
+        }
+
 
 class MarketOrder(Order):
     def __init__(
-            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState
+            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState,
+            auto_borrow: bool = False, auto_repay: bool = False
     ):
-        super().__init__(id, operation, pair, amount, state)
+        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
 
     def not_filled(self):
         # Fill or kill market orders.
@@ -215,11 +246,11 @@ class MarketOrder(Order):
 class LimitOrder(Order):
     def __init__(
             self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            state: OrderState
+            state: OrderState, auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert limit_price > Decimal(0), "Invalid limit_price {limit_price}"
 
-        super().__init__(id, operation, pair, amount, state)
+        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._limit_price = limit_price
 
     def get_balance_updates(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Dict[str, Decimal]:
@@ -251,6 +282,15 @@ class LimitOrder(Order):
             }
         return ret
 
+    def calculate_estimated_fill_price(self) -> Optional[Decimal]:
+        # It will be the limit price or a better one.
+        return self._limit_price
+
+    def get_debug_info(self) -> dict:
+        ret = super().get_debug_info()
+        ret["limit_price"] = self._limit_price
+        return ret
+
     def get_order_info(self) -> OrderInfo:
         ret = super().get_order_info()
         ret.limit_price = self._limit_price
@@ -260,11 +300,11 @@ class LimitOrder(Order):
 class StopOrder(Order):
     def __init__(
             self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
-            state: OrderState
+            state: OrderState, auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert stop_price > Decimal(0), "Invalid stop_price {stop_price}"
 
-        super().__init__(id, operation, pair, amount, state)
+        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
 
     def not_filled(self):
@@ -310,6 +350,15 @@ class StopOrder(Order):
             }
         return ret
 
+    def calculate_estimated_fill_price(self) -> Optional[Decimal]:
+        # It should be around the stop price, or at least we hope so.
+        return self._stop_price
+
+    def get_debug_info(self) -> dict:
+        ret = super().get_debug_info()
+        ret["stop_price"] = self._stop_price
+        return ret
+
     def get_order_info(self) -> OrderInfo:
         ret = super().get_order_info()
         ret.stop_price = self._stop_price
@@ -319,12 +368,12 @@ class StopOrder(Order):
 class StopLimitOrder(Order):
     def __init__(
             self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
-            limit_price: Decimal, state: OrderState
+            limit_price: Decimal, state: OrderState, auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert stop_price > Decimal(0), "Invalid stop_price {stop_price}"
         assert limit_price > Decimal(0), "Invalid limit_price {limit_price}"
 
-        super().__init__(id, operation, pair, amount, state)
+        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
         self._limit_price = limit_price
         self._stop_price_hit = False
@@ -425,6 +474,16 @@ class StopLimitOrder(Order):
             ret = self.get_balance_updates_before_stop_hit(bar, liquidity_strategy)
         else:
             ret = self.get_balance_updates_after_stop_hit(bar, liquidity_strategy)
+        return ret
+
+    def calculate_estimated_fill_price(self) -> Optional[Decimal]:
+        # It will be the limit price or a better one.
+        return self._limit_price
+
+    def get_debug_info(self) -> dict:
+        ret = super().get_debug_info()
+        ret["limit_price"] = self._limit_price
+        ret["stop_price"] = self._stop_price
         return ret
 
     def get_order_info(self) -> OrderInfo:

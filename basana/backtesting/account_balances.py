@@ -15,73 +15,91 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Dict, List
-import copy
+from typing import List
+import abc
+import itertools
 
-from basana.backtesting import orders
-from basana.backtesting.helpers import add_amounts
+from basana.backtesting import errors
+from basana.backtesting.value_map import ValueMap, ValueMapDict
+
+
+class UpdateRule(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
+        raise NotImplementedError()
+
+
+class NonZero(UpdateRule):
+    def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
+        # balance >= 0
+        for symbol, value in updated_balances.items():
+            if value < Decimal(0):
+                raise errors.NotEnoughBalance(f"Not enough {symbol} available")
+        # hold >= 0
+        for symbol, value in updated_holds.items():
+            if value < Decimal(0):
+                raise errors.Error(f"hold update amount for {symbol} is invalid")
+        # borrowed >= 0
+        for symbol, value in updated_borrowed.items():
+            if value < Decimal(0):
+                raise errors.Error(f"borrowed update amount for {symbol} is invalid")
+
+
+class ValidHold(UpdateRule):
+    # * hold <= balance
+    def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
+        symbols = set(itertools.chain(updated_holds.keys(), updated_balances.keys()))
+        for symbol in symbols:
+            updated_hold = updated_holds.get(symbol, Decimal(0))
+            updated_balance = updated_balances.get(symbol, Decimal(0))
+            if updated_hold > updated_balance:
+                raise errors.NotEnoughBalance(f"Not enough {symbol} available to hold")
 
 
 class AccountBalances:
-    def __init__(self, initial_balances: Dict[str, Decimal]):
-        self._balances: Dict[str, Decimal] = copy.copy(initial_balances)
-        # Balances that are reserved to be used as the order gets filled.
-        self._holds_by_symbol: Dict[str, Decimal] = {}
-        self._holds_by_order: Dict[str, Dict[str, Decimal]] = {}
+    def __init__(self, initial_balances: ValueMapDict):
+        self.balances = ValueMap({
+            symbol: balance for symbol, balance in initial_balances.items() if balance >= 0
+        })
+        self.holds = ValueMap()
+        self.borrowed = ValueMap({
+            symbol: -balance for symbol, balance in initial_balances.items() if balance < 0
+        })
+        self._update_rules: List[UpdateRule] = [
+            NonZero(),
+            ValidHold()
+        ]
+
+    def push_update_rule(self, update_rule: UpdateRule):
+        self._update_rules.append(update_rule)
+
+    def update(
+            self, balance_updates: ValueMapDict = {}, hold_updates: ValueMapDict = {},
+            borrowed_updates: ValueMapDict = {}
+    ):
+        updated_balances = self.balances + balance_updates
+        updated_holds = self.holds + hold_updates
+        updated_borrowed = self.borrowed + borrowed_updates
+
+        for rule in self._update_rules:
+            rule.check(updated_balances, updated_holds, updated_borrowed)
+
+        # Update if no error ocurred.
+        self.balances = updated_balances
+        self.holds = updated_holds
+        self.borrowed = updated_borrowed
 
     def get_symbols(self) -> List[str]:
-        symbols = set(self._balances.keys())
-        symbols.update(self._holds_by_symbol.keys())
+        symbols = set(self.balances.keys())
+        symbols.update(self.holds.keys())
+        symbols.update(self.borrowed.keys())
         return list(symbols)
 
     def get_available_balance(self, symbol: str) -> Decimal:
-        return self._balances.get(symbol, Decimal(0)) - self.get_balance_on_hold(symbol)
+        return self.balances.get(symbol, Decimal(0)) - self.holds.get(symbol, Decimal(0))
 
     def get_balance_on_hold(self, symbol: str) -> Decimal:
-        return self._holds_by_symbol.get(symbol, Decimal(0))
+        return self.holds.get(symbol, Decimal(0))
 
-    def get_balance_on_hold_for_order(self, order_id: str, symbol: str) -> Decimal:
-        return self._holds_by_order.get(order_id, {}).get(symbol, Decimal(0))
-
-    def order_accepted(self, order: orders.Order, required_balance: Dict[str, Decimal]):
-        assert order.is_open, "The order is not open"
-        assert order.id not in self._holds_by_order, "The order was already accepted"
-
-        # When an order gets accepted we need to hold any required balance that will be debited as the order gets
-        # filled.
-        symbol = self._get_hold_symbol(order)
-        hold_amount = required_balance.get(symbol, Decimal(0))
-        assert hold_amount >= Decimal(0), f"Invalid hold amount {hold_amount}"
-        holds = {symbol: hold_amount}
-        self._holds_by_symbol = add_amounts(self._holds_by_symbol, holds)
-        self._holds_by_order[order.id] = holds
-
-    def order_updated(self, order: orders.Order, balance_updates: Dict[str, Decimal]):
-        assert order.id in self._holds_by_order, "The order was not accepted or it was already removed"
-
-        # Update balances.
-        self._balances = add_amounts(self._balances, balance_updates)
-
-        # Update holds for the order.
-        symbol = self._get_hold_symbol(order)
-        if order.is_open:
-            # Release whatever was spent, but no more than what was on hold for this order.
-            amount_on_hold = self._holds_by_order[order.id][symbol]
-            amount_spent = balance_updates.get(symbol, Decimal(0))
-            assert amount_spent <= Decimal(0), f"Invalid amount spent {amount_spent}"
-            hold_updates = {symbol: max(-amount_on_hold, amount_spent)}
-            self._holds_by_order[order.id] = add_amounts(self._holds_by_order[order.id], hold_updates)
-        else:
-            # Release everything that was on hold.
-            hold_updates = {symbol: -amount for symbol, amount in self._holds_by_order.pop(order.id).items()}
-
-        # Update holds for the symbol.
-        self._holds_by_symbol = add_amounts(self._holds_by_symbol, hold_updates)
-
-    def _get_hold_symbol(self, order: orders.Order):
-        if order.operation == orders.OrderOperation.BUY:
-            symbol = order.pair.quote_symbol
-        else:
-            assert order.operation == orders.OrderOperation.SELL
-            symbol = order.pair.base_symbol
-        return symbol
+    def get_borrowed_balance(self, symbol: str) -> Decimal:
+        return self.borrowed.get(symbol, Decimal(0))

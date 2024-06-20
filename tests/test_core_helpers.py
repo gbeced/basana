@@ -143,3 +143,11 @@ def test_task_pool(pool_size, task_count):
         assert all([task.done() for task in tasks])
 
     asyncio.run(test_main())
+
+
+@pytest.mark.parametrize("obj, expected_classpath", [
+    ("hi", "builtins.str"),
+    (3, "builtins.int"),
+])
+def test_classpath(obj, expected_classpath):
+    assert helpers.classpath(obj) == expected_classpath

@@ -14,10 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-.. moduleauthor:: Gabriel Martin Becedillas Ruiz <gabriel.becedillas@gmail.com>
-"""
-
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
@@ -25,8 +21,9 @@ import abc
 import collections
 import logging
 
+from basana.backtesting import errors
 from basana.backtesting.exchange import Exchange
-from basana.core import bar, event, logs, helpers
+from basana.core import bar, event, helpers
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
@@ -165,7 +162,7 @@ class AccountBalanceLineChart(LineChart):
 
     async def _on_any_event(self, event: event.Event):
         balance = await self._exchange.get_balance(self._symbol)
-        self._ts.add_value(event.when, balance.total)
+        self._ts.add_value(event.when, balance.total - balance.borrowed)
 
 
 class PortfolioValueLineChart(LineChart):
@@ -194,14 +191,13 @@ class PortfolioValueLineChart(LineChart):
             if balance.total == 0:
                 continue
 
-            rate: Optional[Decimal] = Decimal(1)
-            if symbol != self._symbol:
-                rate, _ = await self._exchange.get_bid_ask(Pair(symbol, self._symbol))
-
-            if rate:
+            try:
+                rate: Decimal = Decimal(1)
+                if symbol != self._symbol:
+                    rate, _ = await self._exchange.get_bid_ask(Pair(symbol, self._symbol))
                 portfolio_value += rate * balance.total
-            else:
-                logger.error(logs.StructuredMessage("Price missing", pair=Pair(symbol, self._symbol)))
+            except errors.Error as e:
+                logger.debug(str(e))
 
         self._ts.add_value(event.when, helpers.round_decimal(portfolio_value, self._precision))
 

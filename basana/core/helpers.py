@@ -168,5 +168,12 @@ def truncate_decimal(value: Decimal, precision: int) -> Decimal:
     return round_decimal(value, precision, rounding=decimal.ROUND_DOWN)
 
 
-def deprecation(message: str):
+def deprecation_warning(message: str):
     warnings.warn(message, DeprecationWarning, stacklevel=2)
+
+
+def classpath(obj: object):
+    cls = obj.__class__
+    module = cls.__module__
+    parts = [str(module), cls.__qualname__] if module else [cls.__qualname__]
+    return ".".join(parts)

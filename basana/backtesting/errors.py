@@ -14,6 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class Error(Exception):
-    """Base class for exceptions."""
+from basana.core import errors
+
+
+class Error(errors.Error):
+    """Base class for backtesting exceptions."""
+    pass
+
+
+class NotEnoughBalance(Error):
+    """Not enough balance."""
+    pass
+
+
+class NotFound(Error):
+    pass
+
+
+class NoPrice(Error):
     pass

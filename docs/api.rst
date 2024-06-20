@@ -9,6 +9,7 @@ API Reference
     backtesting_charts
     backtesting_fees
     backtesting_liquidity
+    backtesting_lending
     binance_exchange
     binance_order_book
     binance_trades
