@@ -21,21 +21,26 @@ import dataclasses
 import datetime
 import uuid
 
-from basana.backtesting import account_balances, errors, lending, prices
+from basana.backtesting import account_balances, errors, loan_mgr, prices
+from basana.backtesting.lending import base
 from basana.backtesting.value_map import ValueMap, ValueMapDict
 
 
 @dataclasses.dataclass
 class MarginLoanConditions:
+    #: The symbol for the interest.
     interest_symbol: str
+    #: The interest percentage.
     interest_percentage: Decimal
+    #: The interest period.
     interest_period: datetime.timedelta
+    #: The minimum interest to charge.
     min_interest: Decimal
     # Minimum threshold for the value of the collateral relative to the loan amount + outstanding interests.
     margin_requirement: Decimal
 
 
-class MarginLoan(lending.Loan):
+class MarginLoan(base.Loan):
     def __init__(
             self, id: str, borrowed_symbol: str,  borrowed_amount: Decimal, created_at: datetime.datetime,
             conditions: MarginLoanConditions
@@ -63,40 +68,54 @@ class MarginLoan(lending.Loan):
         return {}
 
 
-class MarginLoans(lending.LendingStrategy):
+class MarginLoans(base.LendingStrategy):
     """
     This strategy will use the accounts assets as collateral for the loans.
 
-    :param quote_symbol:
-    :param default_conditions:
+    :param quote_symbol: The symbol to use to normalize balances.
+    :param default_conditions: The default margin loan conditions.
     """
     def __init__(self, quote_symbol: str, default_conditions: Optional[MarginLoanConditions] = None):
         self._quote_symbol = quote_symbol
         self._conditions: Dict[str, MarginLoanConditions] = {}
         self._default_conditions = default_conditions
-        self._loan_mgr: Optional[lending.LoanManager] = None
-        self._exchange_ctx: Optional[lending.ExchangeContext] = None
+        self._loan_mgr: Optional[loan_mgr.LoanManager] = None
+        self._exchange_ctx: Optional[base.ExchangeContext] = None
 
     def set_conditions(self, symbol: str, conditions: MarginLoanConditions):
+        """
+        Set the lending conditions for a given symbol.
+
+        :param symbol: The symbol whose conditions are being set.
+        :param conditions: The lending conditions.
+        """
         self._conditions[symbol] = conditions
 
     def get_conditions(self, symbol: str) -> MarginLoanConditions:
+        """
+        Returns the lending conditions for a given symbol.
+
+        :param symbol: The symbol.
+        """
         conditions = self._conditions.get(symbol, self._default_conditions)
         if not conditions:
             raise errors.Error(f"No lending conditions for {symbol}")
         return conditions
 
-    def set_exchange_context(self, loan_mgr: lending.LoanManager, exchange_context: lending.ExchangeContext):
+    def set_exchange_context(self, loan_mgr: loan_mgr.LoanManager, exchange_context: base.ExchangeContext):
         self._loan_mgr = loan_mgr
         self._exchange_ctx = exchange_context
         self._exchange_ctx.account_balances.push_update_rule(CheckMarginLevel(self))
 
-    def create_loan(self, symbol: str, amount: Decimal, created_at: datetime.datetime) -> lending.Loan:
+    def create_loan(self, symbol: str, amount: Decimal, created_at: datetime.datetime) -> base.Loan:
         conditions = self.get_conditions(symbol)
         return MarginLoan(uuid.uuid4().hex, symbol, amount, created_at, conditions)
 
     @property
     def margin_level(self) -> Decimal:
+        """
+        The current margin level.
+        """
         assert self._exchange_ctx, "Not yet connected with the exchange"
         acc_balances = self._exchange_ctx.account_balances
         return self._calculate_margin_level(

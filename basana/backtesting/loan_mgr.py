@@ -16,130 +16,24 @@
 
 from decimal import Decimal
 from typing import Dict, List, Optional
-import abc
 import copy
-import dataclasses
-import datetime
 
-from basana.backtesting import account_balances, config, errors, helpers as bt_helpers, prices
-from basana.backtesting.value_map import ValueMap, ValueMapDict
-from basana.core import dispatcher
-
-
-@dataclasses.dataclass
-class LoanInfo:
-    #: The loan id.
-    id: str
-    #: True if the loan is open, False otherwise.
-    is_open: bool
-    #: The symbol being borrowed.
-    borrowed_symbol: str
-    #: The amount being borrowed.
-    borrowed_amount: Decimal
-    #: The outstanding interest. Only valid for open loans.
-    outstanding_interest: Dict[str, Decimal]
-    #: The paid interest. Only valid for closed loans.
-    paid_interest: Dict[str, Decimal]
-
-
-class Loan(metaclass=abc.ABCMeta):
-    def __init__(
-            self, id: str, borrowed_symbol: str,  borrowed_amount: Decimal, created_at: datetime.datetime
-    ):
-        assert borrowed_amount > Decimal(0), f"Invalid amount {borrowed_amount}"
-
-        self._id = id
-        self._borrowed_symbol = borrowed_symbol
-        self._borrowed_amount = borrowed_amount
-        self._is_open = True
-        self._created_at = created_at
-        self._paid_interest = ValueMap()
-
-    @property
-    def id(self) -> str:
-        return self._id
-
-    @property
-    def is_open(self) -> bool:
-        return self._is_open
-
-    @property
-    def borrowed_symbol(self) -> str:
-        return self._borrowed_symbol
-
-    @property
-    def borrowed_amount(self) -> Decimal:
-        return self._borrowed_amount
-
-    @property
-    def created_at(self) -> datetime.datetime:
-        return self._created_at
-
-    @property
-    def paid_interest(self) -> ValueMapDict:
-        return self._paid_interest
-
-    def close(self):
-        assert self._is_open
-        self._is_open = False
-
-    def add_paid_interest(self, interest: ValueMapDict):
-        self._paid_interest += interest
-
-    @abc.abstractmethod
-    def calculate_interest(self, at: datetime.datetime, prices: prices.Prices) -> ValueMapDict:
-        raise NotImplementedError()
-
-    @abc.abstractmethod
-    def calculate_collateral(self, prices: prices.Prices) -> ValueMapDict:
-        raise NotImplementedError()
-
-
-@dataclasses.dataclass
-class ExchangeContext:
-    dispatcher: dispatcher.EventDispatcher
-    account_balances: account_balances.AccountBalances
-    prices: prices.Prices
-    config: config.Config
-
-
-class LendingStrategy(metaclass=abc.ABCMeta):
-    """
-    Base class for lending strategies.
-    """
-
-    def set_exchange_context(self, loan_mgr: "LoanManager", exchange_context: ExchangeContext):
-        """
-        This method will be called during exchange initialization to give lending strategies a chance to later
-        use those services.
-        """
-        pass
-
-    @abc.abstractmethod
-    def create_loan(self, symbol: str, amount: Decimal, created_at: datetime.datetime) -> Loan:
-        raise NotImplementedError()
-
-
-class NoLoans(LendingStrategy):
-    """
-    Lending not supported.
-    """
-
-    def create_loan(self, symbol: str, amount: Decimal, created_at: datetime.datetime) -> Loan:
-        raise errors.Error("Lending is not supported")
+from basana.backtesting import errors, helpers as bt_helpers
+from basana.backtesting.value_map import ValueMap
+from basana.backtesting.lending import base as lending_base
 
 
 class LoanManager:
     def __init__(
-            self, lending_strategy: LendingStrategy, exchange_ctx: ExchangeContext
+            self, lending_strategy: lending_base.LendingStrategy, exchange_ctx: lending_base.ExchangeContext
     ):
-        self._loans = bt_helpers.ExchangeObjectContainer[Loan]()
+        self._loans = bt_helpers.ExchangeObjectContainer[lending_base.Loan]()
         self._ctx = exchange_ctx
         self._lending_strategy = lending_strategy
         self._collateral_by_loan: Dict[str, ValueMap] = {}
         self._lending_strategy.set_exchange_context(self, exchange_ctx)
 
-    def create_loan(self, symbol: str, amount: Decimal) -> LoanInfo:
+    def create_loan(self, symbol: str, amount: Decimal) -> lending_base.LoanInfo:
         if amount <= 0:
             raise errors.Error("Invalid amount")
 
@@ -158,7 +52,9 @@ class LoanManager:
 
         return self._build_loan_info(loan)
 
-    def get_loans(self, borrowed_symbol: Optional[str] = None, is_open: Optional[bool] = None) -> List[LoanInfo]:
+    def get_loans(
+            self, borrowed_symbol: Optional[str] = None, is_open: Optional[bool] = None
+    ) -> List[lending_base.LoanInfo]:
         loans = self._loans.get_all()
         if borrowed_symbol:
             loans = filter(lambda loan: loan.borrowed_symbol == borrowed_symbol, loans)
@@ -166,7 +62,7 @@ class LoanManager:
             loans = filter(lambda loan: loan.is_open == is_open, loans)
         return [self._build_loan_info(loan) for loan in loans]
 
-    def get_loan(self, loan_id: str) -> Optional[LoanInfo]:
+    def get_loan(self, loan_id: str) -> Optional[lending_base.LoanInfo]:
         loan = self._loans.get(loan_id)
         return None if loan is None else self._build_loan_info(loan)
 
@@ -212,7 +108,7 @@ class LoanManager:
         loan.close()
         self._collateral_by_loan.pop(loan_id)
 
-    def _get_open_loan(self, loan_id: str) -> Loan:
+    def _get_open_loan(self, loan_id: str) -> lending_base.Loan:
         loan = self._loans.get(loan_id)
         if not loan:
             raise errors.NotFound("Loan not found")
@@ -220,7 +116,7 @@ class LoanManager:
             raise errors.Error("Loan is not open")
         return loan
 
-    def _build_loan_info(self, loan: Loan) -> LoanInfo:
+    def _build_loan_info(self, loan: lending_base.Loan) -> lending_base.LoanInfo:
         outstanding_interest = ValueMap()
         if loan.is_open:
             outstanding_interest += loan.calculate_interest(
@@ -229,7 +125,7 @@ class LoanManager:
             outstanding_interest.truncate(self._ctx.config)
             outstanding_interest.prune()
 
-        return LoanInfo(
+        return lending_base.LoanInfo(
             id=loan.id, is_open=loan.is_open, borrowed_symbol=loan.borrowed_symbol,
             borrowed_amount=loan.borrowed_amount, outstanding_interest=outstanding_interest,
             paid_interest=copy.copy(loan.paid_interest)

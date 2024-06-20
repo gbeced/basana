@@ -21,7 +21,8 @@ from typing import List, Tuple
 
 import pytest
 
-from basana.backtesting import exchange, fees, margin
+from basana.backtesting import exchange, fees
+from basana.backtesting.lending import margin
 from basana.core import bar, dt, event
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair, PairInfo

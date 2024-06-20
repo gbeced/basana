@@ -20,7 +20,8 @@ import datetime
 
 import pytest
 
-from basana.backtesting import errors, exchange, margin
+from basana.backtesting import errors, exchange
+from basana.backtesting.lending import margin
 from basana.core import dt, helpers
 from basana.core.bar import Bar, BarEvent
 from basana.core.pair import Pair

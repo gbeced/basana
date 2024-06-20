@@ -20,7 +20,7 @@ import dataclasses
 import decimal
 import logging
 
-from basana.backtesting import account_balances, config, errors, fees, helpers, lending, liquidity, prices
+from basana.backtesting import account_balances, config, errors, fees, helpers, lending, loan_mgr, liquidity, prices
 from basana.backtesting.orders import Order
 from basana.backtesting.value_map import ValueMap, ValueMapDict
 from basana.core import bar, dispatcher, helpers as core_helpers, logs
@@ -40,7 +40,7 @@ class ExchangeContext:
     prices: prices.Prices
     fee_strategy: fees.FeeStrategy
     liquidity_strategy_factory: LiquidityStrategyFactory
-    loan_mgr: lending.LoanManager
+    loan_mgr: loan_mgr.LoanManager
     config: config.Config
 
 

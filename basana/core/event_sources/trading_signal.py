@@ -26,6 +26,12 @@ class BaseTradingSignal(event.Event):
         self._positions: Dict[pair.Pair, enums.Position] = {}
 
     def add_pair(self, pair: pair.Pair, position: enums.Position):
+        """
+        Add a pair to the signal.
+
+        :param pair: The pair to trade.
+        :param position: The position to switch to.
+        """
         self._positions[pair] = position
 
     def get_pairs(self) -> Iterable[Tuple[pair.Pair, enums.Position]]:
@@ -62,11 +68,17 @@ class TradingSignal(BaseTradingSignal):
 
     @property
     def pair(self) -> pair.Pair:
+        """
+        The pair to trade.
+        """
         pair, _ = next(iter(self.get_pairs()))
         return pair
 
     @property
     def position(self) -> enums.Position:
+        """
+        The position to switch to.
+        """
         return self.get_position(self.pair)
 
     @property
@@ -105,7 +117,8 @@ class TradingSignalSource(event.FifoQueueEventSource):
         self._dispatcher = dispatcher
 
     def subscribe_to_trading_signals(self, event_handler: Callable[[BaseTradingSignal], Awaitable[Any]]):
-        """Registers an async callable that will be called when a new trading signal is available.
+        """
+        Registers an async callable that will be called when a new trading signal is available.
 
         :param event_handler: An async callable that receives an trading signal.
         """

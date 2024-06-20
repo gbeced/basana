@@ -23,7 +23,8 @@ import asyncio
 import datetime
 import logging
 
-from basana.backtesting import charts, margin
+from basana.backtesting import charts
+from basana.backtesting.lending import margin
 from basana.core.logs import StructuredMessage
 from basana.external.binance import csv
 import basana as bs
