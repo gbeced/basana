@@ -4,7 +4,7 @@
 
 ### Features
 
-* Support for borrowing funds and opening short positions.
+* Support for borrowing funds and opening short positions with the backtesting exchange.
 
 ### Bug fixes
 
