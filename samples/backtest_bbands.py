@@ -38,24 +38,23 @@ async def main():
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
 
     event_dispatcher = bs.backtesting_dispatcher()
-    quote_symbol = "USDT"
-    pair = bs.Pair("BTC", quote_symbol)
+    pair = bs.Pair("BTC", "USDT")
     position_amount = Decimal(1000)
     stop_loss_pct = Decimal(5)
 
     # We'll be opening short positions so we need to set a lending strategy when initializing the exchange.
-    lending_strategy = margin.MarginLoans(quote_symbol, default_conditions=margin.MarginLoanConditions(
-        interest_symbol=quote_symbol, interest_percentage=Decimal("7"),
+    lending_strategy = margin.MarginLoans(pair.quote_symbol, default_conditions=margin.MarginLoanConditions(
+        interest_symbol=pair.quote_symbol, interest_percentage=Decimal("7"),
         interest_period=datetime.timedelta(days=365), min_interest=Decimal("0.01"),
         margin_requirement=Decimal("0.5")
     ))
     exchange = backtesting_exchange.Exchange(
         event_dispatcher,
-        initial_balances={"BTC": Decimal(0), quote_symbol: Decimal(1200)},
+        initial_balances={"BTC": Decimal(0), pair.quote_symbol: Decimal(1200)},
         lending_strategy=lending_strategy,
     )
-    exchange.set_pair_info(pair, bs.PairInfo(8, 2))
-    exchange.set_symbol_precision(quote_symbol, 2)
+    exchange.set_symbol_precision(pair.base_symbol, 8)
+    exchange.set_symbol_precision(pair.quote_symbol, 2)
     exchange.add_bar_source(csv.BarSource(pair, "binance_btcusdt_day.csv", "1d"))
 
     # Connect the strategy to the bar events from the exchange.
@@ -64,7 +63,7 @@ async def main():
 
     # Connect the position manager to the strategy signals and to bar events.
     position_mgr = position_manager.PositionManager(
-        exchange, position_amount, quote_symbol, stop_loss_pct
+        exchange, position_amount, pair.quote_symbol, stop_loss_pct
     )
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
     exchange.subscribe_to_bar_events(pair, position_mgr.on_bar_event)

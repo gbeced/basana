@@ -37,7 +37,21 @@ class Config:
         self._pair_info[pair] = pair_info
 
     def get_pair_info(self, pair: Pair) -> PairInfo:
-        ret = self._pair_info.get(pair, self._default_pair_info)
+        ret = self._pair_info.get(pair)
+
+        # If we don't have config for this specific pair we'll try to build it using the config for the individual
+        # symbols.
+        if ret is None:
+            base_symbol_config = self._symbol_info.get(pair.base_symbol)
+            quote_symbol_config = self._symbol_info.get(pair.quote_symbol)
+            if base_symbol_config and quote_symbol_config:
+                ret = PairInfo(
+                    base_precision=base_symbol_config.precision, quote_precision=quote_symbol_config.precision
+                )
+        # Default pair info, if set, is the last option.
+        if ret is None:
+            ret = self._default_pair_info
+
         if ret is None:
             raise errors.Error(f"No config for {pair}")
         return ret

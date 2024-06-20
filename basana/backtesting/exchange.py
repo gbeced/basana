@@ -365,8 +365,6 @@ class Exchange:
         """
         Set precision for a symbol.
 
-        This is used to round interest in loans.
-
         :param symbol: The symbol.
         :param precision: The precision.
         """

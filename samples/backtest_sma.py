@@ -36,22 +36,22 @@ async def main():
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
 
     event_dispatcher = bs.backtesting_dispatcher()
-    quote_symbol = "USDT"
-    pair = bs.Pair("BTC", quote_symbol)
+    pair = bs.Pair("BTC", "USDT")
     exchange = backtesting_exchange.Exchange(
         event_dispatcher,
-        initial_balances={"BTC": Decimal(0), quote_symbol: Decimal(1200)},
+        initial_balances={pair.quote_symbol: Decimal(1200)},
     )
-    exchange.set_pair_info(pair, bs.PairInfo(8, 2))
-    exchange.set_symbol_precision(quote_symbol, 2)
+    exchange.set_symbol_precision(pair.base_symbol, 8)
+    exchange.set_symbol_precision(pair.quote_symbol, 2)
 
     # Connect the strategy to the bar events from the exchange.
-    strategy = sma.Strategy(event_dispatcher, 12)
+    strategy = sma.Strategy(event_dispatcher, period=12)
     exchange.subscribe_to_bar_events(pair, strategy.on_bar_event)
 
     # Connect the position manager to the strategy signals and to bar events. Borrowing is disabled in this example.
     position_mgr = position_manager.PositionManager(
-        exchange, Decimal(1000), quote_symbol, Decimal(5), borrowing_disabled=True
+        exchange, position_amount=Decimal(1000), quote_symbol=pair.quote_symbol, stop_loss_pct=Decimal(5),
+        borrowing_disabled=True
     )
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
     exchange.subscribe_to_bar_events(pair, position_mgr.on_bar_event)

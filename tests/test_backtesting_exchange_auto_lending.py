@@ -136,7 +136,6 @@ def test_entry_and_exit_ok(
     async def impl():
         e.set_symbol_precision("BTC", 8)
         e.set_symbol_precision("USD", 2)
-        e.set_pair_info(pair, PairInfo(8, 2))
         e.subscribe_to_bar_events(pair, on_bar)
 
         # Load bars

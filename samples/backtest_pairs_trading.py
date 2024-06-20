@@ -55,6 +55,8 @@ async def main():
         initial_balances={quote_symbol: Decimal(1200)},
         lending_strategy=lending_strategy,
     )
+    exchange.set_symbol_precision(pair_1.base_symbol, 8)
+    exchange.set_symbol_precision(pair_2.base_symbol, 8)
     exchange.set_symbol_precision(quote_symbol, 2)
 
     # When opening positions, either long or short, size each order to 1000 USDT and close the position if the loss
@@ -75,8 +77,6 @@ async def main():
     chart = charts.LineCharts(exchange)
 
     for pair in [pair_1, pair_2]:
-        exchange.set_pair_info(pair, bs.PairInfo(8, 2))
-
         # Load bars from the CSV file.
         bars_file_name = "binance_{}{}_hourly.csv".format(pair.base_symbol.lower(), pair.quote_symbol.lower())
         exchange.add_bar_source(csv.BarSource(pair, bars_file_name, "1h"))
