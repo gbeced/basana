@@ -1,6 +1,6 @@
 # Basana
 #
-# Copyright 2022-2023 Gabriel Martin Becedillas Ruiz
+# Copyright 2022 Gabriel Martin Becedillas Ruiz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-class Error(Exception):
-    """Base class for exceptions."""
+from basana.core import errors
+
+
+class Error(errors.Error):
+    """Base class for backtesting exceptions."""
+    pass
+
+
+class NotEnoughBalance(Error):
+    """Not enough balance."""
+    pass
+
+
+class NotFound(Error):
+    pass
+
+
+class NoPrice(Error):
     pass

@@ -1,6 +1,6 @@
 # Basana
 #
-# Copyright 2022-2023 Gabriel Martin Becedillas Ruiz
+# Copyright 2022 Gabriel Martin Becedillas Ruiz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -168,5 +168,12 @@ def truncate_decimal(value: Decimal, precision: int) -> Decimal:
     return round_decimal(value, precision, rounding=decimal.ROUND_DOWN)
 
 
-def deprecation(message: str):
+def deprecation_warning(message: str):
     warnings.warn(message, DeprecationWarning, stacklevel=2)
+
+
+def classpath(obj: object):
+    cls = obj.__class__
+    module = cls.__module__
+    parts = [str(module), cls.__qualname__] if module else [cls.__qualname__]
+    return ".".join(parts)

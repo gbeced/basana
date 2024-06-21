@@ -1,6 +1,6 @@
 # Basana
 #
-# Copyright 2022-2023 Gabriel Martin Becedillas Ruiz
+# Copyright 2022 Gabriel Martin Becedillas Ruiz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -143,3 +143,11 @@ def test_task_pool(pool_size, task_count):
         assert all([task.done() for task in tasks])
 
     asyncio.run(test_main())
+
+
+@pytest.mark.parametrize("obj, expected_classpath", [
+    ("hi", "builtins.str"),
+    (3, "builtins.int"),
+])
+def test_classpath(obj, expected_classpath):
+    assert helpers.classpath(obj) == expected_classpath

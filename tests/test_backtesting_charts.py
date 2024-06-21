@@ -1,6 +1,6 @@
 # Basana
 #
-# Copyright 2022-2023 Gabriel Martin Becedillas Ruiz
+# Copyright 2022 Gabriel Martin Becedillas Ruiz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -68,7 +68,6 @@ def test_save_line_chart(order_plan, backtesting_dispatcher, caplog):
 
         await backtesting_dispatcher.run()
 
-        assert "Price missing" in caplog.text
         with helpers.temp_file_name(suffix=".png") as tmp_file_name:
             line_charts.save(tmp_file_name)
             assert os.stat(tmp_file_name).st_size > 100

@@ -1,6 +1,6 @@
 # Basana
 #
-# Copyright 2022-2023 Gabriel Martin Becedillas Ruiz
+# Copyright 2022 Gabriel Martin Becedillas Ruiz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Optional
 import abc
 
 from basana.backtesting import errors, orders
@@ -25,10 +24,15 @@ from basana.core.pair import Pair, PairInfo
 
 
 class ExchangeOrder(metaclass=abc.ABCMeta):
-    def __init__(self, operation: OrderOperation, pair: Pair, amount: Decimal):
+    def __init__(
+            self, operation: OrderOperation, pair: Pair, amount: Decimal,
+            auto_borrow: bool = False, auto_repay: bool = False
+    ):
         self._operation = operation
         self._pair = pair
         self._amount = amount
+        self._auto_borrow = auto_borrow
+        self._auto_repay = auto_repay
 
     @property
     def pair(self) -> Pair:
@@ -42,6 +46,14 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
     def operation(self) -> OrderOperation:
         return self._operation
 
+    @property
+    def auto_borrow(self) -> bool:
+        return self._auto_borrow
+
+    @property
+    def auto_repay(self) -> bool:
+        return self._auto_repay
+
     def validate(self, pair_info: PairInfo):
         if self.amount <= Decimal(0):
             raise errors.Error("Amount must be > 0")
@@ -49,14 +61,6 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
             raise errors.Error(
                 "{} exceeds maximum precision of {} decimal digits".format(self.amount, pair_info.base_precision)
             )
-
-    @abc.abstractmethod
-    def get_estimated_fill_price(self) -> Optional[Decimal]:
-        """ Returns the estimated fill price for the order.
-
-        This will be used to estimate the cost of executing this order.
-        """
-        raise NotImplementedError()
 
     @abc.abstractmethod
     def create_order(self, id: str) -> orders.Order:
@@ -71,18 +75,14 @@ class MarketOrder(ExchangeOrder):
     executed is not guaranteed.
     """
 
-    def __init__(self, operation: OrderOperation, pair: Pair, amount: Decimal):
-        super().__init__(operation, pair, amount)
-
     def validate(self, pair_info: PairInfo):
         super().validate(pair_info)
 
-    def get_estimated_fill_price(self) -> Optional[Decimal]:
-        # It will be the market price, so we can't tell right now.
-        return None
-
     def create_order(self, id: str) -> orders.Order:
-        return orders.MarketOrder(id, self.operation, self.pair, self.amount, orders.OrderState.OPEN)
+        return orders.MarketOrder(
+            id, self.operation, self.pair, self.amount, orders.OrderState.OPEN, auto_borrow=self.auto_borrow,
+            auto_repay=self.auto_repay
+        )
 
 
 class LimitOrder(ExchangeOrder):
@@ -93,8 +93,11 @@ class LimitOrder(ExchangeOrder):
     at the limit price or higher.
     """
 
-    def __init__(self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal):
-        super().__init__(operation, pair, amount)
+    def __init__(
+            self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
+            auto_borrow: bool = False, auto_repay: bool = False
+    ):
+        super().__init__(operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._limit_price = limit_price
 
     @property
@@ -110,13 +113,10 @@ class LimitOrder(ExchangeOrder):
                 "{} exceeds maximum precision of {} decimal digits".format(self.limit_price, pair_info.quote_precision)
             )
 
-    def get_estimated_fill_price(self) -> Optional[Decimal]:
-        # It will be the limit price or a better one.
-        return self.limit_price
-
     def create_order(self, id: str) -> orders.Order:
         return orders.LimitOrder(
-            id, self.operation, self.pair, self.amount, self._limit_price, orders.OrderState.OPEN
+            id, self.operation, self.pair, self.amount, self._limit_price, orders.OrderState.OPEN,
+            auto_borrow=self.auto_borrow, auto_repay=self.auto_repay
         )
 
 
@@ -132,8 +132,11 @@ class StopOrder(ExchangeOrder):
     stop order to limit a loss or to protect a profit on a stock that they own.
     """
 
-    def __init__(self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal):
-        super().__init__(operation, pair, amount)
+    def __init__(
+            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
+            auto_borrow: bool = False, auto_repay: bool = False
+    ):
+        super().__init__(operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
 
     @property
@@ -149,13 +152,10 @@ class StopOrder(ExchangeOrder):
                 "{} exceeds maximum precision of {} decimal digits".format(self.stop_price, pair_info.quote_precision)
             )
 
-    def get_estimated_fill_price(self) -> Optional[Decimal]:
-        # It should be around the stop price, or at least we hope so.
-        return self.stop_price
-
     def create_order(self, id: str) -> orders.Order:
         return orders.StopOrder(
-            id, self.operation, self.pair, self.amount, self._stop_price, orders.OrderState.OPEN
+            id, self.operation, self.pair, self.amount, self._stop_price, orders.OrderState.OPEN,
+            auto_borrow=self.auto_borrow, auto_repay=self.auto_repay
         )
 
 
@@ -170,9 +170,10 @@ class StopLimitOrder(ExchangeOrder):
     """
 
     def __init__(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal, limit_price: Decimal
+            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal, limit_price: Decimal,
+            auto_borrow: bool = False, auto_repay: bool = False
     ):
-        super().__init__(operation, pair, amount)
+        super().__init__(operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
         self._limit_price = limit_price
 
@@ -196,11 +197,8 @@ class StopLimitOrder(ExchangeOrder):
                     "{} exceeds maximum precision of {} decimal digits".format(value, pair_info.quote_precision)
                 )
 
-    def get_estimated_fill_price(self) -> Optional[Decimal]:
-        # It will be the limit price or a better one.
-        return self.limit_price
-
     def create_order(self, id: str) -> orders.Order:
         return orders.StopLimitOrder(
-            id, self.operation, self.pair, self.amount, self._stop_price, self._limit_price, orders.OrderState.OPEN
+            id, self.operation, self.pair, self.amount, self._stop_price, self._limit_price, orders.OrderState.OPEN,
+            auto_borrow=self.auto_borrow, auto_repay=self.auto_repay
         )

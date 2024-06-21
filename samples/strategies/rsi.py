@@ -1,6 +1,6 @@
 # Basana
 #
-# Copyright 2022-2023 Gabriel Martin Becedillas Ruiz
+# Copyright 2022 Gabriel Martin Becedillas Ruiz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,9 +35,9 @@ class Strategy(bs.TradingSignalSource):
         if len(self.rsi) < 2 or self.rsi[-2] is None:
             return
 
-        # RSI crossed below oversold level
+        # Go long when RSI crosses below oversold level.
         if self.rsi[-2] >= self._oversold_level and self.rsi[-1] < self._oversold_level:
-            self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.BUY, bar_event.bar.pair))
-        # RSI crossed above overbought level
+            self.push(bs.TradingSignal(bar_event.when, bs.Position.LONG, bar_event.bar.pair))
+        # Go short when RSI crosses above overbought level.
         elif self.rsi[-2] <= self._overbought_level and self.rsi[-1] > self._overbought_level:
-            self.push(bs.TradingSignal(bar_event.when, bs.OrderOperation.SELL, bar_event.bar.pair))
+            self.push(bs.TradingSignal(bar_event.when, bs.Position.SHORT, bar_event.bar.pair))

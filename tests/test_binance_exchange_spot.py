@@ -1,6 +1,6 @@
 # Basana
 #
-# Copyright 2022-2023 Gabriel Martin Becedillas Ruiz
+# Copyright 2022 Gabriel Martin Becedillas Ruiz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -333,6 +333,7 @@ def test_create_order(
             {
                 "id": "15456494165",
                 "is_open": True,
+                "operation": exchange.OrderOperation.SELL,
                 "amount": Decimal("0.001"),
                 "amount_filled": Decimal("0"),
                 "amount_remaining": Decimal("0.001"),
@@ -384,6 +385,7 @@ def test_create_order(
             {
                 "id": "15455625561",
                 "is_open": False,
+                "operation": exchange.OrderOperation.BUY,
                 "amount": Decimal("0.00177"),
                 "amount_filled": Decimal("0.00177"),
                 "amount_remaining": Decimal("0"),
@@ -405,7 +407,6 @@ def test_create_order(
                 "amount": Decimal("0.00177"),
                 "quote_amount": Decimal("29.8723785"),
                 "datetime": datetime.datetime(2022, 11, 13, 2, 34, 35, 519000).replace(tzinfo=datetime.timezone.utc),
-
             },
         ),
     ]

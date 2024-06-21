@@ -1,6 +1,6 @@
 # Basana
 #
-# Copyright 2022-2023 Gabriel Martin Becedillas Ruiz
+# Copyright 2022 Gabriel Martin Becedillas Ruiz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import logging
 import platform
 import signal
 
-from . import dt, event, helpers, logs
+from . import dt, errors, event, helpers, logs
 
 
 logger = logging.getLogger(__name__)
@@ -146,8 +146,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self.stop_on_handler_exceptions = False
 
     @property
-    def current_event_dt(self) -> Optional[datetime.datetime]:
-        helpers.deprecation("Use now() instead")
+    def current_event_dt(self) -> Optional[datetime.datetime]:  # pragma: no cover
+        helpers.deprecation_warning("Use now() instead")
         return self.now()
 
     @abc.abstractmethod
@@ -264,7 +264,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
 
     async def _dispatch_event(self, event_dispatch: EventDispatch):
         logger.debug(logs.StructuredMessage(
-            "Dispatching event", when=event_dispatch.event.when, type=type(event_dispatch.event)
+            "Dispatching event", when=event_dispatch.event.when, type=helpers.classpath(event_dispatch.event)
         ))
         if self._sniffers_pre:
             await asyncio.gather(
@@ -318,10 +318,14 @@ class BacktestingDispatcher(EventDispatcher):
             await super().run(stop_signals=stop_signals)
 
     def now(self) -> datetime.datetime:
-        ret = self._last_dt
-        if ret is None:
-            ret = dt.utc_now()
-        return ret
+        if self._last_dt is None:
+            raise errors.Error("No events processed yet")
+        return self._last_dt
+
+    def _set_now(self, now: datetime.datetime):
+        # For testing purposes.
+        assert self._last_dt is None or now >= self._last_dt
+        self._last_dt = now
 
     async def _dispatch_loop(self):
         while not self.stopped:

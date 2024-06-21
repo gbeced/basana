@@ -1,6 +1,6 @@
 # Basana
 #
-# Copyright 2022-2023 Gabriel Martin Becedillas Ruiz
+# Copyright 2022 Gabriel Martin Becedillas Ruiz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +19,7 @@ from decimal import Decimal
 
 import pytest
 
-from basana.backtesting import exchange, liquidity
+from basana.backtesting import exchange, liquidity, value_map
 from basana.backtesting.orders import OrderOperation, OrderState, MarketOrder, LimitOrder, StopOrder, \
     StopLimitOrder
 from basana.core import bar, dt
@@ -272,8 +272,8 @@ def test_get_balance_updates_with_infinite_liquidity(order, expected_balance_upd
         dt.local_now(), p,
         Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")
     )
-    balance_updates = order.get_balance_updates(b, ls)
-    balance_updates = e._round_balance_updates(order.pair, balance_updates)
+    balance_updates = value_map.ValueMap(order.get_balance_updates(b, ls))
+    e._order_mgr._round_balance_updates(balance_updates, order.pair)
     assert balance_updates == expected_balance_updates
 
 
@@ -319,6 +319,6 @@ def test_get_balance_updates_with_finite_liquidity(order, expected_balance_updat
     )
     ls.on_bar(b)
 
-    balance_updates = order.get_balance_updates(b, ls)
-    balance_updates = e._round_balance_updates(order.pair, balance_updates)
+    balance_updates = value_map.ValueMap(order.get_balance_updates(b, ls))
+    e._order_mgr._round_balance_updates(balance_updates, order.pair)
     assert balance_updates == expected_balance_updates

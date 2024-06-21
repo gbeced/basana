@@ -1,6 +1,6 @@
 # Basana
 #
-# Copyright 2022-2023 Gabriel Martin Becedillas Ruiz
+# Copyright 2022 Gabriel Martin Becedillas Ruiz
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import datetime
 import pytest
 
 from . import helpers
-from basana.core import dt, event
+from basana.core import dt, errors, event
 
 
 class Error(Exception):
@@ -426,3 +426,8 @@ def test_scheduler_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher
         assert handler_calls == 1
 
     asyncio.run(test_main())
+
+
+def test_now_fails_if_no_events_were_processed(backtesting_dispatcher):
+    with pytest.raises(errors.Error, match="No events processed yet"):
+        backtesting_dispatcher.now()
