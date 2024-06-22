@@ -29,7 +29,6 @@ async def main():
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
 
     event_dispatcher = bs.realtime_dispatcher()
-    quote_symbol = "USDT"
     pair = bs.Pair("ETH", "USDT")
     position_amount = Decimal(100)
     stop_loss_pct = Decimal(5)
@@ -45,7 +44,7 @@ async def main():
 
     # We'll be using the spot account, so there will be no short positions opened.
     position_mgr = position_manager.SpotAccountPositionManager(
-        exchange, position_amount, quote_symbol, stop_loss_pct, checkpoint_fname
+        exchange, position_amount, pair.quote_symbol, stop_loss_pct, checkpoint_fname
     )
     # Connect the position manager to the strategy signals and to bar events just for logging.
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
