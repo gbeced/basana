@@ -66,7 +66,7 @@ This is how all the pieces are put together:
 
 .. literalinclude:: ../samples/backtest_bbands.py
    :language: python
-   :lines: 39-69
+   :lines: 39-68
    :dedent: 4
 
 The full source code for this example can be found `here <https://github.com/gbeced/basana/tree/master/samples/backtest_bbands.py>`_,
@@ -91,7 +91,7 @@ exchange we'll use `Binance <https://www.binance.com/>`_ crypto currency exchang
 
 .. literalinclude:: ../samples/binance_bbands.py
    :language: python
-   :lines: 31-52
+   :lines: 31-51
    :dedent: 4
 
 .. note::

@@ -23,8 +23,7 @@ import asyncio
 import datetime
 import logging
 
-from basana.backtesting import charts
-from basana.backtesting.lending import margin
+from basana.backtesting import charts, lending
 from basana.core.logs import StructuredMessage
 from basana.external.binance import csv
 import basana as bs
@@ -43,7 +42,7 @@ async def main():
     stop_loss_pct = Decimal(5)
 
     # We'll be opening short positions so we need to set a lending strategy when initializing the exchange.
-    lending_strategy = margin.MarginLoans(pair.quote_symbol, default_conditions=margin.MarginLoanConditions(
+    lending_strategy = lending.MarginLoans(pair.quote_symbol, default_conditions=lending.MarginLoanConditions(
         interest_symbol=pair.quote_symbol, interest_percentage=Decimal("7"),
         interest_period=datetime.timedelta(days=365), min_interest=Decimal("0.01"),
         margin_requirement=Decimal("0.5")
