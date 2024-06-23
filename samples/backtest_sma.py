@@ -63,7 +63,7 @@ async def main():
     chart = charts.LineCharts(exchange)
     chart.add_pair(pair)
     chart.add_pair_indicator("SMA", pair, charts.DataPointFromSequence(strategy.sma))
-    chart.add_portfolio_value("USDT")
+    chart.add_portfolio_value(pair.quote_symbol)
 
     # Run the backtest.
     await event_dispatcher.run()

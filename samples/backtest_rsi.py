@@ -63,7 +63,7 @@ async def main():
     # Setup chart.
     chart = charts.LineCharts(exchange)
     chart.add_pair(pair)
-    chart.add_portfolio_value("USD")
+    chart.add_portfolio_value(pair.quote_symbol)
     chart.add_custom("RSI", "RSI", charts.DataPointFromSequence(strategy.rsi))
     chart.add_custom("RSI", "Overbought", lambda _: overbought_level)
     chart.add_custom("RSI", "Oversold", lambda _: oversold_level)
