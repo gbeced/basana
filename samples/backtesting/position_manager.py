@@ -111,7 +111,7 @@ class PositionManager:
         return pos_info
 
     async def check_loss(self):
-        pairs = [pos_info.pair for pos_info in self._positions.values() if pos_info.target != 0]
+        pairs = [pos_info.pair for pos_info in self._positions.values() if pos_info.current != 0]
         # For every pair get position information along with bid and ask prices.
         coros = [self.get_position_info(pair) for pair in pairs]
         coros.extend(self._exchange.get_bid_ask(pair) for pair in pairs)
