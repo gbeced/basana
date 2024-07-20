@@ -49,7 +49,7 @@ class PositionInfo:
             ret = order_fill_price
         # Transition from long to short, or viceversa, and already on the target side.
         elif self.initial * self.target < 0 and self.current * self.target > 0:
-            ret = self.order.fill_price
+            ret = order_fill_price
         # Rebalancing on the same side.
         elif self.initial * self.target > 0:
             # Reducing the position.
