@@ -60,6 +60,12 @@ class SchedulerQueue:
             ret = self._queue[0].when
         return ret
 
+    def peek_last_event_dt(self) -> Optional[datetime.datetime]:
+        ret = None
+        if self._queue:
+            ret = self._queue[-1].when
+        return ret
+
     def pop(self) -> Tuple[datetime.datetime, SchedulerJob]:
         assert self._queue
         scheduled_job = heapq.heappop(self._queue)
@@ -338,7 +344,9 @@ class BacktestingDispatcher(EventDispatcher):
                 await self._dispatch_scheduled(next_dt)
                 await self._dispatch_events(next_dt)
             else:
-                await self._dispatch_scheduled(dt.utc_now())  # Dispatch all past events.
+                # Dispatch all pending scheduled before stopping.
+                if last_scheduled_dt := self._scheduler_queue.peek_last_event_dt():
+                    await self._dispatch_scheduled(last_scheduled_dt)
                 self.stop()
 
     async def _dispatch_scheduled(self, dt: datetime.datetime):
