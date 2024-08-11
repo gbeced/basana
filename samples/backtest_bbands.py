@@ -49,7 +49,7 @@ async def main():
     ))
     exchange = backtesting_exchange.Exchange(
         event_dispatcher,
-        initial_balances={"BTC": Decimal(0), pair.quote_symbol: Decimal(1200)},
+        initial_balances={pair.quote_symbol: Decimal(1200)},
         lending_strategy=lending_strategy,
     )
     exchange.set_symbol_precision(pair.base_symbol, 8)
@@ -79,9 +79,9 @@ async def main():
     chart.add_pair_indicator(
         "Lower", pair, lambda _: strategy.bb[-1].lb if len(strategy.bb) and strategy.bb[-1] else None
     )
-    chart.add_balance("BTC")
-    chart.add_balance("USDT")
-    chart.add_portfolio_value("USDT")
+    chart.add_balance(pair.base_symbol)
+    chart.add_balance(pair.quote_symbol)
+    chart.add_portfolio_value(pair.quote_symbol)
 
     # Run the backtest.
     await event_dispatcher.run()

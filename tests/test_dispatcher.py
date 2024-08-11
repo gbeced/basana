@@ -431,3 +431,27 @@ def test_scheduler_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher
 def test_now_fails_if_no_events_were_processed(backtesting_dispatcher):
     with pytest.raises(errors.Error, match="No events processed yet"):
         backtesting_dispatcher.now()
+
+
+def test_recursive_schedule_bug(backtesting_dispatcher):
+    jobs_processed = 0
+
+    async def scheduled_job():
+        nonlocal jobs_processed
+        jobs_processed += 1
+        next_dt = backtesting_dispatcher.now() + datetime.timedelta(hours=1)
+        backtesting_dispatcher.schedule(next_dt, scheduled_job)
+
+    async def proces_event(event):
+        next_dt = event.when + datetime.timedelta(hours=1)
+        backtesting_dispatcher.schedule(next_dt, scheduled_job)
+
+    async def test_main():
+        src = event.FifoQueueEventSource(events=[
+            event.Event(datetime.datetime(2024, 1, 1).replace(tzinfo=datetime.timezone.utc)),
+        ])
+        backtesting_dispatcher.subscribe(src, proces_event)
+        await backtesting_dispatcher.run()
+        assert jobs_processed == 1
+
+    asyncio.run(test_main())

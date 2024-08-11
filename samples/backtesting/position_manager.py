@@ -48,7 +48,7 @@ class PositionInfo:
             ret = order_fill_price
         # Transition from long to short, or viceversa, and already on the target side.
         elif self.initial * self.target < 0 and self.current * self.target > 0:
-            ret = self.order.fill_price
+            ret = order_fill_price
         # Rebalancing on the same side.
         elif self.initial * self.target > 0:
             # Reducing the position.
@@ -111,7 +111,7 @@ class PositionManager:
         return pos_info
 
     async def check_loss(self):
-        pairs = [pos_info.pair for pos_info in self._positions.values() if pos_info.target != 0]
+        pairs = [pos_info.pair for pos_info in self._positions.values() if pos_info.current != 0]
         # For every pair get position information along with bid and ask prices.
         coros = [self.get_position_info(pair) for pair in pairs]
         coros.extend(self._exchange.get_bid_ask(pair) for pair in pairs)

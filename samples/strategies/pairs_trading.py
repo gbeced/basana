@@ -32,14 +32,17 @@ def get_p_value(values_1, values_2):
 class Strategy(bs.TradingSignalSource):
     def __init__(
             self, dispatcher: bs.EventDispatcher, pair_1: bs.Pair, pair_2: bs.Pair, window_size: int,
-            p_value_threshold: float, z_score_entry_ge: float, z_score_exit_lt: float
+            z_score_window_size: int, p_value_threshold: float, z_score_entry_ge: float, z_score_exit_lt: float
     ):
+        assert z_score_window_size <= window_size
+
         super().__init__(dispatcher)
 
         self._df = pd.DataFrame()
         self._pair_1 = pair_1
         self._pair_2 = pair_2
         self._window_size = window_size
+        self._z_score_window_size = z_score_window_size
         self._p_value_threshold = p_value_threshold
         self._z_score_entry_ge = z_score_entry_ge
         self._z_score_exit_lt = z_score_exit_lt
@@ -111,6 +114,7 @@ class Strategy(bs.TradingSignalSource):
     def _update_indicators(self):
         values_1 = self._df[self._pair_1.base_symbol]
         values_2 = self._df[self._pair_2.base_symbol]
-        ratios = values_1 / values_2
         self._p_value = get_p_value(values_1, values_2)
+
+        ratios = values_1[-self._z_score_window_size:] / values_2[-self._z_score_window_size:]
         self._z_score = (ratios.iloc[-1] - ratios.mean()) / ratios.std()

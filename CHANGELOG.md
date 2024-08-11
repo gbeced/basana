@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.1
+
+### Bug fixes
+
+* Ignore events scheduled after the last event is procesed.
+
 ## 1.6
 
 ### Features

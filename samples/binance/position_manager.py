@@ -49,7 +49,7 @@ class PositionInfo:
             ret = order_fill_price
         # Transition from long to short, or viceversa, and already on the target side.
         elif self.initial * self.target < 0 and self.current * self.target > 0:
-            ret = self.order.fill_price
+            ret = order_fill_price
         # Rebalancing on the same side.
         elif self.initial * self.target > 0:
             # Reducing the position.
@@ -137,7 +137,7 @@ class SpotAccountPositionManager:
         return pos_info
 
     async def check_loss(self):
-        pairs = [pos_info.pair for pos_info in self._positions.values() if pos_info.target != 0]
+        pairs = [pos_info.pair for pos_info in self._positions.values() if pos_info.current != 0]
         # For every pair get position information along with bid and ask prices.
         coros = [self.get_position_info(pair) for pair in pairs]
         coros.extend(self._exchange.get_bid_ask(pair) for pair in pairs)
@@ -153,7 +153,7 @@ class SpotAccountPositionManager:
                 f"Position for {pos_info.pair}", current=pos_info.current, target=pos_info.target,
                 avg_price=pos_info.avg_price, pnl_pct=pnl_pct, order_open=pos_info.order_open
             ))
-            if pnl_pct < self._stop_loss_pct * -1:
+            if pnl_pct <= self._stop_loss_pct * -1:
                 logging.info(f"Stop loss for {pos_info.pair}")
                 await self.switch_position(pos_info.pair, bs.Position.NEUTRAL, force=True)
 
