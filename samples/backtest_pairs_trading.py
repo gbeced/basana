@@ -67,8 +67,8 @@ async def main():
     # The pairs trading strategy.
     p_value_threshold = 0.01
     trading_strategy = pairs_trading.Strategy(
-        event_dispatcher, pair_1, pair_2, window_size=24 * 10, p_value_threshold=p_value_threshold,
-        z_score_entry_ge=2.3, z_score_exit_lt=1.5
+        event_dispatcher, pair_1, pair_2, window_size=24 * 10, z_score_window_size=24 * 10,
+        p_value_threshold=p_value_threshold, z_score_entry_ge=2.3, z_score_exit_lt=1.5
     )
     # Connect the position manager to the strategy signals.
     trading_strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
