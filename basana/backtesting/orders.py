@@ -254,8 +254,11 @@ class LimitOrder(Order):
         self._limit_price = limit_price
 
     def get_balance_updates(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Dict[str, Decimal]:
-        price = None
         amount = min(self.amount_pending, liquidity_strategy.available_liquidity)
+        if not amount:
+            return {}
+
+        price = None
         base_sign = helpers.get_base_sign_for_operation(self.operation)
 
         if self.operation == OrderOperation.BUY:
@@ -275,7 +278,7 @@ class LimitOrder(Order):
                 price = self._limit_price
 
         ret = {}
-        if price:
+        if amount and price:
             ret = {
                 self.pair.base_symbol: amount * base_sign,
                 self.pair.quote_symbol: price * amount * -base_sign
@@ -384,8 +387,8 @@ class StopLimitOrder(Order):
         assert not self._stop_price_hit
 
         price = None
-        amount = min(self.amount_pending, liquidity_strategy.available_liquidity)
         base_sign = helpers.get_base_sign_for_operation(self.operation)
+        amount = min(self.amount_pending, liquidity_strategy.available_liquidity)
 
         if self.operation == OrderOperation.BUY:
             # Stop price was hit at bar open.
@@ -428,7 +431,7 @@ class StopLimitOrder(Order):
                 price = slipped_price(price, self.operation, amount, liquidity_strategy, cap_low=self._limit_price)
 
         ret = {}
-        if price is not None:
+        if amount and price:
             ret = {
                 self.pair.base_symbol: amount * base_sign,
                 self.pair.quote_symbol: price * amount * -base_sign
@@ -460,7 +463,7 @@ class StopLimitOrder(Order):
                 price = self._limit_price
 
         ret = {}
-        if price:
+        if amount and price:
             ret = {
                 self.pair.base_symbol: amount * base_sign,
                 self.pair.quote_symbol: price * amount * -base_sign

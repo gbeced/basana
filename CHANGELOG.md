@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.6.2
+
+### Bug fixes
+
+* VolumeShareImpact.calculate_price and VolumeShareImpact.calculate_amount were failing when there was no available liquidity.
+
 ## 1.6.1
 
 ### Bug fixes

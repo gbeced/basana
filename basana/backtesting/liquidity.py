@@ -17,6 +17,7 @@
 from decimal import Decimal
 import abc
 
+from basana.backtesting import errors
 from basana.core import bar
 
 
@@ -93,7 +94,8 @@ class InfiniteLiquidity(LiquidityStrategy):
 
 
 class VolumeShareImpact(LiquidityStrategy):
-    """The price impact is calculated by multiplying the price impact constant by the square of the ratio of the used
+    """
+    The price impact is calculated by multiplying the price impact constant by the square of the ratio of the used
     volume to the total volume.
 
     :param volume_limit_pct: Maximum percentage of volume that can be used from each bar.
@@ -116,18 +118,23 @@ class VolumeShareImpact(LiquidityStrategy):
     def _volume_share_impact(self, used_liquidity: Decimal) -> Decimal:
         # impact = (used_liquidity / (used_liquidity + available_liquidity)) ** 2 * price_impact
         assert used_liquidity >= Decimal(0), f"Invalid used_liquidity {used_liquidity}"
-        assert used_liquidity <= self._total_liquidity, f"Invalid used_liquidity {used_liquidity}"
+        assert used_liquidity <= self._total_liquidity, f"used_liquidity {used_liquidity} too high"
 
-        used_pct = used_liquidity / self._total_liquidity
-        return used_pct ** Decimal(2) * self._price_impact_pct
+        if used_liquidity == Decimal(0):
+            ret = Decimal(0)
+        else:
+            used_pct = used_liquidity / self._total_liquidity
+            ret = used_pct ** Decimal(2) * self._price_impact_pct
+        return ret
 
     @property
     def available_liquidity(self) -> Decimal:
         return self._total_liquidity - self._used_liquidity
 
     def take_liquidity(self, amount: Decimal) -> Decimal:
-        assert amount > 0, f"Invalid amount {amount}"
-        assert amount <= self.available_liquidity, f"amount {amount} too high"
+        assert amount >= Decimal(0), f"Invalid amount {amount}"
+        if amount > self.available_liquidity:
+            raise errors.Error("Not enough liquidity")
 
         impact_pre = self._volume_share_impact(self._used_liquidity)
         self._used_liquidity += amount
@@ -138,7 +145,8 @@ class VolumeShareImpact(LiquidityStrategy):
 
     def calculate_price_impact(self, amount: Decimal) -> Decimal:
         assert amount >= Decimal(0), f"Invalid amount {amount}"
-        assert amount <= self.available_liquidity, f"amount {amount} too high"
+        if amount > self.available_liquidity:
+            raise errors.Error("Not enough liquidity")
 
         return self._volume_share_impact(self._used_liquidity + amount)
 
@@ -150,8 +158,14 @@ class VolumeShareImpact(LiquidityStrategy):
         # sqrt(price_impact / self._price_impact_pct) = used_liquidity / self._total_liquidity
         # used_liquidity = self._total_liquidity * sqrt(price_impact / self._price_impact_pct)
 
-        price_impact = min(price_impact, self._price_impact_pct)
-        used_liquidity = self._total_liquidity * (price_impact / self._price_impact_pct).sqrt()
+        if price_impact == Decimal(0):
+            ret = Decimal(0)
+        elif self.available_liquidity == Decimal(0) or self._price_impact_pct == Decimal(0):
+            raise errors.Error("Not enough liquidity")
+        else:
+            price_impact = min(price_impact, self._price_impact_pct)
+            used_liquidity = self._total_liquidity * (price_impact / self._price_impact_pct).sqrt()
 
-        assert used_liquidity <= self._total_liquidity
-        return max(Decimal(0), used_liquidity - self._used_liquidity)
+            assert used_liquidity <= self._total_liquidity
+            ret = max(Decimal(0), used_liquidity - self._used_liquidity)
+        return ret

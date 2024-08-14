@@ -16,6 +16,8 @@
 
 from decimal import Decimal
 
+import pytest
+
 from basana.core import pair, bar, dt
 from basana.backtesting import liquidity
 
@@ -62,10 +64,62 @@ def test_volume_share_impact():
     assert strat.available_liquidity == Decimal("2500")
 
     cummulative_slippage = Decimal(0)
-    for i in range(10):
+    for _ in range(10):
         cummulative_slippage += strat.take_liquidity(Decimal("250"))
     assert cummulative_slippage == Decimal("0.1")
+    assert strat.available_liquidity == Decimal("0")
 
-    assert strat.calculate_amount(Decimal("0.1")) == Decimal("0")
-    assert strat.calculate_amount(Decimal("0.01")) == Decimal("0")
-    assert strat.calculate_amount(Decimal("0.001")) == Decimal("0")
+    with pytest.raises(Exception, match="Not enough liquidity"):
+        strat.calculate_amount(Decimal("0.1"))
+    with pytest.raises(Exception, match="Not enough liquidity"):
+        strat.calculate_price_impact(Decimal("1"))
+
+
+def test_volume_share_impact_without_liquidity():
+    strat = liquidity.VolumeShareImpact()
+    strat.on_bar(
+        bar.Bar(
+            dt.utc_now(), pair.Pair("BTC", "USD"),
+            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal(0)
+        )
+    )
+
+    assert strat.available_liquidity == Decimal(0)
+    assert strat.calculate_price_impact(Decimal(0)) == Decimal(0)
+    assert strat.calculate_amount(Decimal(0)) == Decimal(0)
+    assert strat.take_liquidity(Decimal(0)) == Decimal(0)
+
+    error_msg = "Not enough liquidity"
+    with pytest.raises(Exception, match=error_msg):
+        strat.calculate_price_impact(Decimal("0.00001"))
+    with pytest.raises(Exception, match=error_msg):
+        strat.calculate_amount(Decimal("0.01"))
+    with pytest.raises(Exception, match=error_msg):
+        strat.take_liquidity(Decimal("0.00001"))
+
+
+def test_volume_share_impact_with_zero_price_impact():
+    strat = liquidity.VolumeShareImpact(price_impact=Decimal(0))
+    strat.on_bar(
+        bar.Bar(
+            dt.utc_now(), pair.Pair("BTC", "USD"),
+            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal("100")
+        )
+    )
+
+    assert strat.available_liquidity == Decimal(25)
+    assert strat.calculate_price_impact(Decimal(0)) == Decimal(0)
+    assert strat.calculate_price_impact(Decimal(1)) == Decimal(0)
+    assert strat.calculate_price_impact(Decimal(25)) == Decimal(0)
+    with pytest.raises(Exception, match="Not enough liquidity"):
+        strat.calculate_price_impact(Decimal(26))
+
+    assert strat.calculate_amount(Decimal(0)) == Decimal(0)
+    with pytest.raises(Exception, match="Not enough liquidity"):
+        strat.calculate_amount(Decimal(1))
+
+    assert strat.take_liquidity(Decimal(0)) == Decimal(0)
+    assert strat.take_liquidity(Decimal(5)) == Decimal(0)
+    assert strat.take_liquidity(Decimal(20)) == Decimal(0)
+    with pytest.raises(Exception, match="Not enough liquidity"):
+        strat.take_liquidity(Decimal(1))
