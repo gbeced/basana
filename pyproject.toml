@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "basana"
-version = "1.6.1"
+version = "1.6.2"
 homepage = "https://github.com/gbeced/basana"
 repository = "https://github.com/gbeced/basana"
 documentation = "https://basana.readthedocs.io/en/latest/"
