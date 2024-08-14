@@ -322,3 +322,32 @@ def test_get_balance_updates_with_finite_liquidity(order, expected_balance_updat
     balance_updates = value_map.ValueMap(order.get_balance_updates(b, ls))
     e._order_mgr._round_balance_updates(balance_updates, order.pair)
     assert balance_updates == expected_balance_updates
+
+
+@pytest.mark.parametrize(
+    "order", [
+        LimitOrder(
+            uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("39000.01"), OrderState.OPEN
+        ),
+        LimitOrder(
+            uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), Decimal("49000.01"), OrderState.OPEN
+        ),
+        StopLimitOrder(
+            uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("39000.01"),
+            Decimal("39000.01"), OrderState.OPEN
+        ),
+    ]
+)
+def test_no_liquidity_calculating_balance_updates(order, backtesting_dispatcher):
+    e = exchange.Exchange(backtesting_dispatcher, {})  # Just for rounding purposes
+    p = Pair("BTC", "USD")
+    e.set_pair_info(p, PairInfo(8, 2))
+
+    ls = liquidity.VolumeShareImpact()
+    b = bar.Bar(
+        dt.local_now(), p,
+        Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("0")
+    )
+    ls.on_bar(b)
+
+    assert order.get_balance_updates(b, ls) == {}
