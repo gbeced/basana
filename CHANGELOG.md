@@ -1,6 +1,12 @@
 # Changelog
 
-## 1.6.2
+## 1.6.x
+
+### Misc
+
+* Updated dependencies and minimum Python version.
+
+### 1.6.2
 
 ### Bug fixes
 

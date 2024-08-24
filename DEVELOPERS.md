@@ -2,7 +2,7 @@
 
 ## Requirements
 
-* Python 3.8.1 or greater.
+* Python 3.9 or greater.
 * [Poetry](https://python-poetry.org/) for dependency and package management.
 * Optionally, [Invoke](https://www.pyinvoke.org/).
 
