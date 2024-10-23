@@ -148,31 +148,43 @@ class OrderManager:
                 self._ctx.loan_mgr.cancel_loan(loan_id)
             raise
 
-    def _repay_loans(self, symbol: str):
+        # Add loans to order.
+        for loan_id in loan_ids:
+            order.add_loan(loan_id)
+
+    def _repay_loans(self, order: Order):
+        if order.operation == OrderOperation.BUY:
+            credit_symbol = order.pair.base_symbol
+        else:
+            credit_symbol = order.pair.quote_symbol
+
         candidate_loans = [
             loan for loan in self._ctx.loan_mgr.get_loans(is_open=True)
-            if loan.borrowed_symbol == symbol
+            if loan.borrowed_symbol == credit_symbol
         ]
         # Try to cancel bigger loans first.
         candidate_loans.sort(key=lambda loan: loan.borrowed_amount, reverse=True)
+        loan_ids: List[str] = []
         for loan in candidate_loans:
             try:
                 self._ctx.loan_mgr.repay_loan(loan.id)
+                loan_ids.append(loan.id)
                 loan = cast(lending.LoanInfo, self._ctx.loan_mgr.get_loan(loan.id))
                 logger.debug(logs.StructuredMessage("Repayed loan", loan=dataclasses.asdict(loan)))
             except errors.NotEnoughBalance:
                 pass
 
+        # Add loans to order.
+        for loan_id in loan_ids:
+            order.add_loan(loan_id)
+
     def _order_closed(self, order: Order):
         # The order is closed and there might be balances on hold that have to be released.
         self._update_balances(order, {})
-        # If the order has auto_repay set and is filled, either fully or partially, then we need to cancel any open
-        # loans matching the order's base/quote currency.
+        # If the order has auto_repay set and is filled, either fully or partially, then we need to cancel matching open
+        # loans
         if order.auto_repay and order.amount_filled:
-            if order.operation == OrderOperation.BUY:
-                self._repay_loans(order.pair.base_symbol)
-            else:
-                self._repay_loans(order.pair.quote_symbol)
+            self._repay_loans(order)
 
     def _process_order(
             self, order: Order, bar_event: bar.BarEvent, liquidity_strategy: liquidity.LiquidityStrategy

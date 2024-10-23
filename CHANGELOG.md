@@ -2,6 +2,10 @@
 
 ## 1.6.x
 
+### Features
+
+* Added loan ids to order info.
+
 ### Misc
 
 * Updated dependencies and minimum Python version.
