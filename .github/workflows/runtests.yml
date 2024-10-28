@@ -27,7 +27,7 @@ jobs:
       matrix:
         python-version: ["3.9", "3.10", "3.11", "3.12"]
         # windows-latest due to static image export hanging when using kaleido.
-        os: [ubuntu-latest, macos-13]
+        os: [ubuntu-latest, macos-latest]
 
     runs-on: ${{ matrix.os }}
     name: Test on ${{ matrix.os }} with Python ${{ matrix.python-version }}.
