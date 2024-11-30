@@ -26,18 +26,20 @@ $ pip install basana[charts] talipp pandas statsmodels
 
 ### Backtest a pairs trading strategy
 
-#### Download historical data for backtesting
+1.  Download an unzip [samples](https://github.com/gbeced/basana/releases/download/1.6.2/samples.zip).
 
-```
-$ python -m basana.external.binance.tools.download_bars -c BCH/USDT -p 1h -s 2021-12-01 -e 2021-12-26 -o binance_bchusdt_hourly.csv
-$ python -m basana.external.binance.tools.download_bars -c CVC/USDT -p 1h -s 2021-12-01 -e 2021-12-26 -o binance_cvcusdt_hourly.csv
-```
+2. Download historical data for backtesting
 
-#### Run the backtest
+	```
+	$ python -m basana.external.binance.tools.download_bars -c BCH/USDT -p 1h -s 2021-12-01 -e 2021-12-26 -o binance_bchusdt_hourly.csv
+	$ python -m basana.external.binance.tools.download_bars -c CVC/USDT -p 1h -s 2021-12-01 -e 2021-12-26 -o binance_cvcusdt_hourly.csv
+	```
 
-```
-$ python -m samples.backtest_pairs_trading
-```
+3. Run the backtest
+
+	```
+	$ python -m samples.backtest_pairs_trading
+	```
 
 ![./docs/_static/readme_pairs_trading.png](./docs/_static/readme_pairs_trading.png)
 
