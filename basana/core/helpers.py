@@ -17,6 +17,7 @@
 from decimal import Decimal
 from typing import Any, Coroutine, List, Optional, Set, Union
 import asyncio
+import collections
 import contextlib
 import decimal
 import logging
@@ -177,3 +178,43 @@ def classpath(obj: object):
     module = cls.__module__
     parts = [str(module), cls.__qualname__] if module else [cls.__qualname__]
     return ".".join(parts)
+
+
+class FiFoCache:
+    def __init__(self, maxsize):
+        """
+        Initialize a FIFO cache.
+
+        :param maxsize: Maximum number of elements to hold in the cache.
+                        If the cache grows beyond this size, the oldest item
+                        will be removed.
+        """
+        self._maxsize = maxsize
+        self._cache = collections.OrderedDict()
+
+    def add(self, key, value):
+        """
+        Adds an item to the cache. If adding this item would exceed the
+        maxsize, the oldest item (first added) will be removed to make room.
+
+        :param key: The key for the item to be added.
+        :param value: The value associated with the key.
+        """
+        if key in self._cache:
+            # Remove the old key before re-adding it to keep FIFO order
+            del self._cache[key]
+
+        self._cache[key] = value
+
+        if len(self._cache) > self._maxsize:
+            # Remove the oldest item if cache size exceeds maxsize
+            self._cache.popitem(last=False)
+
+    def __contains__(self, key) -> bool:
+        """
+        Check if a key is present in the cache.
+
+        :param key: The key to check for presence in the cache.
+        :returns: True if the key exists in the cache, False otherwise.
+        """
+        return key in self._cache
