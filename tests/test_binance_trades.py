@@ -19,8 +19,6 @@ import asyncio
 import datetime
 import json
 
-import aioresponses
-import pytest
 import websockets
 
 from basana.core import pair
@@ -43,16 +41,6 @@ TRADE_MSG = {
         "M": True
     }
 }
-
-
-@pytest.fixture()
-def binance_http_api_mock():
-    with aioresponses.aioresponses() as m:
-        yield m
-
-
-async def ignore(*args, **kwargs):
-    pass
 
 
 def test_websocket_ok(realtime_dispatcher):
