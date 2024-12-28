@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
+from typing import Any, Awaitable, Callable
 import datetime
 import logging
 
@@ -95,3 +96,6 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
 
 def get_channel(pair: Pair) -> str:
     return "{}@trade".format(helpers.pair_to_order_book_symbol(pair).lower())
+
+
+TradeEventHandler = Callable[[TradeEvent], Awaitable[Any]]

@@ -15,14 +15,23 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union
 import dataclasses
 
 import aiohttp
 
-from . import client, helpers, order_book, trades, websockets as binance_ws, spot, cross_margin, isolated_margin, klines
-from basana.core import bar, dispatcher, enums, event, token_bucket, websockets as core_ws
+from . import client, helpers, order_book, trades, spot, cross_margin, isolated_margin, websocket_mgr
+from basana.core import bar, dispatcher, enums, token_bucket
 from basana.core.pair import Pair, PairInfo
+
+
+BarEventHandler = bar.BarEventHandler
+Error = client.Error
+OrderBookEvent = order_book.OrderBookEvent
+OrderBookEventHandler = order_book.OrderBookEventHandler
+OrderOperation = enums.OrderOperation
+TradeEvent = trades.TradeEvent
+TradeEventHandler = trades.TradeEventHandler
 
 
 @dataclasses.dataclass(frozen=True)
@@ -38,15 +47,6 @@ class PairInfoEx(PairInfo):
 
     #: The account and pair permissions.
     permissions: List[str]
-
-
-BarEventHandler = Callable[[bar.BarEvent], Awaitable[Any]]
-Error = client.Error
-OrderBookEvent = order_book.OrderBookEvent
-OrderBookEventHandler = Callable[[order_book.OrderBookEvent], Awaitable[Any]]
-OrderOperation = enums.OrderOperation
-TradeEvent = trades.TradeEvent
-TradeEventHandler = Callable[[trades.TradeEvent], Awaitable[Any]]
 
 
 class Exchange:
@@ -73,15 +73,17 @@ class Exchange:
         self._session = session
         self._tb = tb
         self._config_overrides = config_overrides
-        self._websocket: Optional[binance_ws.WebSocketClient] = None
-        self._channel_to_event_source: Dict[str, event.EventSource] = {}
         self._pair_info_cache: Dict[Pair, PairInfoEx] = {}
+        self._ws_mgr = websocket_mgr.WebsocketManager(
+            dispatcher, self._cli, session=session, config_overrides=config_overrides
+        )
 
     def subscribe_to_bar_events(
             self, pair: Pair, bar_duration: Union[int, str], event_handler: BarEventHandler,
             skip_first_bar: bool = True, flush_delay: float = 1
     ):
-        """Registers an async callable that will be called when a new bar is available.
+        """
+        Registers an async callable that will be called when a new bar is available.
 
         Works as defined in https://binance-docs.github.io/apidocs/spot/en/#kline-candlestick-streams but only closed
         klines are reported.
@@ -133,17 +135,13 @@ class Exchange:
         }.get(bar_duration)
         assert interval, "Invalid bar_duration"
 
-        channel = klines.get_channel(pair, interval)
-        self._subscribe_to_ws_channel_events(
-            channel,
-            lambda ws_cli: klines.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
-        )
+        self._ws_mgr.subscribe_to_bar_events(pair, interval, event_handler)
 
     def subscribe_to_order_book_events(
             self, pair: Pair, event_handler: OrderBookEventHandler, depth: int = 10
     ):
-        """Registers an async callable that will be called every 1 second with the top bids/asks of the order book.
+        """
+        Registers an async callable that will be called every 1 second with the top bids/asks of the order book.
 
         Works as defined in https://binance-docs.github.io/apidocs/spot/en/#partial-book-depth-streams.
 
@@ -151,27 +149,20 @@ class Exchange:
         :param event_handler: An async callable that receives an OrderBookEvent.
         :param depth: The order book depth. Valid values are: 5, 10, 20.
         """
-        channel = order_book.get_channel(pair, depth)
-        self._subscribe_to_ws_channel_events(
-            channel,
-            lambda ws_cli: order_book.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
-        )
+
+        self._ws_mgr.subscribe_to_order_book_events(pair, event_handler, depth=depth)
 
     def subscribe_to_trade_events(self, pair: Pair, event_handler: TradeEventHandler):
-        """Registers an async callable that will be called for every new trade.
+        """
+        Registers an async callable that will be called for every new trade.
 
         Works as defined in https://binance-docs.github.io/apidocs/spot/en/#trade-streams.
 
         :param pair: The trading pair.
         :param event_handler: An async callable that receives a TradeEvent.
         """
-        channel = trades.get_channel(pair)
-        self._subscribe_to_ws_channel_events(
-            channel,
-            lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
-        )
+
+        self._ws_mgr.subscribe_to_trade_events(pair, event_handler)
 
     async def get_pair_info(self, pair: Pair) -> PairInfoEx:
         """Returns information about a trading pair.
@@ -207,7 +198,7 @@ class Exchange:
     @property
     def spot_account(self) -> spot.Account:
         """Returns the spot account."""
-        return spot.Account(self._cli.spot_account)
+        return spot.Account(self._cli.spot_account, self._ws_mgr)
 
     @property
     def cross_margin_account(self) -> cross_margin.Account:
@@ -218,25 +209,6 @@ class Exchange:
     def isolated_margin_account(self) -> isolated_margin.Account:
         """Returns the isolated margin account."""
         return isolated_margin.Account(self._cli.isolated_margin_account)
-
-    def _subscribe_to_ws_channel_events(
-            self, channel: str, event_src_factory: Callable[[core_ws.WebSocketClient], core_ws.ChannelEventSource],
-            event_handler: dispatcher.EventHandler
-    ):
-        # Get/create the event source for the channel.
-        ws_cli = self._get_ws_client()
-        event_source = ws_cli.get_channel_event_source(channel)
-        if not event_source:
-            event_source = event_src_factory(ws_cli)
-            ws_cli.set_channel_event_source(channel, event_source)
-
-        # Subscribe the event handler to the event source.
-        self._dispatcher.subscribe(event_source, event_handler)
-
-    def _get_ws_client(self) -> binance_ws.WebSocketClient:
-        if self._websocket is None:
-            self._websocket = binance_ws.WebSocketClient(session=self._session, config_overrides=self._config_overrides)
-        return self._websocket
 
 
 def get_filter_from_symbol_info(symbol_info: dict, filter_type: str) -> Optional[dict]:

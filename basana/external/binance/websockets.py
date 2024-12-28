@@ -22,16 +22,23 @@ import time
 
 import aiohttp
 
-from . import config
-from basana.core import logs, websockets as core_ws
+from . import client, config
+from basana.core import helpers, logs, websockets as core_ws
 from basana.core.config import get_config_value
 
 
 logger = logging.getLogger(__name__)
 
+# Authenticated streams, like USER_STREAM, don't have fixed channel names. Listen keys are used instead. We use aliases
+# to simplify dealing with listen keys that have expired.
+spot_user_data_stream_alias = "spot_user_data"
+
 
 class WebSocketClient(core_ws.WebSocketClient):
-    def __init__(self, session: Optional[aiohttp.ClientSession] = None, config_overrides: dict = {}):
+    def __init__(
+            self, api_client: client.APIClient, session: Optional[aiohttp.ClientSession] = None,
+            config_overrides: dict = {}
+    ):
         url = urljoin(
             get_config_value(config.DEFAULTS, "api.websockets.base_url", overrides=config_overrides),
             "/stream"
@@ -41,9 +48,21 @@ class WebSocketClient(core_ws.WebSocketClient):
             heartbeat=get_config_value(config.DEFAULTS, "api.websockets.heartbeat", overrides=config_overrides)
         )
         self._next_msg_id = int(time.time() * 1000)
+        self._cli = api_client
+        self._listen_keys = helpers.FiFoCache(2 * 3)
 
     async def subscribe_to_channels(self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse):
         logger.debug(logs.StructuredMessage("Subscribing", src=self, channels=channels))
+
+        # Replace user_data_stream_alias with the listen key.
+        if spot_user_data_stream_alias in channels:
+            listen_key = (await self._cli.spot_account.create_listen_key())["listenKey"]
+            self._listen_keys.add(listen_key, None)
+            channels = [
+                listen_key if channel == spot_user_data_stream_alias else channel
+                for channel in channels
+            ]
+
         msg_id = self._get_next_msg_id()
         await ws_cli.send_str(json.dumps({
             "id": msg_id,
@@ -58,8 +77,12 @@ class WebSocketClient(core_ws.WebSocketClient):
         if {"result", "id"} <= set(message.keys()):
             coro = self._on_response(message)
         # A message associated to a channel.
-        elif (channel := message.get("stream")) and (event_source := self.get_channel_event_source(channel)):
-            coro = event_source.push_from_message(message)
+        elif channel := message.get("stream"):
+            # If the channel refers to a listen key, the map that to user_data_stream_alias.
+            if channel in self._listen_keys:
+                channel = spot_user_data_stream_alias
+            if event_source := self.get_channel_event_source(channel):
+                coro = event_source.push_from_message(message)
 
         ret = False
         if coro:

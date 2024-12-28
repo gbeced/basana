@@ -17,7 +17,7 @@
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from . import common, helpers, spot_requests
+from . import common, helpers, spot_requests, user_data, websocket_mgr
 from .client import spot as spot_client
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
@@ -29,7 +29,11 @@ CanceledOrder = common.CanceledOrder
 CreatedOCOOrder = common.CreatedOCOOrder
 OCOOrderInfo = common.OCOOrderInfo
 OCOOrderWrapper = common.OCOOrderWrapper
+OrderEvent = user_data.OrderEvent
+OrderEventHandler = user_data.OrderEventHandler
 OrderInfo = common.OrderInfo
+UserDataEvent = user_data.Event
+UserDataEventHandler = user_data.UserDataEventHandler
 
 
 class Trade(common.Trade):
@@ -78,8 +82,9 @@ class OpenOrder(common.OpenOrder):
 
 class Account:
     """Spot account."""
-    def __init__(self, cli: spot_client.SpotAccount):
+    def __init__(self, cli: spot_client.SpotAccount, ws_mgr: websocket_mgr.WebsocketManager):
         self._cli = cli
+        self._ws_mgr = ws_mgr
 
     async def get_balances(self) -> Dict[str, Balance]:
         """Returns all balances."""
@@ -297,3 +302,25 @@ class Account:
             client_order_list_id=client_order_list_id
         )
         return CanceledOCOOrder(canceled_order)
+
+    def subscribe_to_user_data_events(self, event_handler: UserDataEventHandler):
+        """
+        Registers an async callable that will be called for every new user data event.
+
+        Works as defined in https://developers.binance.com/docs/binance-spot-api-docs/user-data-stream.
+
+        :param event_handler: An async callable that receives an UserDataEvent.
+        """
+
+        self._ws_mgr.subscribe_to_user_data_events(event_handler)
+
+    def subscribe_to_order_events(self, event_handler: OrderEventHandler):
+        """
+        Registers an async callable that will be called for every new order update.
+
+        Works as defined in https://developers.binance.com/docs/binance-spot-api-docs/user-data-stream#order-update.
+
+        :param event_handler: An async callable that receives an OrderEvent.
+        """
+
+        self._ws_mgr.subscribe_to_order_events(event_handler)
