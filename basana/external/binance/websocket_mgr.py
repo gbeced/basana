@@ -60,20 +60,38 @@ class WebsocketManager:
             cast(dispatcher.EventHandler, event_handler)
         )
 
-    def subscribe_to_user_data_events(self, event_handler: user_data.UserDataEventHandler):
+    def subscribe_to_spot_user_data_events(self, event_handler: user_data.UserDataEventHandler):
         self._subscribe_to_ws_channel_events(
             binance_ws.spot_user_data_stream_alias,
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
 
-    def subscribe_to_order_events(self, event_handler: user_data.OrderEventHandler):
+    def subscribe_to_spot_order_events(self, event_handler: user_data.OrderEventHandler):
         async def forward_if_order_event(event: user_data.Event):
             if isinstance(event, user_data.OrderEvent):
                 await event_handler(event)
 
         self._subscribe_to_ws_channel_events(
             binance_ws.spot_user_data_stream_alias,
+            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
+            cast(dispatcher.EventHandler, forward_if_order_event)
+        )
+
+    def subscribe_to_cross_margin_user_data_events(self, event_handler: user_data.UserDataEventHandler):
+        self._subscribe_to_ws_channel_events(
+            binance_ws.cross_margin_user_data_stream_alias,
+            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
+            cast(dispatcher.EventHandler, event_handler)
+        )
+
+    def subscribe_to_cross_margin_order_events(self, event_handler: user_data.OrderEventHandler):
+        async def forward_if_order_event(event: user_data.Event):
+            if isinstance(event, user_data.OrderEvent):
+                await event_handler(event)
+
+        self._subscribe_to_ws_channel_events(
+            binance_ws.cross_margin_user_data_stream_alias,
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, forward_if_order_event)
         )

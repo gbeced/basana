@@ -312,7 +312,7 @@ class Account:
         :param event_handler: An async callable that receives an UserDataEvent.
         """
 
-        self._ws_mgr.subscribe_to_user_data_events(event_handler)
+        self._ws_mgr.subscribe_to_spot_user_data_events(event_handler)
 
     def subscribe_to_order_events(self, event_handler: OrderEventHandler):
         """
@@ -323,4 +323,4 @@ class Account:
         :param event_handler: An async callable that receives an OrderEvent.
         """
 
-        self._ws_mgr.subscribe_to_order_events(event_handler)
+        self._ws_mgr.subscribe_to_spot_order_events(event_handler)

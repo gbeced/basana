@@ -203,7 +203,7 @@ class Exchange:
     @property
     def cross_margin_account(self) -> cross_margin.Account:
         """Returns the cross margin account."""
-        return cross_margin.Account(self._cli.cross_margin_account)
+        return cross_margin.Account(self._cli.cross_margin_account, self._ws_mgr)
 
     @property
     def isolated_margin_account(self) -> isolated_margin.Account:

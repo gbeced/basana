@@ -186,6 +186,9 @@ class CrossMarginAccount(MarginAccount):
     async def get_account_information(self) -> dict:
         return await self._client.make_request("GET", "/sapi/v1/margin/account", send_sig=True)
 
+    async def create_listen_key(self) -> dict:
+        return await self._client.make_request("POST", "/sapi/v1/userDataStream", send_key=True)
+
 
 class IsolatedMarginAccount(MarginAccount):
     @property

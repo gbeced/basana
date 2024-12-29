@@ -17,14 +17,21 @@
 from decimal import Decimal
 from typing import Dict
 
-from . import margin
+from . import margin, user_data, websocket_mgr
 from .client import margin as margin_client
+
+
+OrderEvent = user_data.OrderEvent
+OrderEventHandler = user_data.OrderEventHandler
+UserDataEvent = user_data.Event
+UserDataEventHandler = user_data.UserDataEventHandler
 
 
 class Account(margin.Account):
     """Cross margin account."""
-    def __init__(self, cli: margin_client.CrossMarginAccount):
+    def __init__(self, cli: margin_client.CrossMarginAccount, ws_mgr: websocket_mgr.WebsocketManager):
         self._cli = cli
+        self._ws_mgr = ws_mgr
 
     @property
     def client(self) -> margin_client.CrossMarginAccount:
@@ -54,3 +61,25 @@ class Account(margin.Account):
         :param amount: The amount to transfer.
         """
         return await self.client.transfer_to_spot_account(asset, amount)
+
+    def subscribe_to_user_data_events(self, event_handler: UserDataEventHandler):
+        """
+        Registers an async callable that will be called for every new user data event.
+
+        Works as defined in https://developers.binance.com/docs/margin_trading/trade-data-stream.
+
+        :param event_handler: An async callable that receives an UserDataEvent.
+        """
+
+        self._ws_mgr.subscribe_to_cross_margin_user_data_events(event_handler)
+
+    def subscribe_to_order_events(self, event_handler: OrderEventHandler):
+        """
+        Registers an async callable that will be called for every new order update.
+
+        Works as defined in https://developers.binance.com/docs/margin_trading/trade-data-stream/Event-Order-Update.
+
+        :param event_handler: An async callable that receives an OrderEvent.
+        """
+
+        self._ws_mgr.subscribe_to_cross_margin_order_events(event_handler)
