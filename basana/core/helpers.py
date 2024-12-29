@@ -218,3 +218,6 @@ class FiFoCache:
         :returns: True if the key exists in the cache, False otherwise.
         """
         return key in self._cache
+
+    def get(self, key, default=None):
+        return self._cache.get(key, default)

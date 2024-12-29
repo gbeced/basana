@@ -162,9 +162,11 @@ def test_fifo_cache():
 
     for k in [k1, k2, k3]:
         assert k not in c
+        assert c.get(k) is None
 
-    c.add(k1, None)
+    c.add(k1, "k1")
     assert k1 in c
+    assert c.get(k1) == "k1"
 
     c.add(k2, None)
     assert k1 in c
