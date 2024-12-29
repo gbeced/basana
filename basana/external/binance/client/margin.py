@@ -217,3 +217,9 @@ class IsolatedMarginAccount(MarginAccount):
 
     async def get_account_information(self) -> dict:
         return await self._client.make_request("GET", "/sapi/v1/margin/isolated/account", send_sig=True)
+
+    async def create_listen_key(self, symbol: str) -> dict:
+        params: Dict[str, Any] = {
+            "symbol": symbol,
+        }
+        return await self._client.make_request("POST", "/sapi/v1/userDataStream/isolated", send_key=True, data=params)

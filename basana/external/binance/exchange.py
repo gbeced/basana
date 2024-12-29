@@ -208,7 +208,7 @@ class Exchange:
     @property
     def isolated_margin_account(self) -> isolated_margin.Account:
         """Returns the isolated margin account."""
-        return isolated_margin.Account(self._cli.isolated_margin_account)
+        return isolated_margin.Account(self._cli.isolated_margin_account, self._ws_mgr)
 
 
 def get_filter_from_symbol_info(symbol_info: dict, filter_type: str) -> Optional[dict]:

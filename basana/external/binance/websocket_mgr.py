@@ -35,9 +35,8 @@ class WebsocketManager:
         self._websocket: Optional[binance_ws.WebSocketClient] = None
 
     def subscribe_to_bar_events(self, pair: Pair, interval: str, event_handler: bar.BarEventHandler):
-        channel = klines.get_channel(pair, interval)
         self._subscribe_to_ws_channel_events(
-            channel,
+            binance_ws.FixedChannelName(klines.get_channel(pair, interval)),
             lambda ws_cli: klines.WebSocketEventSource(pair, ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
@@ -45,24 +44,22 @@ class WebsocketManager:
     def subscribe_to_order_book_events(
             self, pair: Pair, event_handler: order_book.OrderBookEventHandler, depth: int = 10
     ):
-        channel = order_book.get_channel(pair, depth)
         self._subscribe_to_ws_channel_events(
-            channel,
+            binance_ws.FixedChannelName(order_book.get_channel(pair, depth)),
             lambda ws_cli: order_book.WebSocketEventSource(pair, ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
 
     def subscribe_to_trade_events(self, pair: Pair, event_handler: trades.TradeEventHandler):
-        channel = trades.get_channel(pair)
         self._subscribe_to_ws_channel_events(
-            channel,
+            binance_ws.FixedChannelName(trades.get_channel(pair)),
             lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
 
     def subscribe_to_spot_user_data_events(self, event_handler: user_data.UserDataEventHandler):
         self._subscribe_to_ws_channel_events(
-            binance_ws.spot_user_data_stream_alias,
+            binance_ws.SpotUserDataChannel(),
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
@@ -73,14 +70,14 @@ class WebsocketManager:
                 await event_handler(event)
 
         self._subscribe_to_ws_channel_events(
-            binance_ws.spot_user_data_stream_alias,
+            binance_ws.SpotUserDataChannel(),
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, forward_if_order_event)
         )
 
     def subscribe_to_cross_margin_user_data_events(self, event_handler: user_data.UserDataEventHandler):
         self._subscribe_to_ws_channel_events(
-            binance_ws.cross_margin_user_data_stream_alias,
+            binance_ws.CrossMarginUserDataChannel(),
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
@@ -91,21 +88,40 @@ class WebsocketManager:
                 await event_handler(event)
 
         self._subscribe_to_ws_channel_events(
-            binance_ws.cross_margin_user_data_stream_alias,
+            binance_ws.CrossMarginUserDataChannel(),
+            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
+            cast(dispatcher.EventHandler, forward_if_order_event)
+        )
+
+    def subscribe_to_isolated_margin_user_data_events(self, pair: Pair, event_handler: user_data.UserDataEventHandler):
+        self._subscribe_to_ws_channel_events(
+            binance_ws.IsolatedMarginUserDataChannel(pair),
+            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
+            cast(dispatcher.EventHandler, event_handler)
+        )
+
+    def subscribe_to_isolated_margin_order_events(self, pair: Pair, event_handler: user_data.OrderEventHandler):
+        async def forward_if_order_event(event: user_data.Event):
+            if isinstance(event, user_data.OrderEvent):
+                await event_handler(event)
+
+        self._subscribe_to_ws_channel_events(
+            binance_ws.IsolatedMarginUserDataChannel(pair),
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, forward_if_order_event)
         )
 
     def _subscribe_to_ws_channel_events(
-            self, channel: str, event_src_factory: Callable[[core_ws.WebSocketClient], core_ws.ChannelEventSource],
+            self, channel: binance_ws.Channel,
+            event_src_factory: Callable[[core_ws.WebSocketClient], core_ws.ChannelEventSource],
             event_handler: dispatcher.EventHandler
     ):
         # Get/create the event source for the channel.
         ws_cli = self._get_ws_client()
-        event_source = ws_cli.get_channel_event_source(channel)
+        event_source = ws_cli.get_channel_event_source_ex(channel)
         if not event_source:
             event_source = event_src_factory(ws_cli)
-            ws_cli.set_channel_event_source(channel, event_source)
+            ws_cli.set_channel_event_source_ex(channel, event_source)
 
         # Subscribe the event handler to the event source.
         self._dispatcher.subscribe(event_source, event_handler)

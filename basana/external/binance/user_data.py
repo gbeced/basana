@@ -157,7 +157,6 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         super().__init__(producer=producer)
 
     async def push_from_message(self, message: dict):
-        # print(message)
         json = message["data"]
         event_cls = {
             "executionReport": OrderEvent,

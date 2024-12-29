@@ -87,6 +87,7 @@ OTHER_MSG = {
 @pytest.mark.parametrize("account_attr", [
     "spot_account",
     "cross_margin_account",
+    "isolated_margin_account",
 ])
 def test_websocket_ok(account_attr, realtime_dispatcher, binance_http_api_mock):
     order_update_event = None
@@ -127,6 +128,10 @@ def test_websocket_ok(account_attr, realtime_dispatcher, binance_http_api_mock):
         binance_http_api_mock.post(
             re.compile(r"http://binance.mock/sapi/v1/userDataStream.*"), status=200, payload={"listenKey": listen_key}
         )
+        binance_http_api_mock.post(
+            re.compile(r"http://binance.mock/sapi/v1/userDataStream/isolated.*"), status=200,
+            payload={"listenKey": listen_key}
+        )
 
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
@@ -140,8 +145,13 @@ def test_websocket_ok(account_attr, realtime_dispatcher, binance_http_api_mock):
                 realtime_dispatcher, api_key="api_key", api_secret="api_secret", config_overrides=config_overrides
             )
             account = getattr(e, account_attr)
-            account.subscribe_to_user_data_events(on_user_data_event)
-            account.subscribe_to_order_events(on_order_update)
+            if account_attr == "isolated_margin_account":
+                pair = bs.Pair("BTC", "USDT")
+                account.subscribe_to_user_data_events(pair, on_user_data_event)
+                account.subscribe_to_order_events(pair, on_order_update)
+            else:
+                account.subscribe_to_user_data_events(on_user_data_event)
+                account.subscribe_to_order_events(on_order_update)
 
             await realtime_dispatcher.run()
 
