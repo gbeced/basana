@@ -48,7 +48,7 @@ class Channel(metaclass=abc.ABCMeta):
         pass
 
 
-class FixedChannelName(Channel):
+class PublicChannel(Channel):
     def __init__(self, name: str):
         self._name = name
 

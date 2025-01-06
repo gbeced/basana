@@ -36,7 +36,7 @@ class WebsocketManager:
 
     def subscribe_to_bar_events(self, pair: Pair, interval: str, event_handler: bar.BarEventHandler):
         self._subscribe_to_ws_channel_events(
-            binance_ws.FixedChannelName(klines.get_channel(pair, interval)),
+            binance_ws.PublicChannel(klines.get_channel(pair, interval)),
             lambda ws_cli: klines.WebSocketEventSource(pair, ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
@@ -45,14 +45,14 @@ class WebsocketManager:
             self, pair: Pair, event_handler: order_book.OrderBookEventHandler, depth: int = 10
     ):
         self._subscribe_to_ws_channel_events(
-            binance_ws.FixedChannelName(order_book.get_channel(pair, depth)),
+            binance_ws.PublicChannel(order_book.get_channel(pair, depth)),
             lambda ws_cli: order_book.WebSocketEventSource(pair, ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
 
     def subscribe_to_trade_events(self, pair: Pair, event_handler: trades.TradeEventHandler):
         self._subscribe_to_ws_channel_events(
-            binance_ws.FixedChannelName(trades.get_channel(pair)),
+            binance_ws.PublicChannel(trades.get_channel(pair)),
             lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
