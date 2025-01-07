@@ -58,7 +58,7 @@ def test_websocket_ok(realtime_dispatcher):
         assert message["method"] == "SUBSCRIBE"
         await websocket.send(json.dumps({"result": None, "id": message["id"]}))
 
-        while True:
+        while websocket.state == websockets.protocol.State.OPEN:
             await websocket.send(json.dumps(TRADE_MSG))
             await asyncio.sleep(0.1)
 
