@@ -455,3 +455,11 @@ def test_recursive_schedule_bug(backtesting_dispatcher):
         assert jobs_processed == 1
 
     asyncio.run(test_main())
+
+
+def test_cancelation_is_forwarded(realtime_dispatcher):
+    async def test_main():
+        with pytest.raises(asyncio.CancelledError):
+            await realtime_dispatcher.run()
+
+    asyncio.run(asyncio.wait_for(test_main(), 1))

@@ -242,7 +242,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
                     tg.create_task(producer.main())
                 tg.create_task(self._dispatch_loop())
         except asyncio.CancelledError:
-            pass
+            if not self.stopped:
+                raise
         finally:
             # Cancel any pending task in the event pool.
             self._handlers_task_pool.cancel()
