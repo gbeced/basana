@@ -189,6 +189,12 @@ class CrossMarginAccount(MarginAccount):
     async def create_listen_key(self) -> dict:
         return await self._client.make_request("POST", "/sapi/v1/userDataStream", send_key=True)
 
+    async def keep_alive_listen_key(self, listen_key: str) -> dict:
+        params: Dict[str, Any] = {
+            "listenKey": listen_key,
+        }
+        return await self._client.make_request("PUT", "/sapi/v1/userDataStream", send_key=True, data=params)
+
 
 class IsolatedMarginAccount(MarginAccount):
     @property
@@ -223,3 +229,10 @@ class IsolatedMarginAccount(MarginAccount):
             "symbol": symbol,
         }
         return await self._client.make_request("POST", "/sapi/v1/userDataStream/isolated", send_key=True, data=params)
+
+    async def keep_alive_listen_key(self, symbol: str, listen_key: str) -> dict:
+        params: Dict[str, Any] = {
+            "symbol": symbol,
+            "listenKey": listen_key,
+        }
+        return await self._client.make_request("PUT", "/sapi/v1/userDataStream/isolated", send_key=True, data=params)

@@ -129,6 +129,6 @@ class WebsocketManager:
     def _get_ws_client(self) -> binance_ws.WebSocketClient:
         if self._websocket is None:
             self._websocket = binance_ws.WebSocketClient(
-                self._cli, session=self._session, config_overrides=self._config_overrides
+                self._dispatcher, self._cli, session=self._session, config_overrides=self._config_overrides
             )
         return self._websocket

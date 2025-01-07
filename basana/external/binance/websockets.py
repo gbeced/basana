@@ -14,10 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import cast, Dict, List, Optional
+from typing import Dict, List, Optional
 from urllib.parse import urljoin
 import abc
 import asyncio
+import datetime
 import json
 import logging
 import time
@@ -25,7 +26,7 @@ import time
 import aiohttp
 
 from . import client, config, helpers as binance_helpers
-from basana.core import logs, websockets as core_ws
+from basana.core import dispatcher, logs, websockets as core_ws
 from basana.core.config import get_config_value
 import basana as bs
 
@@ -45,6 +46,12 @@ class Channel(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     async def resolve_stream_name(self, api_client: client.APIClient):
+        pass
+
+    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
+        return None
+
+    async def keep_alive(self, api_client: client.APIClient):  # pragma: no cover
         pass
 
 
@@ -71,11 +78,22 @@ class SpotUserDataChannel(Channel):
 
     @property
     def stream(self) -> str:
-        assert self._listen_key, "resolve_name not called"
+        assert self._listen_key, "resolve_stream_name not called"
         return self._listen_key
 
     async def resolve_stream_name(self, api_client: client.APIClient):
         self._listen_key = (await api_client.spot_account.create_listen_key())["listenKey"]
+
+    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
+        return datetime.timedelta(
+            seconds=get_config_value(
+                config.DEFAULTS, "api.websockets.spot.user_data_stream.heartbeat", overrides=config_overrides
+            )
+        )
+
+    async def keep_alive(self, api_client: client.APIClient):
+        assert self._listen_key, "resolve_stream_name not called"
+        await api_client.spot_account.keep_alive_listen_key(self._listen_key)
 
 
 class CrossMarginUserDataChannel(Channel):
@@ -88,11 +106,22 @@ class CrossMarginUserDataChannel(Channel):
 
     @property
     def stream(self) -> str:
-        assert self._listen_key, "resolve_name not called"
+        assert self._listen_key, "resolve_stream_name not called"
         return self._listen_key
 
     async def resolve_stream_name(self, api_client: client.APIClient):
         self._listen_key = (await api_client.cross_margin_account.create_listen_key())["listenKey"]
+
+    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
+        return datetime.timedelta(
+            seconds=get_config_value(
+                config.DEFAULTS, "api.websockets.cross_margin.user_data_stream.heartbeat", overrides=config_overrides
+            )
+        )
+
+    async def keep_alive(self, api_client: client.APIClient):
+        assert self._listen_key, "resolve_stream_name not called"
+        await api_client.cross_margin_account.keep_alive_listen_key(self._listen_key)
 
 
 class IsolatedMarginUserDataChannel(Channel):
@@ -103,22 +132,34 @@ class IsolatedMarginUserDataChannel(Channel):
     @property
     def alias(self) -> str:
         symbol = binance_helpers.pair_to_order_book_symbol(self._pair)
-        return f"isolated_margin_user_data_{symbol}"
+        return f"isolated_margin_user_data_{symbol.lower()}"
 
     @property
     def stream(self) -> str:
-        assert self._listen_key, "resolve_name not called"
+        assert self._listen_key, "resolve_stream_name not called"
         return self._listen_key
 
     async def resolve_stream_name(self, api_client: client.APIClient):
         symbol = binance_helpers.pair_to_order_book_symbol(self._pair)
         self._listen_key = (await api_client.isolated_margin_account.create_listen_key(symbol))["listenKey"]
 
+    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
+        return datetime.timedelta(
+            seconds=get_config_value(
+                config.DEFAULTS, "api.websockets.isolated_margin.user_data_stream.heartbeat", overrides=config_overrides
+            )
+        )
+
+    async def keep_alive(self, api_client: client.APIClient):
+        assert self._listen_key, "resolve_stream_name not called"
+        symbol = binance_helpers.pair_to_order_book_symbol(self._pair)
+        await api_client.isolated_margin_account.keep_alive_listen_key(symbol, self._listen_key)
+
 
 class WebSocketClient(core_ws.WebSocketClient):
     def __init__(
-            self, api_client: client.APIClient, session: Optional[aiohttp.ClientSession] = None,
-            config_overrides: dict = {}
+            self, dispatcher: dispatcher.EventDispatcher, api_client: client.APIClient,
+            session: Optional[aiohttp.ClientSession] = None, config_overrides: dict = {}
     ):
         url = urljoin(
             get_config_value(config.DEFAULTS, "api.websockets.base_url", overrides=config_overrides),
@@ -128,11 +169,12 @@ class WebSocketClient(core_ws.WebSocketClient):
             url, session=session, config_overrides=config_overrides,
             heartbeat=get_config_value(config.DEFAULTS, "api.websockets.heartbeat", overrides=config_overrides)
         )
-        self._next_msg_id = int(time.time() * 1000)
+        self._dispatcher = dispatcher
         self._cli = api_client
-
         self._alias_to_channel: Dict[str, Channel] = {}
         self._stream_to_channel: Dict[str, Channel] = {}
+        self._next_keep_alive: Dict[str, datetime.datetime] = {}
+        self._next_msg_id = int(time.time() * 1000)
 
     def set_channel_event_source_ex(self, channel: Channel, event_source: core_ws.ChannelEventSource):
         assert channel.alias not in self._alias_to_channel, "channel already registered"
@@ -145,9 +187,8 @@ class WebSocketClient(core_ws.WebSocketClient):
     async def subscribe_to_channels(self, channel_aliases: List[str], ws_cli: aiohttp.ClientWebSocketResponse):
         logger.debug(logs.StructuredMessage("Subscribing", src=self, channels=channel_aliases))
 
-        channels = [self._alias_to_channel[alias] for alias in channel_aliases]
-        # Give the chance for dynamic channels to resolved the subscribe name.
-        channels = cast(List[Channel], channels)
+        # Give a chance for dynamic channels to resolve the stream name.
+        channels: List[Channel] = [self._alias_to_channel[alias] for alias in channel_aliases]
         await asyncio.gather(*[
             channel.resolve_stream_name(self._cli) for channel in channels
         ])
@@ -161,6 +202,10 @@ class WebSocketClient(core_ws.WebSocketClient):
             "method": "SUBSCRIBE",
             "params": [channel.stream for channel in channels]
         }))
+
+        # Schedule keep alives.
+        for channel in channels:
+            self._schedule_keep_alive(channel)
 
     async def handle_message(self, message: dict) -> bool:
         coro = None
@@ -190,3 +235,21 @@ class WebSocketClient(core_ws.WebSocketClient):
         ret = self._next_msg_id
         self._next_msg_id += 1
         return ret
+
+    def _keep_alive_channel(self, channel: Channel) -> dispatcher.SchedulerJob:
+        async def scheduler_job():
+            if self._next_keep_alive[channel.alias] <= self._dispatcher.now():
+                logger.debug(logs.StructuredMessage("Channel keep alive", alias=channel.alias))
+                try:
+                    await channel.keep_alive(self._cli)
+                finally:
+                    self._schedule_keep_alive(channel)
+        return scheduler_job
+
+    def _schedule_keep_alive(self, channel: Channel):
+        period = channel.keep_alive_period(self._config_overrides)
+        if period:
+            schedule_dt = self._dispatcher.now() + period
+            logger.debug(logs.StructuredMessage("Scheduling keep alive", when=schedule_dt, alias=channel.alias))
+            self._next_keep_alive[channel.alias] = schedule_dt
+            self._dispatcher.schedule(schedule_dt, self._keep_alive_channel(channel))

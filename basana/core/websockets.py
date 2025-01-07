@@ -130,7 +130,7 @@ class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
             if not handled:
                 await self.on_unknown_message(message)
 
-        # If the message loop finished we need to gracefully stop the other tasks.
+        # If the message loop finished we need to notify the other tasks so they can finish as well.
         self._subscribe_request.set()
         self._reconnect_request.set()
 
@@ -138,6 +138,7 @@ class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
         # Will exit when reconnection is requested or when its canceled.
         await self._reconnect_request.wait()
         self._reconnect_request.clear()
+        # If the client is already closed then there is nothing left to do.
         if not ws_cli.closed:
             await ws_cli.close()
 

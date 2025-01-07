@@ -18,11 +18,15 @@ from decimal import Decimal
 import asyncio
 import datetime
 import json
+import logging
 import re
 
+import aioresponses
 import pytest
 import websockets
+import websockets.protocol
 
+from . import helpers
 from basana.external.binance import exchange
 import basana as bs
 
@@ -84,60 +88,82 @@ OTHER_MSG = {
 }
 
 
-@pytest.mark.parametrize("account_attr", [
-    "spot_account",
-    "cross_margin_account",
-    "isolated_margin_account",
+@pytest.mark.parametrize("account_attr, user_data_stream_url", [
+    ("spot_account", "http://binance.mock/api/v3/userDataStream"),
+    ("cross_margin_account", "http://binance.mock/sapi/v1/userDataStream"),
+    ("isolated_margin_account", "http://binance.mock/sapi/v1/userDataStream/isolated"),
 ])
-def test_websocket_ok(account_attr, realtime_dispatcher, binance_http_api_mock):
+def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatcher, binance_http_api_mock, caplog):
+    caplog.set_level(logging.DEBUG)
     order_update_event = None
     user_data_event = None
+    keep_alive_ok = False
 
-    async def on_user_data_event(event):
-        nonlocal order_update_event, user_data_event
-
-        if event.json["e"] == "outboundAccountPosition":
-            user_data_event = event
-
-        if user_data_event is not None and order_update_event is not None:
+    def check_stop_dispatcher():
+        stop = user_data_event is not None
+        stop = stop and order_update_event is not None
+        stop = stop and keep_alive_ok
+        if stop:
             realtime_dispatcher.stop()
 
-    async def on_order_update(event):
-        nonlocal order_update_event, user_data_event
+    async def check_keep_alive():
+        if await helpers.wait_caplog("Channel keep alive", caplog):
+            nonlocal keep_alive_ok
+            keep_alive_ok = True
 
+    async def on_user_data_event(event):
+        if event.json["e"] == "outboundAccountPosition":
+            nonlocal user_data_event
+            user_data_event = event
+
+        check_stop_dispatcher()
+
+    async def on_order_update(event):
+        nonlocal order_update_event
         assert event.json["e"] == "executionReport"
         order_update_event = event
 
-        if user_data_event is not None and order_update_event is not None:
-            realtime_dispatcher.stop()
+        check_stop_dispatcher()
 
     async def server_main(websocket):
         message = json.loads(await websocket.recv())
         assert message["method"] == "SUBSCRIBE"
         await websocket.send(json.dumps({"result": None, "id": message["id"]}))
 
-        while True:
+        while websocket.state == websockets.protocol.State.OPEN:
             await websocket.send(json.dumps(OTHER_MSG))
             await websocket.send(json.dumps(EXECUTION_REPORT_MSG))
             await asyncio.sleep(0.1)
 
     async def test_main():
-        binance_http_api_mock.post(
-            re.compile(r"http://binance.mock/api/v3/userDataStream.*"), status=200, payload={"listenKey": listen_key}
-        )
-        binance_http_api_mock.post(
-            re.compile(r"http://binance.mock/sapi/v1/userDataStream.*"), status=200, payload={"listenKey": listen_key}
-        )
-        binance_http_api_mock.post(
-            re.compile(r"http://binance.mock/sapi/v1/userDataStream/isolated.*"), status=200,
-            payload={"listenKey": listen_key}
-        )
+        for meth in [binance_http_api_mock.post, binance_http_api_mock.put]:
+            meth(
+                re.compile(fr"{user_data_stream_url}.*"),
+                status=200, payload={"listenKey": listen_key}, repeat=True
+            )
 
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
             config_overrides = {
                 "api": {
-                    "websockets": {"base_url": ws_uri},
+                    "websockets": {
+                        "base_url": ws_uri,
+                        "spot": {
+                            "user_data_stream": {
+                                "heartbeat": 1,
+                            },
+                        },
+                        "cross_margin": {
+                            "user_data_stream": {
+                                "heartbeat": 1,
+                            },
+                        },
+                        "isolated_margin": {
+                            "user_data_stream": {
+                                "heartbeat": 1,
+                            },
+                        },
+                    },
                     "http": {"base_url": "http://binance.mock/"},
                 }
             }
@@ -153,7 +179,10 @@ def test_websocket_ok(account_attr, realtime_dispatcher, binance_http_api_mock):
                 account.subscribe_to_user_data_events(on_user_data_event)
                 account.subscribe_to_order_events(on_order_update)
 
-            await realtime_dispatcher.run()
+            await asyncio.gather(
+                realtime_dispatcher.run(),
+                check_keep_alive()
+            )
 
     asyncio.run(asyncio.wait_for(test_main(), 5))
 
@@ -178,3 +207,13 @@ def test_websocket_ok(account_attr, realtime_dispatcher, binance_http_api_mock):
     assert order_update_event.order_update.amount_filled == Decimal("0.0001")
     assert order_update_event.order_update.quote_amount_filled == Decimal("9.575201")
     assert order_update_event.order_update.fees == {"BTC": Decimal("0.0000001")}
+
+    assert has_request(binance_http_api_mock, "POST", user_data_stream_url)
+    assert has_request(binance_http_api_mock, "PUT", user_data_stream_url)
+
+
+def has_request(mock: aioresponses.aioresponses, method: str, url: str) -> bool:
+    for r_method, r_url in mock.requests:
+        if r_method == method and str(r_url) == url:
+            return True
+    return False

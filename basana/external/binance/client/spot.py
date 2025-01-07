@@ -144,3 +144,9 @@ class SpotAccount:
 
     async def create_listen_key(self) -> dict:
         return await self._client.make_request("POST", "/api/v3/userDataStream", send_key=True)
+
+    async def keep_alive_listen_key(self, listen_key: str) -> dict:
+        params: Dict[str, Any] = {
+            "listenKey": listen_key,
+        }
+        return await self._client.make_request("PUT", "/api/v3/userDataStream", send_key=True, data=params)
