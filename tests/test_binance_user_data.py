@@ -87,6 +87,15 @@ OTHER_MSG = {
     }
 }
 
+LISTEN_KEY_EXPIRED_MSG = {
+    "stream": listen_key,
+    "data": {
+        "e": "listenKeyExpired",
+        "E": "1699596037418",
+        "listenKey": "OfYGbUzi3PraNagEkdKuFwUHn48brFsItTdsuiIXrucEvD0rhRXZ7I6URWfE8YE8",
+    }
+}
+
 
 @pytest.mark.parametrize("account_attr, user_data_stream_url", [
     ("spot_account", "http://binance.mock/api/v3/userDataStream"),
@@ -98,11 +107,13 @@ def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatcher, b
     order_update_event = None
     user_data_event = None
     keep_alive_ok = False
+    license_key_expired_ok = False
 
     def check_stop_dispatcher():
         stop = user_data_event is not None
         stop = stop and order_update_event is not None
         stop = stop and keep_alive_ok
+        stop = stop and license_key_expired_ok
         if stop:
             realtime_dispatcher.stop()
 
@@ -110,6 +121,11 @@ def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatcher, b
         if await helpers.wait_caplog("Channel keep alive", caplog):
             nonlocal keep_alive_ok
             keep_alive_ok = True
+
+    async def check_re_subscription():
+        if await helpers.wait_caplog("License key expired. Scheduling re-subscription", caplog):
+            nonlocal license_key_expired_ok
+            license_key_expired_ok = True
 
     async def on_user_data_event(event):
         if event.json["e"] == "outboundAccountPosition":
@@ -133,6 +149,7 @@ def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatcher, b
         while websocket.state == websockets.protocol.State.OPEN:
             await websocket.send(json.dumps(OTHER_MSG))
             await websocket.send(json.dumps(EXECUTION_REPORT_MSG))
+            await websocket.send(json.dumps(LISTEN_KEY_EXPIRED_MSG))
             await asyncio.sleep(0.1)
 
     async def test_main():
@@ -181,7 +198,8 @@ def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatcher, b
 
             await asyncio.gather(
                 realtime_dispatcher.run(),
-                check_keep_alive()
+                check_keep_alive(),
+                check_re_subscription(),
             )
 
     asyncio.run(asyncio.wait_for(test_main(), 5))

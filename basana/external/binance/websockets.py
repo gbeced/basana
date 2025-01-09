@@ -128,6 +128,12 @@ class WebSocketClient(core_ws.WebSocketClient):
         elif stream := message.get("stream"):
             channel = self._stream_to_channel.get(stream)
             assert channel, f"{stream} could not be mapped to a channel instance"
+            # Resubscribe to the channel if the listen key expired.
+            if message.get("data", {}).get("e") == "listenKeyExpired":
+                logger.debug(logs.StructuredMessage(
+                    "License key expired. Scheduling re-subscription", alias=channel.alias
+                ))
+                self.schedule_resubscription([channel.alias])
             # Get the event source for the channel alias.
             if event_source := self.get_channel_event_source(channel.alias):
                 coro = event_source.push_from_message(message)

@@ -248,9 +248,9 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
 
     async def push_from_message(self, message: dict):
         json = message["data"]
+        # Push the event.
         event_cls = {
             "executionReport": OrderEvent,
-            # "listenKeyExpired": OrderEvent,
         }.get(json["e"], Event)
         event = event_cls(helpers.timestamp_to_datetime(int(json["E"])), json)
         self.push(event)

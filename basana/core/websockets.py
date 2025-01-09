@@ -69,6 +69,9 @@ class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
     def schedule_reconnection(self):
         self._reconnect_request.set()
 
+    def schedule_resubscription(self, channels: List[str]):
+        self._pending_subscriptions.update(channels)
+
     async def on_error(self, error: Any):
         logger.error(logs.StructuredMessage("Error", src=self, error=error))
 
