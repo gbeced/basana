@@ -59,7 +59,7 @@ class WebsocketManager:
 
     def subscribe_to_spot_user_data_events(self, event_handler: user_data.UserDataEventHandler):
         self._subscribe_to_ws_channel_events(
-            binance_ws.SpotUserDataChannel(),
+            user_data.SpotUserDataChannel(),
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
@@ -70,14 +70,14 @@ class WebsocketManager:
                 await event_handler(event)
 
         self._subscribe_to_ws_channel_events(
-            binance_ws.SpotUserDataChannel(),
+            user_data.SpotUserDataChannel(),
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, forward_if_order_event)
         )
 
     def subscribe_to_cross_margin_user_data_events(self, event_handler: user_data.UserDataEventHandler):
         self._subscribe_to_ws_channel_events(
-            binance_ws.CrossMarginUserDataChannel(),
+            user_data.CrossMarginUserDataChannel(),
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
@@ -88,14 +88,14 @@ class WebsocketManager:
                 await event_handler(event)
 
         self._subscribe_to_ws_channel_events(
-            binance_ws.CrossMarginUserDataChannel(),
+            user_data.CrossMarginUserDataChannel(),
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, forward_if_order_event)
         )
 
     def subscribe_to_isolated_margin_user_data_events(self, pair: Pair, event_handler: user_data.UserDataEventHandler):
         self._subscribe_to_ws_channel_events(
-            binance_ws.IsolatedMarginUserDataChannel(pair),
+            user_data.IsolatedMarginUserDataChannel(pair),
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
@@ -106,7 +106,7 @@ class WebsocketManager:
                 await event_handler(event)
 
         self._subscribe_to_ws_channel_events(
-            binance_ws.IsolatedMarginUserDataChannel(pair),
+            user_data.IsolatedMarginUserDataChannel(pair),
             lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
             cast(dispatcher.EventHandler, forward_if_order_event)
         )

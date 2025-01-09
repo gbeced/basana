@@ -25,10 +25,9 @@ import time
 
 import aiohttp
 
-from . import client, config, helpers as binance_helpers
+from . import client, config
 from basana.core import dispatcher, logs, websockets as core_ws
 from basana.core.config import get_config_value
-import basana as bs
 
 
 logger = logging.getLogger(__name__)
@@ -66,94 +65,6 @@ class PublicChannel(Channel):
     @property
     def stream(self) -> str:
         return self._name
-
-
-class SpotUserDataChannel(Channel):
-    def __init__(self):
-        self._listen_key = None
-
-    @property
-    def alias(self) -> str:
-        return "spot_user_data"
-
-    @property
-    def stream(self) -> str:
-        assert self._listen_key, "resolve_stream_name not called"
-        return self._listen_key
-
-    async def resolve_stream_name(self, api_client: client.APIClient):
-        self._listen_key = (await api_client.spot_account.create_listen_key())["listenKey"]
-
-    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
-        return datetime.timedelta(
-            seconds=get_config_value(
-                config.DEFAULTS, "api.websockets.spot.user_data_stream.heartbeat", overrides=config_overrides
-            )
-        )
-
-    async def keep_alive(self, api_client: client.APIClient):
-        assert self._listen_key, "resolve_stream_name not called"
-        await api_client.spot_account.keep_alive_listen_key(self._listen_key)
-
-
-class CrossMarginUserDataChannel(Channel):
-    def __init__(self):
-        self._listen_key = None
-
-    @property
-    def alias(self) -> str:
-        return "cross_margin_user_data"
-
-    @property
-    def stream(self) -> str:
-        assert self._listen_key, "resolve_stream_name not called"
-        return self._listen_key
-
-    async def resolve_stream_name(self, api_client: client.APIClient):
-        self._listen_key = (await api_client.cross_margin_account.create_listen_key())["listenKey"]
-
-    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
-        return datetime.timedelta(
-            seconds=get_config_value(
-                config.DEFAULTS, "api.websockets.cross_margin.user_data_stream.heartbeat", overrides=config_overrides
-            )
-        )
-
-    async def keep_alive(self, api_client: client.APIClient):
-        assert self._listen_key, "resolve_stream_name not called"
-        await api_client.cross_margin_account.keep_alive_listen_key(self._listen_key)
-
-
-class IsolatedMarginUserDataChannel(Channel):
-    def __init__(self, pair: bs.Pair):
-        self._pair = pair
-        self._listen_key = None
-
-    @property
-    def alias(self) -> str:
-        symbol = binance_helpers.pair_to_order_book_symbol(self._pair)
-        return f"isolated_margin_user_data_{symbol.lower()}"
-
-    @property
-    def stream(self) -> str:
-        assert self._listen_key, "resolve_stream_name not called"
-        return self._listen_key
-
-    async def resolve_stream_name(self, api_client: client.APIClient):
-        symbol = binance_helpers.pair_to_order_book_symbol(self._pair)
-        self._listen_key = (await api_client.isolated_margin_account.create_listen_key(symbol))["listenKey"]
-
-    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
-        return datetime.timedelta(
-            seconds=get_config_value(
-                config.DEFAULTS, "api.websockets.isolated_margin.user_data_stream.heartbeat", overrides=config_overrides
-            )
-        )
-
-    async def keep_alive(self, api_client: client.APIClient):
-        assert self._listen_key, "resolve_stream_name not called"
-        symbol = binance_helpers.pair_to_order_book_symbol(self._pair)
-        await api_client.isolated_margin_account.keep_alive_listen_key(symbol, self._listen_key)
 
 
 class WebSocketClient(core_ws.WebSocketClient):
