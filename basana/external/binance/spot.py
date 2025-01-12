@@ -23,6 +23,7 @@ from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
 
+# Forward declarations
 Balance = common.Balance
 CanceledOCOOrder = common.CanceledOCOOrder
 CanceledOrder = common.CanceledOrder
@@ -32,6 +33,7 @@ OCOOrderWrapper = common.OCOOrderWrapper
 OrderEvent = user_data.OrderEvent
 OrderEventHandler = user_data.OrderEventHandler
 OrderInfo = common.OrderInfo
+OrderUpdate = user_data.OrderUpdate
 UserDataEvent = user_data.Event
 UserDataEventHandler = user_data.UserDataEventHandler
 
@@ -309,7 +311,7 @@ class Account:
 
         Works as defined in https://developers.binance.com/docs/binance-spot-api-docs/user-data-stream.
 
-        :param event_handler: An async callable that receives an UserDataEvent.
+        :param event_handler: The event handler.
         """
 
         self._ws_mgr.subscribe_to_spot_user_data_events(event_handler)
@@ -320,7 +322,7 @@ class Account:
 
         Works as defined in https://developers.binance.com/docs/binance-spot-api-docs/user-data-stream#order-update.
 
-        :param event_handler: An async callable that receives an OrderEvent.
+        :param event_handler: The event handler.
         """
 
         self._ws_mgr.subscribe_to_spot_order_events(event_handler)

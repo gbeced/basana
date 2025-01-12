@@ -21,8 +21,10 @@ from . import margin, user_data, websocket_mgr
 from .client import margin as margin_client
 
 
+# Forward declarations
 OrderEvent = user_data.OrderEvent
 OrderEventHandler = user_data.OrderEventHandler
+OrderUpdate = user_data.OrderUpdate
 UserDataEvent = user_data.Event
 UserDataEventHandler = user_data.UserDataEventHandler
 
@@ -68,7 +70,7 @@ class Account(margin.Account):
 
         Works as defined in https://developers.binance.com/docs/margin_trading/trade-data-stream.
 
-        :param event_handler: An async callable that receives an UserDataEvent.
+        :param event_handler: The event handler.
         """
 
         self._ws_mgr.subscribe_to_cross_margin_user_data_events(event_handler)
@@ -79,7 +81,7 @@ class Account(margin.Account):
 
         Works as defined in https://developers.binance.com/docs/margin_trading/trade-data-stream/Event-Order-Update.
 
-        :param event_handler: An async callable that receives an OrderEvent.
+        :param event_handler: The event handler.
         """
 
         self._ws_mgr.subscribe_to_cross_margin_order_events(event_handler)

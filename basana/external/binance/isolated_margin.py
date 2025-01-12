@@ -22,8 +22,10 @@ from .client import margin as margin_client
 from basana.core.pair import Pair
 
 
+# Forward declarations
 OrderEvent = user_data.OrderEvent
 OrderEventHandler = user_data.OrderEventHandler
+OrderUpdate = user_data.OrderUpdate
 UserDataEvent = user_data.Event
 UserDataEventHandler = user_data.UserDataEventHandler
 
@@ -102,7 +104,7 @@ class Account(margin.Account):
         Works as defined in https://developers.binance.com/docs/margin_trading/trade-data-stream.
 
         :param pair: The trading pair.
-        :param event_handler: An async callable that receives an UserDataEvent.
+        :param event_handler: The event handler.
         """
 
         self._ws_mgr.subscribe_to_isolated_margin_user_data_events(pair, event_handler)
@@ -114,7 +116,7 @@ class Account(margin.Account):
         Works as defined in https://developers.binance.com/docs/margin_trading/trade-data-stream/Event-Order-Update.
 
         :param pair: The trading pair.
-        :param event_handler: An async callable that receives an OrderEvent.
+        :param event_handler: The event handler.
         """
 
         self._ws_mgr.subscribe_to_isolated_margin_order_events(pair, event_handler)
