@@ -43,7 +43,12 @@ class Order:
     @property
     def amount(self) -> Decimal:
         """The order amount."""
-        return Decimal(self.json["amount_str"])
+        return Decimal(self.json["amount_at_create"])
+
+    @property
+    def amount_filled(self) -> Decimal:
+        """The amount filled."""
+        return self.amount - Decimal(self.json["amount_str"])
 
     @property
     def price(self) -> Decimal:
