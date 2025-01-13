@@ -1,16 +1,17 @@
 # Changelog
 
-## 1.6.x
+## 1.7
 
 ### Features
 
+* Added support for Binance order and user data events via websockets.
 * Added loan ids to order info.
 
 ### Misc
 
 * Updated dependencies and minimum Python version.
 
-### 1.6.2
+## 1.6.2
 
 ### Bug fixes
 

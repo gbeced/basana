@@ -58,7 +58,7 @@ def test_add_channels(realtime_dispatcher):
     subscriptions = 0
 
     async def server_main(ws_server):
-        while True:
+        while ws_server.state == websockets.protocol.State.OPEN:
             message = json.loads(await ws_server.recv())
             if message["request"] == "subscribe":
                 await ws_server.send(json.dumps({"response": "subscription_ok", "channel": message["channel"]}))
@@ -98,7 +98,7 @@ def test_schedule_reconnection(realtime_dispatcher):
 
     async def server_main(ws_server):
         try:
-            while True:
+            while ws_server.state == websockets.protocol.State.OPEN:
                 message = json.loads(await ws_server.recv())
                 if message["request"] == "subscribe":
                     await ws_server.send(json.dumps({"response": "subscription_ok", "channel": message["channel"]}))

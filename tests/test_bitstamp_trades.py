@@ -50,7 +50,7 @@ def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher
             channel = message["data"]["channel"].rstrip("-1234")
             await websocket.send(json.dumps({"event": "bts:subscription_succeeded"}))
             # Keep on sending trade events while the connection is open.
-            while websocket.open:
+            while websocket.state == websockets.protocol.State.OPEN:
                 await websocket.send(json.dumps({
                     "event": "trade",
                     "channel": channel,

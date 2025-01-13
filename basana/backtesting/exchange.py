@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import cast, Callable, Dict, List, Optional, Sequence, Tuple
 import dataclasses
 import logging
 import uuid
@@ -29,7 +29,7 @@ from basana.backtesting.lending import base as lending_base
 
 logger = logging.getLogger(__name__)
 
-BarEventHandler = Callable[[bar.BarEvent], Awaitable[Any]]
+BarEventHandler = bar.BarEventHandler
 Error = errors.Error
 LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
 OrderInfo = orders.OrderInfo

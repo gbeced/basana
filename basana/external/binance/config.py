@@ -23,6 +23,21 @@ DEFAULTS = {
         "websockets": {
             "base_url": "wss://stream.binance.com/",
             "heartbeat": 30,
+            "spot": {
+                "user_data_stream": {
+                    "heartbeat": 15 * 60,
+                },
+            },
+            "cross_margin": {
+                "user_data_stream": {
+                    "heartbeat": 15 * 60,
+                },
+            },
+            "isolated_margin": {
+                "user_data_stream": {
+                    "heartbeat": 15 * 60,
+                },
+            },
         }
     }
 }

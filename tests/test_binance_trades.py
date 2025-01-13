@@ -19,8 +19,6 @@ import asyncio
 import datetime
 import json
 
-import aioresponses
-import pytest
 import websockets
 
 from basana.core import pair
@@ -45,16 +43,6 @@ TRADE_MSG = {
 }
 
 
-@pytest.fixture()
-def binance_http_api_mock():
-    with aioresponses.aioresponses() as m:
-        yield m
-
-
-async def ignore(*args, **kwargs):
-    pass
-
-
 def test_websocket_ok(realtime_dispatcher):
     p = pair.Pair("BTC", "USDT")
     last_trade = None
@@ -70,7 +58,7 @@ def test_websocket_ok(realtime_dispatcher):
         assert message["method"] == "SUBSCRIBE"
         await websocket.send(json.dumps({"result": None, "id": message["id"]}))
 
-        while True:
+        while websocket.state == websockets.protocol.State.OPEN:
             await websocket.send(json.dumps(TRADE_MSG))
             await asyncio.sleep(0.1)
 

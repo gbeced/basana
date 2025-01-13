@@ -42,7 +42,7 @@ def test_bars_from_trades(realtime_dispatcher):
             channel = message["data"]["channel"]
             await websocket.send(json.dumps({"event": "bts:subscription_succeeded"}))
             # Keep on sending trade events while the connection is open.
-            while websocket.open:
+            while websocket.state == websockets.protocol.State.OPEN:
                 timestamp = time.time()
                 await websocket.send(json.dumps({
                     "event": "trade",

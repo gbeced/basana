@@ -65,7 +65,7 @@ def test_bars(realtime_dispatcher):
             }
         }
 
-        while True:
+        while websocket.state == websockets.protocol.State.OPEN:
             timestamp = time.time()
             for kline_closed in (False, True):
                 kline_event["E"] = int(timestamp * 1e3)

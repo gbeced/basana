@@ -17,6 +17,7 @@ API Reference
     binance_margin
     binance_cross
     binance_isolated
+    binance_user_data
     bitstamp_exchange
     bitstamp_order_book
     bitstamp_orders

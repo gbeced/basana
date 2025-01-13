@@ -16,7 +16,7 @@
 
 from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, List, Optional
+from typing import Any, Awaitable, Callable, List, Optional
 import asyncio
 import datetime
 import logging
@@ -126,3 +126,6 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
 def get_channel(pair: Pair, depth: int) -> str:
     assert depth in [5, 10, 20], "Invalid depth"
     return "{}@depth{}".format(helpers.pair_to_order_book_symbol(pair).lower(), depth)
+
+
+OrderBookEventHandler = Callable[[OrderBookEvent], Awaitable[Any]]
