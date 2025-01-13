@@ -133,6 +133,7 @@ class OrderUpdate:
 class Event(event.Event):
     def __init__(self, when: datetime.datetime, json: dict):
         super().__init__(when)
+        #: The JSON representation.
         self.json: dict = json
 
 
