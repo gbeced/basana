@@ -15,11 +15,14 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Dict
+from typing import Optional, Dict
+import datetime
 
-from . import helpers, margin, user_data, websocket_mgr
+from . import client, config, helpers, margin, user_data, websockets, websocket_mgr
 from .client import margin as margin_client
+from basana.core.config import get_config_value
 from basana.core.pair import Pair
+import basana as bs
 
 
 # Forward declarations
@@ -53,6 +56,38 @@ class IsolatedBalance:
     def quote_asset_balance(self) -> margin.Balance:
         """The quote asset balance."""
         return margin.Balance(self.json["quoteAsset"])
+
+
+class IsolatedMarginUserDataChannel(websockets.Channel):
+    def __init__(self, pair: bs.Pair):
+        self._pair = pair
+        self._listen_key = None
+
+    @property
+    def alias(self) -> str:
+        symbol = helpers.pair_to_order_book_symbol(self._pair)
+        return f"isolated_margin_user_data_{symbol.lower()}"
+
+    @property
+    def stream(self) -> str:
+        assert self._listen_key, "resolve_stream_name not called"
+        return self._listen_key
+
+    async def resolve_stream_name(self, api_client: client.APIClient):
+        symbol = helpers.pair_to_order_book_symbol(self._pair)
+        self._listen_key = (await api_client.isolated_margin_account.create_listen_key(symbol))["listenKey"]
+
+    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
+        return datetime.timedelta(
+            seconds=get_config_value(
+                config.DEFAULTS, "api.websockets.isolated_margin.user_data_stream.heartbeat", overrides=config_overrides
+            )
+        )
+
+    async def keep_alive(self, api_client: client.APIClient):
+        assert self._listen_key, "resolve_stream_name not called"
+        symbol = helpers.pair_to_order_book_symbol(self._pair)
+        await api_client.isolated_margin_account.keep_alive_listen_key(symbol, self._listen_key)
 
 
 class Account(margin.Account):
@@ -107,7 +142,11 @@ class Account(margin.Account):
         :param event_handler: The event handler.
         """
 
-        self._ws_mgr.subscribe_to_isolated_margin_user_data_events(pair, event_handler)
+        self._ws_mgr.subscribe_to_user_data_events(
+            IsolatedMarginUserDataChannel(pair),
+            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
+            event_handler
+        )
 
     def subscribe_to_order_events(self, pair: Pair, event_handler: OrderEventHandler):
         """
@@ -119,4 +158,8 @@ class Account(margin.Account):
         :param event_handler: The event handler.
         """
 
-        self._ws_mgr.subscribe_to_isolated_margin_order_events(pair, event_handler)
+        self._ws_mgr.subscribe_to_order_events(
+            IsolatedMarginUserDataChannel(pair),
+            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
+            event_handler
+        )

@@ -15,10 +15,12 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Dict
+from typing import Optional, Dict
+import datetime
 
-from . import margin, user_data, websocket_mgr
+from . import client, config, margin, user_data, websockets, websocket_mgr
 from .client import margin as margin_client
+from basana.core.config import get_config_value
 
 
 # Forward declarations
@@ -27,6 +29,34 @@ OrderEventHandler = user_data.OrderEventHandler
 OrderUpdate = user_data.OrderUpdate
 UserDataEvent = user_data.Event
 UserDataEventHandler = user_data.UserDataEventHandler
+
+
+class CrossMarginUserDataChannel(websockets.Channel):
+    def __init__(self):
+        self._listen_key = None
+
+    @property
+    def alias(self) -> str:
+        return "cross_margin_user_data"
+
+    @property
+    def stream(self) -> str:
+        assert self._listen_key, "resolve_stream_name not called"
+        return self._listen_key
+
+    async def resolve_stream_name(self, api_client: client.APIClient):
+        self._listen_key = (await api_client.cross_margin_account.create_listen_key())["listenKey"]
+
+    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
+        return datetime.timedelta(
+            seconds=get_config_value(
+                config.DEFAULTS, "api.websockets.cross_margin.user_data_stream.heartbeat", overrides=config_overrides
+            )
+        )
+
+    async def keep_alive(self, api_client: client.APIClient):
+        assert self._listen_key, "resolve_stream_name not called"
+        await api_client.cross_margin_account.keep_alive_listen_key(self._listen_key)
 
 
 class Account(margin.Account):
@@ -73,7 +103,11 @@ class Account(margin.Account):
         :param event_handler: The event handler.
         """
 
-        self._ws_mgr.subscribe_to_cross_margin_user_data_events(event_handler)
+        self._ws_mgr.subscribe_to_user_data_events(
+            CrossMarginUserDataChannel(),
+            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
+            event_handler
+        )
 
     def subscribe_to_order_events(self, event_handler: OrderEventHandler):
         """
@@ -84,4 +118,8 @@ class Account(margin.Account):
         :param event_handler: The event handler.
         """
 
-        self._ws_mgr.subscribe_to_cross_margin_order_events(event_handler)
+        self._ws_mgr.subscribe_to_order_events(
+            CrossMarginUserDataChannel(),
+            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
+            event_handler
+        )
