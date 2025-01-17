@@ -429,7 +429,7 @@ def test_scheduler_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher
 
 
 def test_now_fails_if_no_events_were_processed(backtesting_dispatcher):
-    with pytest.raises(errors.Error, match="No events processed yet"):
+    with pytest.raises(errors.Error, match="Can't calculate current datetime since no events were processed"):
         backtesting_dispatcher.now()
 
 
@@ -455,3 +455,11 @@ def test_recursive_schedule_bug(backtesting_dispatcher):
         assert jobs_processed == 1
 
     asyncio.run(test_main())
+
+
+def test_cancelation_is_forwarded(realtime_dispatcher):
+    async def test_main():
+        with pytest.raises(asyncio.CancelledError):
+            await realtime_dispatcher.run()
+
+    asyncio.run(asyncio.wait_for(test_main(), 1))

@@ -1,10 +1,26 @@
 # Changelog
 
+## 1.7
+
+### Features
+
+* Added support for Binance order and user data events via websockets.
+* Added support for backtesting order events.
+* Added loan ids to order info.
+
+### Bug fixes
+
+* `bitstamp.orders.Order.amount` was returning the order amount left to be executed instead of the original amount.
+
+### Misc
+
+* Updated dependencies and minimum Python version.
+
 ## 1.6.2
 
 ### Bug fixes
 
-* VolumeShareImpact.calculate_price and VolumeShareImpact.calculate_amount were failing when there was no available liquidity.
+* `VolumeShareImpact.calculate_price` and `VolumeShareImpact.calculate_amount` were failing when there was no available liquidity.
 
 ## 1.6.1
 
@@ -25,7 +41,7 @@
 
 ## 1.5.0
 
-* basana.backtesting.fees.Percentage now supports a minimum fee.
+* `basana.backtesting.fees.Percentage` now supports a minimum fee.
 
 ## 1.4.1
 

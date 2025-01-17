@@ -94,7 +94,7 @@ class PairLineChart(LineChart):
         if self._include_buys:
             x, y = self._get_order_fills(OrderOperation.BUY).get_x_y()
             figure.add_trace(
-                go.Scatter(x=x, y=y, name="Buy", mode="markers", marker=dict(symbol="arrow-up")),
+                go.Scatter(x=x, y=y, name="Buy", mode="markers", marker=dict(symbol="arrow-up", color="green")),
                 row=row, col=1
             )
 
@@ -102,7 +102,7 @@ class PairLineChart(LineChart):
         if self._include_sells:
             x, y = self._get_order_fills(OrderOperation.SELL).get_x_y()
             figure.add_trace(
-                go.Scatter(x=x, y=y, name="Sell", mode="markers", marker=dict(symbol="arrow-down")),
+                go.Scatter(x=x, y=y, name="Sell", mode="markers", marker=dict(symbol="arrow-down", color="red")),
                 row=row, col=1
             )
 

@@ -80,7 +80,7 @@ def test_websocket_ok(realtime_dispatcher):
         }:
             await websocket.send(json.dumps({"event": "bts:subscription_succeeded"}))
             # Keep on sending order book events while the connection is open.
-            while websocket.open:
+            while websocket.state == websockets.protocol.State.OPEN:
                 await websocket.send(json.dumps({
                     "event": "data",
                     "channel": "order_book_btcusd",
@@ -176,7 +176,7 @@ def test_reconnect_request(realtime_dispatcher, caplog):
     async def server_main(websocket):
         await websocket.recv()
         await websocket.send(json.dumps({"event": "bts:request_reconnect"}))
-        while True:
+        while websocket.state == websockets.protocol.State.OPEN:
             await websocket.recv()
 
     async def test_main(timeout):

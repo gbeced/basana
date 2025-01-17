@@ -88,9 +88,10 @@ class BaseClient:
         async with core_helpers.use_or_create_session(session=self._session) as session:
             headers = {}
             session_method = {
+                "DELETE": session.delete,
                 "GET": session.get,
                 "POST": session.post,
-                "DELETE": session.delete,
+                "PUT": session.put,
             }.get(method)
             assert session_method is not None
 

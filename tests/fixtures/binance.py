@@ -23,7 +23,7 @@ from basana.external.binance import exchange
 
 @pytest.fixture()
 def binance_http_api_mock():
-    with aioresponses.aioresponses() as m:
+    with aioresponses.aioresponses(passthrough_unmatched=True) as m:
         yield m
 
 

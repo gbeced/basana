@@ -44,6 +44,13 @@ async def on_trade_event(trade_event: bitstamp_exchange.TradeEvent):
     )
 
 
+async def on_order_event(event: bitstamp_exchange.OrderEvent):
+    logging.info(
+        "Order event: id=%s amount_filled=%s json=%s",
+        event.order.id, event.order.amount_filled, event.order.json
+    )
+
+
 async def main():
     logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
     event_dispatcher = bs.realtime_dispatcher()
@@ -57,6 +64,7 @@ async def main():
         exchange.subscribe_to_bar_events(pair, 60, on_bar_event)
         exchange.subscribe_to_order_book_events(pair, on_order_book_event)
         exchange.subscribe_to_public_trade_events(pair, on_trade_event)
+        exchange.subscribe_to_public_order_events(pair, on_order_event)
 
     await event_dispatcher.run()
 

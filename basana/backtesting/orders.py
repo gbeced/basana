@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 import abc
 import dataclasses
 import datetime
@@ -60,6 +60,8 @@ class OrderInfo:
     limit_price: Optional[Decimal] = None
     #: The stop price.
     stop_price: Optional[Decimal] = None
+    #: The ids of the associated loans.
+    loan_ids: List[str] = dataclasses.field(default_factory=list)
 
     @property
     def fill_price(self) -> Optional[Decimal]:
@@ -95,6 +97,7 @@ class Order(metaclass=abc.ABCMeta):
         self._fills: List[Fill] = []
         self._auto_borrow = auto_borrow
         self._auto_repay = auto_repay
+        self._loan_ids: Set[str] = set()
 
     @property
     def id(self) -> str:
@@ -163,12 +166,16 @@ class Order(metaclass=abc.ABCMeta):
             self._state = OrderState.COMPLETED
         self._fills.append(Fill(when=when, balance_updates=balance_updates, fees=fees))
 
+    def add_loan(self, loan_id: str):
+        self._loan_ids.add(loan_id)
+
     def get_order_info(self) -> OrderInfo:
         return OrderInfo(
             id=self.id, is_open=self._state == OrderState.OPEN, operation=self.operation,
             amount=self.amount, amount_filled=self.amount_filled, amount_remaining=self.amount_pending,
             quote_amount_filled=self.quote_amount_filled,
-            fees={symbol: -amount for symbol, amount in self._fees.items() if amount}
+            fees={symbol: -amount for symbol, amount in self._fees.items() if amount},
+            loan_ids=[loan_id for loan_id in self._loan_ids]
         )
 
     @abc.abstractmethod

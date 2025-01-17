@@ -119,7 +119,8 @@ class OrderWrapper:
     def status(self) -> str:
         """The status.
 
-        Check **Order status** in https://binance-docs.github.io/apidocs/spot/en/#public-api-definitions.
+        Check **Order status** in
+        https://developers.binance.com/docs/binance-spot-api-docs/enums#order-status-status.
         """
         return self.json["status"]
 
@@ -157,7 +158,8 @@ class OrderWrapper:
     def time_in_force(self) -> Optional[str]:
         """The time in force.
 
-        Check **Time in force** in https://binance-docs.github.io/apidocs/spot/en/#public-api-definitions.
+        Check **Time in force** in
+        https://developers.binance.com/docs/binance-spot-api-docs/enums#time-in-force-timeinforce.
         """
         return self.json.get("timeInForce")
 
@@ -276,6 +278,7 @@ class CreatedOrder:
         """The status.
 
         Only available for RESULT / FULL responses.
+        Check **Order status** in https://developers.binance.com/docs/binance-spot-api-docs/enums#order-status-status.
         """
         return self.json.get("status")
 
@@ -284,6 +287,8 @@ class CreatedOrder:
         """The time in force.
 
         Only available for RESULT / FULL responses.
+        Check **Time in force** in
+        https://developers.binance.com/docs/binance-spot-api-docs/enums#time-in-force-timeinforce.
         """
         return self.json.get("timeInForce")
 
@@ -307,7 +312,8 @@ class CanceledOrder(OrderWrapper):
     def type(self) -> str:
         """The type of order.
 
-        Check **Order types** in https://binance-docs.github.io/apidocs/spot/en/#public-api-definitions.
+        Check **Order types** in
+        https://developers.binance.com/docs/binance-spot-api-docs/enums#order-types-ordertypes-type.
         """
         return self.json["type"]
 
@@ -327,7 +333,8 @@ class OpenOrder(OrderWrapper):
     def type(self) -> str:
         """The type of order.
 
-        Check **Order types** in https://binance-docs.github.io/apidocs/spot/en/#public-api-definitions.
+        Check **Order types** in
+        https://developers.binance.com/docs/binance-spot-api-docs/enums#order-types-ordertypes-type.
         """
         return self.json["type"]
 

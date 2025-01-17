@@ -160,6 +160,7 @@ def test_entry_and_exit_ok(
             order_info = await e.get_order_info(order_id)
             assert order_info.is_open is False
             assert order_info.amount_remaining == Decimal(0)
+            assert len(order_info.loan_ids) == 1
 
         # There should be no open loans.
         open_loans = await e.get_loans(is_open=True)
@@ -320,6 +321,9 @@ def test_repay_fails(backtesting_dispatcher, caplog):
             order_info = await e.get_order_info(order_id)
             assert order_info.is_open is False
             assert order_info.amount_remaining == Decimal(0)
+            # Borrowing should have succeeded, but repaying should have failed.
+            expected_loans = 1 if order_info.operation == OrderOperation.BUY else 0
+            assert len(order_info.loan_ids) == expected_loans
 
         # There should be 1 open loans.
         open_loans = await e.get_loans(is_open=True)

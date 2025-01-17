@@ -16,20 +16,28 @@
 
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
+import datetime
 
-from . import common, helpers, spot_requests
+from . import client, common, config, helpers, spot_requests, user_data, websockets, websocket_mgr
 from .client import spot as spot_client
+from basana.core.config import get_config_value
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
 
+# Forward declarations
 Balance = common.Balance
 CanceledOCOOrder = common.CanceledOCOOrder
 CanceledOrder = common.CanceledOrder
 CreatedOCOOrder = common.CreatedOCOOrder
 OCOOrderInfo = common.OCOOrderInfo
 OCOOrderWrapper = common.OCOOrderWrapper
+OrderEvent = user_data.OrderEvent
+OrderEventHandler = user_data.OrderEventHandler
 OrderInfo = common.OrderInfo
+OrderUpdate = user_data.OrderUpdate
+UserDataEvent = user_data.Event
+UserDataEventHandler = user_data.UserDataEventHandler
 
 
 class Trade(common.Trade):
@@ -76,10 +84,39 @@ class OpenOrder(common.OpenOrder):
         return helpers.get_optional_decimal(self.json, "origQuoteOrderQty", True)
 
 
+class SpotUserDataChannel(websockets.Channel):
+    def __init__(self):
+        self._listen_key = None
+
+    @property
+    def alias(self) -> str:
+        return "spot_user_data"
+
+    @property
+    def stream(self) -> str:
+        assert self._listen_key, "resolve_stream_name not called"
+        return self._listen_key
+
+    async def resolve_stream_name(self, api_client: client.APIClient):
+        self._listen_key = (await api_client.spot_account.create_listen_key())["listenKey"]
+
+    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
+        return datetime.timedelta(
+            seconds=get_config_value(
+                config.DEFAULTS, "api.websockets.spot.user_data_stream.heartbeat", overrides=config_overrides
+            )
+        )
+
+    async def keep_alive(self, api_client: client.APIClient):
+        assert self._listen_key, "resolve_stream_name not called"
+        await api_client.spot_account.keep_alive_listen_key(self._listen_key)
+
+
 class Account:
     """Spot account."""
-    def __init__(self, cli: spot_client.SpotAccount):
+    def __init__(self, cli: spot_client.SpotAccount, ws_mgr: websocket_mgr.WebsocketManager):
         self._cli = cli
+        self._ws_mgr = ws_mgr
 
     async def get_balances(self) -> Dict[str, Balance]:
         """Returns all balances."""
@@ -297,3 +334,33 @@ class Account:
             client_order_list_id=client_order_list_id
         )
         return CanceledOCOOrder(canceled_order)
+
+    def subscribe_to_user_data_events(self, event_handler: UserDataEventHandler):
+        """
+        Registers an async callable that will be called for every new user data event.
+
+        Works as defined in https://developers.binance.com/docs/binance-spot-api-docs/user-data-stream.
+
+        :param event_handler: The event handler.
+        """
+
+        self._ws_mgr.subscribe_to_user_data_events(
+            SpotUserDataChannel(),
+            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
+            event_handler
+        )
+
+    def subscribe_to_order_events(self, event_handler: OrderEventHandler):
+        """
+        Registers an async callable that will be called for every new order update.
+
+        Works as defined in https://developers.binance.com/docs/binance-spot-api-docs/user-data-stream#order-update.
+
+        :param event_handler: The event handler.
+        """
+
+        self._ws_mgr.subscribe_to_order_events(
+            SpotUserDataChannel(),
+            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
+            event_handler
+        )

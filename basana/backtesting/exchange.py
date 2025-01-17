@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
+from typing import cast, Callable, Dict, List, Optional, Sequence, Tuple
 import dataclasses
 import logging
 import uuid
@@ -29,9 +29,11 @@ from basana.backtesting.lending import base as lending_base
 
 logger = logging.getLogger(__name__)
 
-BarEventHandler = Callable[[bar.BarEvent], Awaitable[Any]]
+BarEventHandler = bar.BarEventHandler
 Error = errors.Error
 LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
+OrderEvent = order_mgr.OrderEvent
+OrderEventHandler = order_mgr.OrderEventHandler
 OrderInfo = orders.OrderInfo
 OrderOperation = enums.OrderOperation
 
@@ -93,7 +95,7 @@ class Exchange:
     """
     def __init__(
             self,
-            dispatcher: dispatcher.EventDispatcher,
+            dispatcher: dispatcher.BacktestingDispatcher,
             initial_balances: Dict[str, Decimal],
             liquidity_strategy_factory: LiquidityStrategyFactory = liquidity.VolumeShareImpact,
             fee_strategy: fees.FeeStrategy = fees.NoFee(),
@@ -344,6 +346,14 @@ class Exchange:
             self._bar_event_source[pair] = event_source
         self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
 
+    def subscribe_to_order_events(self, event_handler: OrderEventHandler):
+        """
+        Registers an async callable that will be called when an order is accepted or updated.
+
+        :param event_handler: The event handler.
+        """
+        self._order_mgr.subscribe_to_order_events(event_handler)
+
     async def get_pair_info(self, pair: Pair) -> PairInfo:
         """
         Returns information about a trading pair.
@@ -427,7 +437,7 @@ class Exchange:
     def _get_all_orders(self) -> Sequence[orders.Order]:
         return list(self._order_mgr.get_all_orders())
 
-    def _get_dispatcher(self) -> dispatcher.EventDispatcher:
+    def _get_dispatcher(self) -> dispatcher.BacktestingDispatcher:
         return self._dispatcher
 
     def _get_balance(self, symbol: str) -> Balance:

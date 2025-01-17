@@ -8,7 +8,7 @@ Ready to get started ? This page gives a good introduction on how to get started
 Installation
 ------------
 
-Basana requires Python 3.8.1 or above and to install the package you can use the following command:
+Basana requires Python 3.9 or above and to install the package you can use the following command:
 
 .. code-block:: console
 
@@ -66,7 +66,7 @@ This is how all the pieces are put together:
 
 .. literalinclude:: ../samples/backtest_bbands.py
    :language: python
-   :lines: 39-68
+   :lines: 39-69
    :dedent: 4
 
 The full source code for this example can be found `here <https://github.com/gbeced/basana/tree/master/samples/backtest_bbands.py>`_,

@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Any, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, List, Optional, Tuple
 import asyncio
 import datetime
 import logging
@@ -163,3 +163,6 @@ class RealTimeTradesToBar(event.FifoQueueEventSource, event.Producer):
             self._flush(begin, end)
             begin += datetime.timedelta(seconds=self._bar_duration)
             end += datetime.timedelta(seconds=self._bar_duration)
+
+
+BarEventHandler = Callable[[BarEvent], Awaitable[Any]]

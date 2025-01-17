@@ -151,3 +151,47 @@ def test_task_pool(pool_size, task_count):
 ])
 def test_classpath(obj, expected_classpath):
     assert helpers.classpath(obj) == expected_classpath
+
+
+def test_fifo_cache():
+    c = helpers.FiFoCache(2)
+    k1 = "1"
+    k2 = "2"
+    k3 = "3"
+    k4 = "4"
+
+    for k in [k1, k2, k3]:
+        assert k not in c
+        assert c.get(k) is None
+
+    c.add(k1, "k1")
+    assert k1 in c
+    assert c.get(k1) == "k1"
+
+    c.add(k2, None)
+    assert k1 in c
+    assert k2 in c
+
+    c.add(k3, None)
+    assert k1 not in c
+    assert k2 in c
+    assert k3 in c
+
+    c.add(k2, None)
+    c.add(k4, None)
+    assert k1 not in c
+    assert k2 in c
+    assert k3 not in c
+    assert k4 in c
+
+
+def test_lazy_proxy():
+    class ExpensiveObject:
+        def __init__(self):
+            self.value = 42
+
+    proxy = helpers.LazyProxy(ExpensiveObject)
+    assert proxy.initialized is False
+    assert proxy.value == 42
+    assert proxy.obj.value == 42
+    assert proxy.initialized is True

@@ -17,3 +17,5 @@ basana.backtesting.exchange
     :members:
 .. autoclass:: basana.backtesting.exchange.OpenOrder
     :members:
+.. autoclass:: basana.backtesting.exchange.OrderEvent
+    :members:

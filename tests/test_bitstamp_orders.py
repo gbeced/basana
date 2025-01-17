@@ -52,7 +52,7 @@ def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher
             channel = message["data"]["channel"].rstrip("-1234")
             await websocket.send(json.dumps({"event": "bts:subscription_succeeded"}))
             # Keep on sending order events while the connection is open.
-            while websocket.open:
+            while websocket.state == websockets.protocol.State.OPEN:
                 for event in ["order_created", "order_changed", "order_deleted"]:
                     await websocket.send(json.dumps({
                         "data": {
@@ -63,6 +63,7 @@ def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher
                             "microtimestamp": "1662673286025000",
                             "amount": 0.28435528,
                             "amount_str": "0.28435528",
+                            "amount_at_create": "1.28435528",
                             "price": 19342,
                             "price_str": "19342"
                         },
@@ -99,7 +100,8 @@ def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher
     assert last_order.type == OrderOperation.SELL
     assert last_order.operation == OrderOperation.SELL
     assert last_order.price == Decimal("19342")
-    assert last_order.amount == Decimal("0.28435528")
+    assert last_order.amount == Decimal("1.28435528")
+    assert last_order.amount_filled == Decimal("1")
 
 
 @pytest.mark.parametrize("server_message, expected_log", [
