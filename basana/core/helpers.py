@@ -221,3 +221,22 @@ class FiFoCache:
 
     def get(self, key, default=None):
         return self._cache.get(key, default)
+
+
+class LazyProxy:
+    def __init__(self, factory):
+        self._factory = factory
+        self._obj = None
+
+    @property
+    def initialized(self):
+        return self._obj is not None
+
+    @property
+    def obj(self):
+        if self._obj is None:
+            self._obj = self._factory()
+        return self._obj
+
+    def __getattr__(self, name):
+        return getattr(self.obj, name)

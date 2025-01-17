@@ -324,9 +324,13 @@ class BacktestingDispatcher(EventDispatcher):
         with logs.backtesting_log_mode(self):
             await super().run(stop_signals=stop_signals)
 
+    @property
+    def now_available(self) -> bool:
+        return self._last_dt is not None
+
     def now(self) -> datetime.datetime:
         if self._last_dt is None:
-            raise errors.Error("No events processed yet")
+            raise errors.Error("Can't calculate current datetime since no events were processed")
         return self._last_dt
 
     def _set_now(self, now: datetime.datetime):

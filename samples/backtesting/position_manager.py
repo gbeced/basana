@@ -214,6 +214,13 @@ class PositionManager:
             self._last_check_loss = bar_event.when
             await self.check_loss()
 
+    async def on_order_event(self, order_event: backtesting_exchange.OrderEvent):
+        order = order_event.order
+        logging.info(StructuredMessage(
+            "Order udpated", id=order.id, is_open=order.is_open, amount=order.amount,
+            amount_filled=order.amount_filled, avg_fill_price=order.fill_price
+        ))
+
 
 def signed_to_position(signed):
     if signed > 0:

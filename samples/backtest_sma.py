@@ -48,13 +48,14 @@ async def main():
     strategy = sma.Strategy(event_dispatcher, period=12)
     exchange.subscribe_to_bar_events(pair, strategy.on_bar_event)
 
-    # Connect the position manager to the strategy signals and to bar events. Borrowing is disabled in this example.
+    # Connect the position manager to different types of events. Borrowing is disabled in this example.
     position_mgr = position_manager.PositionManager(
         exchange, position_amount=Decimal(1000), quote_symbol=pair.quote_symbol, stop_loss_pct=Decimal(5),
         borrowing_disabled=True
     )
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
     exchange.subscribe_to_bar_events(pair, position_mgr.on_bar_event)
+    exchange.subscribe_to_order_events(position_mgr.on_order_event)
 
     # Load bars from the CSV file.
     exchange.add_bar_source(csv.BarSource(pair, "binance_btcusdt_day.csv", "1d"))

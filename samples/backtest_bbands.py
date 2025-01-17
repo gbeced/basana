@@ -60,12 +60,13 @@ async def main():
     strategy = bbands.Strategy(event_dispatcher, period=30, std_dev=2)
     exchange.subscribe_to_bar_events(pair, strategy.on_bar_event)
 
-    # Connect the position manager to the strategy signals and to bar events.
+    # Connect the position manager to different types of events.
     position_mgr = position_manager.PositionManager(
         exchange, position_amount, pair.quote_symbol, stop_loss_pct
     )
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
     exchange.subscribe_to_bar_events(pair, position_mgr.on_bar_event)
+    exchange.subscribe_to_order_events(position_mgr.on_order_event)
 
     # Setup chart.
     chart = charts.LineCharts(exchange)

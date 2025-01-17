@@ -96,7 +96,7 @@ class Loan(metaclass=abc.ABCMeta):
 
 @dataclasses.dataclass
 class ExchangeContext:
-    dispatcher: dispatcher.EventDispatcher
+    dispatcher: dispatcher.BacktestingDispatcher
     account_balances: account_balances.AccountBalances
     prices: prices.Prices
     config: config.Config

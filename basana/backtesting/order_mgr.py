@@ -15,27 +15,30 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Callable, Dict, Generator, Iterable, List, Optional
+from typing import Any, Awaitable, cast, Callable, Dict, Generator, Iterable, List, Optional
 import dataclasses
+import datetime
 import decimal
 import logging
 
 from basana.backtesting import account_balances, config, errors, fees, helpers, lending, loan_mgr, liquidity, prices
-from basana.backtesting.orders import Order
+from basana.backtesting.orders import Order, OrderInfo
 from basana.backtesting.value_map import ValueMap, ValueMapDict
 from basana.core import bar, dispatcher, helpers as core_helpers, logs
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
+import basana as bs
 
 
 logger = logging.getLogger(__name__)
 
 LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
+OrderEventHandler = Callable[["OrderEvent"], Awaitable[Any]]
 
 
 @dataclasses.dataclass
 class ExchangeContext:
-    dispatcher: dispatcher.EventDispatcher
+    dispatcher: dispatcher.BacktestingDispatcher
     account_balances: account_balances.AccountBalances
     prices: prices.Prices
     fee_strategy: fees.FeeStrategy
@@ -44,12 +47,24 @@ class ExchangeContext:
     config: config.Config
 
 
+class OrderEvent(bs.Event):
+    """
+    An event for order updates.
+    """
+
+    def __init__(self, when: datetime.datetime, order: OrderInfo):
+        super().__init__(when)
+        #: The order.
+        self.order: OrderInfo = order
+
+
 class OrderManager:
     def __init__(self, exchange_ctx: ExchangeContext):
         self._ctx = exchange_ctx
         self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
         self._orders = helpers.ExchangeObjectContainer[Order]()
         self._holds_by_order: Dict[str, ValueMap] = {}
+        self._order_updates = core_helpers.LazyProxy(bs.FifoQueueEventSource)
 
     def on_bar_event(self, bar_event: bar.BarEvent):
         if (liquidity_strategy := self._liquidity_strategies.get(bar_event.bar.pair)) is None:
@@ -69,7 +84,12 @@ class OrderManager:
                 self._ctx.account_balances.update(hold_updates=required_balances)
                 self._holds_by_order[order.id] = required_balances
 
+            # The order got accepted.
             self._orders.add(order)
+            # Checking dispatcher.now_available is necessary to avoid calling dispatcher.now() when no events have been
+            # processed yet.
+            if self._order_updates.initialized and self._ctx.dispatcher.now_available and self._ctx.dispatcher.now():
+                self._order_updates.push(OrderEvent(self._ctx.dispatcher.now(), order.get_order_info()))
 
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage(
@@ -94,6 +114,14 @@ class OrderManager:
             raise errors.Error("Order {} is in {} state and can't be canceled".format(order_id, order.state))
         order.cancel()
         self._order_closed(order)
+
+    def subscribe_to_order_events(self, event_handler: OrderEventHandler):
+        """
+        Registers an async callable that will be called when an order is updated.
+
+        :param event_handler: The event handler.
+        """
+        self._ctx.dispatcher.subscribe(self._order_updates.obj, cast(dispatcher.EventHandler, event_handler))
 
     def _update_balances(self, order: Order, balance_updates: ValueMapDict):
         # If we have holds associated with the order, it may be time to release some/all of those.
@@ -194,6 +222,9 @@ class OrderManager:
             logger.debug(logs.StructuredMessage("Order not filled", order_id=order.id, order_state=order.state))
             if not order.is_open:
                 self._order_closed(order)
+                # Push the order event since the order is now closed.
+                if self._order_updates.initialized:
+                    self._order_updates.push(OrderEvent(bar_event.when, order.get_order_info()))
 
         # Calculate balance updates for the current bar.
         logger.debug(logs.StructuredMessage(
@@ -236,6 +267,10 @@ class OrderManager:
 
             if not order.is_open:
                 self._order_closed(order)
+
+            # Push the order event since the order got updated.
+            if self._order_updates.initialized:
+                self._order_updates.push(OrderEvent(bar_event.when, order.get_order_info()))
 
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage(
