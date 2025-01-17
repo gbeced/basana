@@ -429,7 +429,7 @@ def test_scheduler_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher
 
 
 def test_now_fails_if_no_events_were_processed(backtesting_dispatcher):
-    with pytest.raises(errors.Error, match="No events processed yet"):
+    with pytest.raises(errors.Error, match="Can't calculate current datetime since no events were processed"):
         backtesting_dispatcher.now()
 
 
