@@ -5,6 +5,7 @@
 ### Features
 
 * Added support for Binance order and user data events via websockets.
+* Added support for backtesting order events.
 * Added loan ids to order info.
 
 ### Bug fixes
