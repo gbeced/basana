@@ -183,3 +183,15 @@ def test_fifo_cache():
     assert k2 in c
     assert k3 not in c
     assert k4 in c
+
+
+def test_lazy_proxy():
+    class ExpensiveObject:
+        def __init__(self):
+            self.value = 42
+
+    proxy = helpers.LazyProxy(ExpensiveObject)
+    assert proxy.initialized is False
+    assert proxy.value == 42
+    assert proxy.obj.value == 42
+    assert proxy.initialized is True
