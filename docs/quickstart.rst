@@ -70,7 +70,7 @@ This is how all the pieces are put together:
    :dedent: 4
 
 The full source code for this example can be found `here <https://github.com/gbeced/basana/tree/master/samples/backtest_bbands.py>`_,
-and if you forked the repository, or at least downloaded the `samples <https://github.com/gbeced/basana/tree/master/samples>`_ folder,
+and if you fork the repository, or download and unzip `samples <https://github.com/gbeced/basana/releases/download/1.7/samples.zip>`_,
 you can execute the backtest using the following command:
 
 .. code-block:: console

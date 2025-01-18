@@ -26,7 +26,7 @@ $ pip install basana[charts] talipp pandas statsmodels
 
 ### Backtest a pairs trading strategy
 
-1.  Download an unzip [samples](https://github.com/gbeced/basana/releases/download/1.7/samples.zip).
+1.  Download and unzip [samples](https://github.com/gbeced/basana/releases/download/1.7/samples.zip).
 
 2. Download historical data for backtesting
 
