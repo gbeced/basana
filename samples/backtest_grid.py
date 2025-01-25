@@ -14,26 +14,25 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 # Bars can be downloaded using this command:
 # python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2021-01-01 -e 2021-12-31 \
 # -o binance_btcusdt_day.csv
 import dataclasses
-from decimal import Decimal
-import asyncio
 import datetime
 import logging
+from decimal import Decimal
 from typing import Dict, Optional, List
 
-from basana import OrderOperation, Pair
-from basana.backtesting import charts, lending
-from basana.core.logs import StructuredMessage
-from basana.external.binance import csv
 import basana as bs
 import basana.backtesting.exchange as backtesting_exchange
-
-from samples.backtesting.position_manager import PositionInfo
-from samples.strategies import bbands
+from basana import OrderOperation, Pair
+from basana.backtesting import charts, lending
+from basana.core.event_sources.trading_signal import BaseTradingSignal
+from basana.core.logs import StructuredMessage
+from basana.external.binance import csv
 from samples.configs.grid_config import Config
+from samples.strategies import bbands
 
 
 @dataclasses.dataclass
@@ -63,10 +62,11 @@ class GridPositionManager:
     """
     GridPositionManager class
     """
+
     # Responsible for managing orders and tracking positions in response to trading signals.
     def __init__(
             self, exchange: backtesting_exchange.Exchange, position_amount: Decimal, grid_size: int, grid_step: int,
-            hedging: bool, martingale_sizes: bool  ,borrowing_disabled: bool = False
+            hedging: bool, martingale_sizes: bool, borrowing_disabled: bool = False
     ):
         """
         Init GridPositionManager instance
@@ -97,7 +97,7 @@ class GridPositionManager:
         self._buy_orders_ids: List[str] = []
         self._sell_orders_ids: List[str] = []
 
-    async def on_trading_signal(self, trading_signal: bs.TradingSignal):
+    async def on_trading_signal(self, trading_signal: BaseTradingSignal):
         """
         Handle trading signals
 
@@ -129,11 +129,11 @@ class GridPositionManager:
 
         # Unless force is set, we can ignore the request if we're already there.
         if not force and any([
-                # current_pos_info is None and target_position == bs.Position.NEUTRAL,
-                (
-                    current_pos_info is not None and
-                    current_pos_info == target_position
-                )
+            # current_pos_info is None and target_position == bs.Position.NEUTRAL,
+            (
+                    current_pos_info is not None
+                    and current_pos_info == target_position
+            )
         ]):
             return
         self._positions[pair] = PositionInfo(pair, target_position)
@@ -142,7 +142,8 @@ class GridPositionManager:
             return
 
         # SIGNAL NEUTRAL (BBands cross the middle)
-        buy_order_ids = [order.id for order in await self._exchange.get_open_orders(pair) if order.operation == OrderOperation.BUY]
+        buy_order_ids = [order.id for order in await self._exchange.get_open_orders(pair) if
+                         order.operation == OrderOperation.BUY]
 
         if len(buy_order_ids) == 0:
 
@@ -160,7 +161,8 @@ class GridPositionManager:
                     order_size = bs.truncate_decimal(Decimal(self._position_amount * (i + 1)), pair_info.base_precision)
                 operation = bs.OrderOperation.BUY
                 logging.info(
-                    StructuredMessage("Creating market order", operation=operation, pair=pair, order_size=order_size, limit_price=price))
+                    StructuredMessage("Creating market order", operation=operation, pair=pair, order_size=order_size,
+                                      limit_price=price))
                 created_order = await self._exchange.create_limit_order(
                     operation, pair, order_size, price, auto_borrow=True, auto_repay=True
                 )
@@ -173,7 +175,8 @@ class GridPositionManager:
                     order_size = bs.truncate_decimal(Decimal(self._position_amount * (i + 1)), pair_info.base_precision)
                 operation = bs.OrderOperation.SELL
                 logging.info(
-                    StructuredMessage("Creating market order", operation=operation, pair=pair, order_size=order_size, limit_price=price))
+                    StructuredMessage("Creating market order", operation=operation, pair=pair, order_size=order_size,
+                                      limit_price=price))
                 created_order = await self._exchange.create_limit_order(
                     operation, pair, order_size, price, auto_borrow=True, auto_repay=True
                 )
@@ -209,8 +212,10 @@ class GridPositionManager:
             # Buy order filled...
             if order_info.operation == OrderOperation.BUY and order_info.id in self._buy_orders_ids:
                 self._buy_orders_ids.remove(order_info.id)
-                if self._hedging is True:
-                    new_sell_price = bs.truncate_decimal(Decimal(float(order_info.fill_price if order_info.fill_price is not None else order_info.limit_price)) + grid_step_from_pips, pair_info.quote_precision)
+                if self._hedging is True and order_info.limit_price is not None:
+                    price = Decimal(
+                        order_info.fill_price if order_info.fill_price is not None else order_info.limit_price)
+                    new_sell_price = bs.truncate_decimal(price + grid_step_from_pips, pair_info.quote_precision)
                     order_size = bs.truncate_decimal(Decimal(self._position_amount), pair_info.base_precision)
                     operation = bs.OrderOperation.SELL
                     logging.info(
@@ -224,8 +229,10 @@ class GridPositionManager:
             # Sell order filled...
             elif order_info.operation == OrderOperation.SELL and order_info.id in self._sell_orders_ids:
                 self._sell_orders_ids.remove(order_info.id)
-                if self._hedging is True:
-                    new_buy_price = bs.truncate_decimal(Decimal(float(order_info.fill_price if order_info.fill_price is not None else order_info.limit_price)) - grid_step_from_pips, pair_info.quote_precision)
+                if self._hedging is True and order_info.limit_price is not None:
+                    price = Decimal(
+                        order_info.fill_price if order_info.fill_price is not None else order_info.limit_price)
+                    new_buy_price = bs.truncate_decimal(price - grid_step_from_pips, pair_info.quote_precision)
                     order_size = bs.truncate_decimal(Decimal(self._position_amount), pair_info.base_precision)
                     operation = bs.OrderOperation.BUY
                     logging.info(
@@ -237,7 +244,8 @@ class GridPositionManager:
                     self._buy_orders_ids.append(created_order.id)
 
         # if no sell orders are opened...
-        sell_open_order_ids = [order.id for order in await self._exchange.get_open_orders(pair) if order.operation == OrderOperation.SELL]
+        sell_open_order_ids = [order.id for order in await self._exchange.get_open_orders(pair) if
+                               order.operation == OrderOperation.SELL]
         if len(sell_open_order_ids) == 0:
             # cancel all open buy orders
             await self.cancel_open_orders(pair)
@@ -264,7 +272,8 @@ async def main():
     # We'll be opening short positions, so we need to set a lending strategy when initializing the exchange.
     lending_strategy = lending.MarginLoans(Config.PAIR.quote_symbol, default_conditions=lending.MarginLoanConditions(
         interest_symbol=Config.PAIR.quote_symbol, interest_percentage=Decimal(Config.loan_interest_percentage),
-        interest_period=datetime.timedelta(days=Config.loan_interest_period), min_interest=Decimal(Config.loan_min_interest),
+        interest_period=datetime.timedelta(days=Config.loan_interest_period),
+        min_interest=Decimal(Config.loan_min_interest),
         margin_requirement=Decimal(Config.loan_margin_requirement)
     ))
     exchange = backtesting_exchange.Exchange(
@@ -282,7 +291,8 @@ async def main():
 
     # Connect the position manager to the strategy signals and to bar events.
     position_mgr = GridPositionManager(
-        exchange, Config.DEFAULT_POSITION_SIZE, Config.GRID_SIZE, Config.GRID_STEP_SIZE, Config.HEDGING, Config.MARTINGALE_SIZES
+        exchange, Config.DEFAULT_POSITION_SIZE, Config.GRID_SIZE, Config.GRID_STEP_SIZE, Config.HEDGING,
+        Config.MARTINGALE_SIZES
     )
     # no signals
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)

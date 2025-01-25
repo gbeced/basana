@@ -473,7 +473,7 @@ def realtime_dispatcher(max_concurrent: int = 50) -> EventDispatcher:
     return RealtimeDispatcher(max_concurrent=max_concurrent)
 
 
-def backtesting_dispatcher(max_concurrent: int = 50) -> EventDispatcher:
+def backtesting_dispatcher(max_concurrent: int = 50) -> BacktestingDispatcher:
     """Creates an event dispatcher suitable for backtesting.
 
     :param max_concurrent: The maximum number of events to process concurrently.
