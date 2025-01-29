@@ -74,7 +74,7 @@ class GridPositionManager:
         Manage a grid system
 
         @param exchange: Exchange instance
-        @param position_amount: Size of lot or amount of quote value to trade
+        @param position_amount: Amount of base value to trade
         @param grid_size: Grid number of lines above and below the start price
         @param grid_step: Space in Pips between grid lines
         @param hedging: True to take hedging orders
@@ -161,7 +161,7 @@ class GridPositionManager:
                     order_size = bs.truncate_decimal(Decimal(self._position_amount * (i + 1)), pair_info.base_precision)
                 operation = bs.OrderOperation.BUY
                 logging.info(
-                    StructuredMessage("Creating market order", operation=operation, pair=pair, order_size=order_size,
+                    StructuredMessage("Creating BUY limit order", operation=operation, pair=pair, order_size=order_size,
                                       limit_price=price))
                 created_order = await self._exchange.create_limit_order(
                     operation, pair, order_size, price, auto_borrow=True, auto_repay=True
@@ -175,7 +175,8 @@ class GridPositionManager:
                     order_size = bs.truncate_decimal(Decimal(self._position_amount * (i + 1)), pair_info.base_precision)
                 operation = bs.OrderOperation.SELL
                 logging.info(
-                    StructuredMessage("Creating market order", operation=operation, pair=pair, order_size=order_size,
+                    StructuredMessage("Creating SELL limit order", operation=operation, pair=pair,
+                                      order_size=order_size,
                                       limit_price=price))
                 created_order = await self._exchange.create_limit_order(
                     operation, pair, order_size, price, auto_borrow=True, auto_repay=True
@@ -219,7 +220,7 @@ class GridPositionManager:
                     order_size = bs.truncate_decimal(Decimal(self._position_amount), pair_info.base_precision)
                     operation = bs.OrderOperation.SELL
                     logging.info(
-                        StructuredMessage("Creating market order", operation=operation, pair=pair,
+                        StructuredMessage("Creating SELL limit order", operation=operation, pair=pair,
                                           order_size=order_size, limit_price=new_sell_price))
                     created_order = await self._exchange.create_limit_order(
                         operation, pair, order_size, new_sell_price, auto_borrow=True, auto_repay=True
@@ -236,7 +237,7 @@ class GridPositionManager:
                     order_size = bs.truncate_decimal(Decimal(self._position_amount), pair_info.base_precision)
                     operation = bs.OrderOperation.BUY
                     logging.info(
-                        StructuredMessage("Creating market order", operation=operation, pair=pair,
+                        StructuredMessage("Creating BUY limit order", operation=operation, pair=pair,
                                           order_size=order_size, limit_price=new_buy_price))
                     created_order = await self._exchange.create_limit_order(
                         operation, pair, order_size, new_buy_price, auto_borrow=True, auto_repay=True
