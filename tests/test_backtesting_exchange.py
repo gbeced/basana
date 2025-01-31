@@ -74,17 +74,23 @@ def test_order_container():
 
 
 def test_create_get_and_cancel_order(backtesting_dispatcher):
-    async def impl():
-        e = exchange.Exchange(
-            backtesting_dispatcher,
-            {
-                "ARS": Decimal("-2000.05"),
-                "BTC": Decimal("2"),
-                "ETH": Decimal("0"),
-                "USD": Decimal("50000"),
-            }
-        )
-        pair = Pair("BTC", "USD")
+    e = exchange.Exchange(
+        backtesting_dispatcher,
+        {
+            "ARS": Decimal("-2000.05"),
+            "BTC": Decimal("2"),
+            "ETH": Decimal("0"),
+            "USD": Decimal("50000"),
+        }
+    )
+    pair = Pair("BTC", "USD")
+    order_events = []
+    bar_events = []
+
+    async def on_order_updated(event: exchange.OrderEvent):
+        order_events.append(event.order)
+
+    async def on_bar(bar_event):
         order_request = requests.MarketOrder(OrderOperation.BUY, pair, Decimal("1"))
         created_order = await e.create_order(order_request)
         assert created_order is not None
@@ -119,6 +125,31 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         # There should be no holds in place.
         assert sum(e._balances.holds.values()) == 0
         assert sum(e._order_mgr._holds_by_order.values()) == 0
+
+        nonlocal bar_events
+        bar_events.append(bar_event)
+
+    async def impl():
+        e.subscribe_to_bar_events(pair, on_bar)
+        e.subscribe_to_order_events(on_order_updated)
+        e.add_bar_source(
+            event.FifoQueueEventSource(events=[
+                bar.BarEvent(
+                    dt.local_datetime(2001, 1, 3),
+                    bar.Bar(
+                        dt.local_datetime(2001, 1, 2), pair,
+                        Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal(100)
+                    )
+                ),
+            ])
+        )
+
+        await backtesting_dispatcher.run()
+
+        assert len(bar_events) == 1
+        assert len(order_events) == 2
+        assert order_events[0].is_open is True
+        assert order_events[1].is_open is False
 
     asyncio.run(impl())
 
