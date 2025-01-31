@@ -540,7 +540,7 @@ def test_order_requests(order_plan, backtesting_dispatcher):
     expected = {}
     order_events = {}
 
-    async def on_order_upadted(event: exchange.OrderEvent):
+    async def on_order_updated(event: exchange.OrderEvent):
         order_events.setdefault(event.order.id, []).append(event.order)
 
     async def on_bar(bar_event):
@@ -590,7 +590,7 @@ def test_order_requests(order_plan, backtesting_dispatcher):
         e.add_bar_source(src)
 
         e.subscribe_to_bar_events(p, on_bar)
-        e.subscribe_to_order_events(on_order_upadted)
+        e.subscribe_to_order_events(on_order_updated)
 
         await backtesting_dispatcher.run()
 
