@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.7.1
+
+### Bug fixes
+
+* No event was generated when a backtesting order got canceled.
+
 ## 1.7
 
 ### Features
