@@ -86,10 +86,7 @@ class OrderManager:
 
             # The order got accepted.
             self._orders.add(order)
-            # Checking dispatcher.now_available is necessary to avoid calling dispatcher.now() when no events have been
-            # processed yet.
-            if self._order_updates.initialized and self._ctx.dispatcher.now_available and self._ctx.dispatcher.now():
-                self._order_updates.push(OrderEvent(self._ctx.dispatcher.now(), order.get_order_info()))
+            self._push_order_update(order)
 
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage(
@@ -114,6 +111,7 @@ class OrderManager:
             raise errors.Error("Order {} is in {} state and can't be canceled".format(order_id, order.state))
         order.cancel()
         self._order_closed(order)
+        self._push_order_update(order)
 
     def subscribe_to_order_events(self, event_handler: OrderEventHandler):
         """
@@ -222,9 +220,7 @@ class OrderManager:
             logger.debug(logs.StructuredMessage("Order not filled", order_id=order.id, order_state=order.state))
             if not order.is_open:
                 self._order_closed(order)
-                # Push the order event since the order is now closed.
-                if self._order_updates.initialized:
-                    self._order_updates.push(OrderEvent(bar_event.when, order.get_order_info()))
+                self._push_order_update(order, when=bar_event.when)
 
         # Calculate balance updates for the current bar.
         logger.debug(logs.StructuredMessage(
@@ -268,9 +264,7 @@ class OrderManager:
             if not order.is_open:
                 self._order_closed(order)
 
-            # Push the order event since the order got updated.
-            if self._order_updates.initialized:
-                self._order_updates.push(OrderEvent(bar_event.when, order.get_order_info()))
+            self._push_order_update(order, when=bar_event.when)
 
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage(
@@ -333,3 +327,11 @@ class OrderManager:
             symbol: -amount for symbol, amount in estimated_balance_updates.items()
             if amount < Decimal(0)
         })
+
+    def _push_order_update(self, order: Order, when: Optional[datetime.datetime] = None):
+        # Checking dispatcher.now_available is necessary to avoid calling dispatcher.now() when no events have been
+        # processed yet.
+        if when is None and self._ctx.dispatcher.now_available:
+            when = self._ctx.dispatcher.now()
+        if when and self._order_updates.initialized:
+            self._order_updates.push(OrderEvent(when, order.get_order_info()))

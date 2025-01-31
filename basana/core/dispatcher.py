@@ -465,16 +465,18 @@ async def await_no_raise(coro: Awaitable[Any], message: str = "Unhandled excepti
         await coro
 
 
-def realtime_dispatcher(max_concurrent: int = 50) -> EventDispatcher:
-    """Creates an event dispatcher suitable for live trading.
+def realtime_dispatcher(max_concurrent: int = 50) -> RealtimeDispatcher:
+    """
+    Creates an event dispatcher suitable for live trading.
 
     :param max_concurrent: The maximum number of events to process concurrently.
     """
     return RealtimeDispatcher(max_concurrent=max_concurrent)
 
 
-def backtesting_dispatcher(max_concurrent: int = 50) -> EventDispatcher:
-    """Creates an event dispatcher suitable for backtesting.
+def backtesting_dispatcher(max_concurrent: int = 50) -> BacktestingDispatcher:
+    """
+    Creates an event dispatcher suitable for backtesting.
 
     :param max_concurrent: The maximum number of events to process concurrently.
     """
