@@ -86,6 +86,7 @@ async def main():
         exchange.subscribe_to_bar_events(pair, position_mgr.on_bar_event)
 
         chart.add_pair(pair)
+        chart.add_pair_signals(pair, trading_strategy)
 
     chart.add_custom("P-Value", "P-Value", lambda _: trading_strategy.p_value)
     chart.add_custom("P-Value", "Threshold", lambda _: p_value_threshold)
