@@ -1,5 +1,11 @@
 # Changelog
 
+## TBD
+
+### Features
+
+* `backtesting.exchange.OrderInfo` now includes order fills.
+
 ## 1.7.1
 
 ### Bug fixes
@@ -47,7 +53,7 @@
 
 ## 1.5.0
 
-* `basana.backtesting.fees.Percentage` now supports a minimum fee.
+* `backtesting.fees.Percentage` now supports a minimum fee.
 
 ## 1.4.1
 

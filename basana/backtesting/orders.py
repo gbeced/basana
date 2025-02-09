@@ -39,6 +39,16 @@ class OrderState(enum.Enum):
 
 
 @dataclasses.dataclass
+class Fill:
+    #: The time when the fill took place.
+    when: datetime.datetime
+    #: The balance updates.
+    balance_updates: Dict[str, Decimal]
+    #: The fees.
+    fees: Dict[str, Decimal]
+
+
+@dataclasses.dataclass
 class OrderInfo:
     #: The order id.
     id: str
@@ -62,6 +72,8 @@ class OrderInfo:
     stop_price: Optional[Decimal] = None
     #: The ids of the associated loans.
     loan_ids: List[str] = dataclasses.field(default_factory=list)
+    #: The fills.
+    fills: List[Fill] = dataclasses.field(default_factory=list)
 
     @property
     def fill_price(self) -> Optional[Decimal]:
@@ -70,13 +82,6 @@ class OrderInfo:
         if self.amount_filled:
             fill_price = self.quote_amount_filled / self.amount_filled
         return fill_price
-
-
-@dataclasses.dataclass
-class Fill:
-    when: datetime.datetime
-    balance_updates: Dict[str, Decimal]
-    fees: Dict[str, Decimal]
 
 
 # This is an internal abstraction to be used by the exchange.
@@ -175,7 +180,7 @@ class Order(metaclass=abc.ABCMeta):
             amount=self.amount, amount_filled=self.amount_filled, amount_remaining=self.amount_pending,
             quote_amount_filled=self.quote_amount_filled,
             fees={symbol: -amount for symbol, amount in self._fees.items() if amount},
-            loan_ids=[loan_id for loan_id in self._loan_ids]
+            loan_ids=[loan_id for loan_id in self._loan_ids], fills=self.fills
         )
 
     @abc.abstractmethod

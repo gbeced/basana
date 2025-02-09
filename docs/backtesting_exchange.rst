@@ -13,6 +13,8 @@ basana.backtesting.exchange
     :members:
 .. autoclass:: basana.backtesting.exchange.CanceledOrder
     :members:
+.. autoclass:: basana.backtesting.exchange.Fill
+    :members:
 .. autoclass:: basana.backtesting.exchange.OrderInfo
     :members:
 .. autoclass:: basana.backtesting.exchange.OpenOrder

@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 BarEventHandler = bar.BarEventHandler
 Error = errors.Error
+Fill = orders.Fill
 LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
 OrderEvent = order_mgr.OrderEvent
 OrderEventHandler = order_mgr.OrderEventHandler

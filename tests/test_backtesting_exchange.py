@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import dataclasses
 from decimal import Decimal
 import asyncio
 import datetime
@@ -265,8 +264,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
     #             Optional[expected_order_events],
     #         ),
     #     ],
-    # }
-
+    # },
     {
         datetime.date(2000, 1, 4): [
             # Stop order canceled due to insufficient funds. Need to tweak the amount and stop price to get the order
@@ -301,15 +299,14 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("2")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 1, 5, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("2"), "USD": Decimal("-231.00")},
                         fees={"USD": Decimal("-0.58")},
                     ),
                 ],
                 [
-                    orders.OrderInfo(
-                        id="any",
+                    dict(
                         is_open=True,
                         operation=OrderOperation.BUY,
                         amount=Decimal("2"),
@@ -318,15 +315,14 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                         quote_amount_filled=Decimal("0"),
                         fees={}
                     ),
-                    orders.OrderInfo(
-                        id="any",
+                    dict(
                         is_open=False,
                         operation=OrderOperation.BUY,
                         amount=Decimal("2"),
                         amount_filled=Decimal("2"),
                         amount_remaining=Decimal("0"),
                         quote_amount_filled=Decimal("231.00"),
-                        fees={"USD": Decimal("0.58")}
+                        fees={"USD": Decimal("0.58")},
                     ),
                 ]
             ),
@@ -336,7 +332,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("4"), Decimal("110.01")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 1, 5, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("4"), "USD": Decimal("-440.04")},
                         fees={"USD": Decimal("-1.11")},
@@ -352,7 +348,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 1, 19, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("107.87")},
                         fees={"USD": Decimal("-0.27")},
@@ -366,7 +362,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("108")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 1, 19, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("108.00")},
                         fees={"USD": Decimal("-0.27")},
@@ -380,7 +376,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1"), Decimal("108")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 1, 19, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("107.87")},
                         fees={"USD": Decimal("-0.27")},
@@ -397,7 +393,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     Decimal("58.03")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 1, 25, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("5"), "USD": Decimal("-290.15")},
                         fees={"USD": Decimal("-0.73")},
@@ -414,7 +410,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     Decimal("80.24")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 3, 14, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("10"), "USD": Decimal("-785.00")},
                         fees={"USD": Decimal("-1.97")},
@@ -429,7 +425,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     Decimal("81")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 3, 11, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("9"), "USD": Decimal("-729.00")},
                         fees={"USD": Decimal("-1.83")},
@@ -444,7 +440,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     Decimal("78.75")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 3, 14, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("78.75")},
                         fees={"USD": Decimal("-0.20")},
@@ -459,7 +455,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     Decimal("83.65")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 3, 15, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("83.65")},
                         fees={"USD": Decimal("-0.21")},
@@ -474,7 +470,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     Decimal("83.80")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 3, 16, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("84.00")},
                         fees={"USD": Decimal("-0.21")},
@@ -492,20 +488,19 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("50"), Decimal("10")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2001, 1, 4, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("25"), "USD": Decimal("-137.50")},
                         fees={"USD": Decimal("-0.35")},
                     ),
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2001, 1, 5, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("25"), "USD": Decimal("-137.50")},
                         fees={"USD": Decimal("-0.34")},
                     ),
                 ],
                 [
-                    orders.OrderInfo(
-                        id="any",
+                    dict(
                         is_open=True,
                         operation=OrderOperation.BUY,
                         amount=Decimal("50"),
@@ -515,8 +510,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                         fees={},
                         limit_price=Decimal("10"),
                     ),
-                    orders.OrderInfo(
-                        id="any",
+                    dict(
                         is_open=True,
                         operation=OrderOperation.BUY,
                         amount=Decimal("50"),
@@ -526,8 +520,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                         fees={"USD": Decimal("0.35")},
                         limit_price=Decimal("10"),
                     ),
-                    orders.OrderInfo(
-                        id="any",
+                    dict(
                         is_open=False,
                         operation=OrderOperation.BUY,
                         amount=Decimal("50"),
@@ -549,7 +542,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                     OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("8600"), Decimal("115.50")
                 ),
                 [
-                    orders.Fill(
+                    dict(
                         when=datetime.datetime(2000, 1, 5, tzinfo=tz.tzlocal()),
                         balance_updates={"ORCL": Decimal("8600"), "USD": Decimal("-993300.00")},
                         fees={"USD": Decimal("-2483.25")},
@@ -627,23 +620,23 @@ def test_order_requests(order_plan, backtesting_dispatcher):
 
         for order_id, expected_attrs in expected.items():
             order_info = await e.get_order_info(order_id)
-            assert order_info is not None
             assert not order_info.is_open, order_info
 
-            exchange_order = e._order_mgr._orders.get(order_id)
-            assert exchange_order is not None
-            assert exchange_order.fills == expected_attrs["fills"]
+            # Check fills.
+            if expected_attrs["fills"] is not None:
+                for i, expected_fill in enumerate(expected_attrs["fills"]):
+                    order_fill = order_info.fills[i]
+                    for attr, expected_value in expected_fill.items():
+                        assert getattr(order_fill, attr) == expected_value
 
+            # Check order events
             if expected_attrs["order_events"] is not None:
-                def normalize_order_info(order):
-                    ret = dataclasses.asdict(order)
-                    ret.pop("id")
-                    return ret
-
                 assert order_id in order_events
                 assert len(order_events[order_id]) == len(expected_attrs["order_events"])
-                for lhs, rhs in zip(order_events[order_id], expected_attrs["order_events"]):
-                    assert normalize_order_info(lhs) == normalize_order_info(rhs)
+                for i, expected_order_event in enumerate(expected_attrs["order_events"]):
+                    order_event = order_events[order_id][i]
+                    for attr, expected_value in expected_order_event.items():
+                        assert getattr(order_event, attr) == expected_value
 
         assert len(expected) == sum([len(orders) for orders in order_plan.values()])
 
