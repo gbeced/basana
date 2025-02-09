@@ -4,7 +4,7 @@
 
 ### Features
 
-* `backtesting.exchange.OrderInfo` now includes order fills.
+* `backtesting.exchange.OrderInfo` now includes pair and order fills.
 
 ## 1.7.1
 

@@ -25,12 +25,13 @@ import basana as bs
 
 def test_long_partially_filled():
     target = Decimal(10)
+    pair = bs.Pair("BTC", "USDT")
     order = exchange.OrderInfo(
-        id="1234", is_open=True, operation=bs.OrderOperation.BUY, amount=target, amount_filled=Decimal(0),
+        id="1234", pair=pair, is_open=True, operation=bs.OrderOperation.BUY, amount=target, amount_filled=Decimal(0),
         amount_remaining=target, quote_amount_filled=Decimal(0), fees={}
     )
     pos_info = PositionInfo(
-        pair=bs.Pair("BTC", "USDT"), initial=Decimal(0), initial_avg_price=Decimal(0), target=target, order=order
+        pair=pair, initial=Decimal(0), initial_avg_price=Decimal(0), target=target, order=order
     )
 
     assert pos_info.order_open is True
@@ -55,12 +56,13 @@ def test_long_partially_filled():
 
 def test_short_completely_filled():
     target = Decimal(-10)
+    pair = bs.Pair("BTC", "USDT")
     order = exchange.OrderInfo(
-        id="1234", is_open=True, operation=bs.OrderOperation.SELL, amount=target, amount_filled=Decimal(0),
+        id="1234", pair=pair, is_open=True, operation=bs.OrderOperation.SELL, amount=target, amount_filled=Decimal(0),
         amount_remaining=abs(target), quote_amount_filled=Decimal(0), fees={}
     )
     pos_info = PositionInfo(
-        pair=bs.Pair("BTC", "USDT"), initial=Decimal(0), initial_avg_price=Decimal(0), target=target, order=order
+        pair=pair, initial=Decimal(0), initial_avg_price=Decimal(0), target=target, order=order
     )
 
     assert pos_info.order_open is True
@@ -96,12 +98,13 @@ def test_long_jump(target_position):
     }[operation]
 
     # First order that jumps from one position to the opposite one.
+    pair = bs.Pair("BTC", "USDT")
     order = exchange.OrderInfo(
-        id="1", is_open=True, operation=operation, amount=abs(target * 2), amount_filled=Decimal(0),
+        id="1", pair=pair, is_open=True, operation=operation, amount=abs(target * 2), amount_filled=Decimal(0),
         amount_remaining=abs(target * 2), quote_amount_filled=Decimal(0), fees={}
     )
     pos_info = PositionInfo(
-        pair=bs.Pair("BTC", "USDT"), initial=-target, initial_avg_price=Decimal(900), target=target, order=order
+        pair=pair, initial=-target, initial_avg_price=Decimal(900), target=target, order=order
     )
 
     assert pos_info.order_open is True
@@ -120,7 +123,7 @@ def test_long_jump(target_position):
     # The last order was canceled and a new one will start at 3/-3.
     pos_info.initial, pos_info.initial_avg_price = pos_info.current, pos_info.avg_price
     pos_info.order = exchange.OrderInfo(
-        id="2", is_open=True, operation=operation, amount=Decimal(7), amount_filled=Decimal(0),
+        id="2", pair=pair, is_open=True, operation=operation, amount=Decimal(7), amount_filled=Decimal(0),
         amount_remaining=Decimal(7), quote_amount_filled=Decimal(0), fees={}
     )
 
@@ -141,7 +144,7 @@ def test_long_jump(target_position):
     pos_info.initial, pos_info.initial_avg_price = pos_info.current, pos_info.avg_price
     pos_info.target = Decimal(7) * sign
     pos_info.order = exchange.OrderInfo(
-        id="3", is_open=True, operation=reverse_operation, amount=Decimal(1), amount_filled=Decimal(0),
+        id="3", pair=pair, is_open=True, operation=reverse_operation, amount=Decimal(1), amount_filled=Decimal(0),
         amount_remaining=Decimal(1), quote_amount_filled=Decimal(0), fees={}
     )
 
@@ -186,26 +189,28 @@ def test_avg_price(
     ]
     order_amount = abs(target - initial)
     is_open = order_amount != order_filled_amount
+    pair = bs.Pair("BTC", "USDT")
 
     order = exchange.OrderInfo(
-        id="1", is_open=is_open, operation=order_operation, amount=order_amount,
+        id="1", pair=pair, is_open=is_open, operation=order_operation, amount=order_amount,
         amount_filled=order_filled_amount, amount_remaining=order_amount - order_filled_amount,
         quote_amount_filled=order_filled_amount * order_filled_price, fees={}
     )
     pos_info = PositionInfo(
-        pair=bs.Pair("BTC", "USDT"), initial=initial, initial_avg_price=initial_avg_price, target=target, order=order
+        pair=pair, initial=initial, initial_avg_price=initial_avg_price, target=target, order=order
     )
     assert pos_info.avg_price == expected_avg_price
 
 
 def test_pnl_pct():
+    pair = bs.Pair("BTC", "USDT")
     order = exchange.OrderInfo(
-        id="1", is_open=False, operation=bs.OrderOperation.BUY, amount=Decimal(1),
+        id="1", pair=pair, is_open=False, operation=bs.OrderOperation.BUY, amount=Decimal(1),
         amount_filled=Decimal(1), amount_remaining=Decimal(0),
         quote_amount_filled=(Decimal(1000)), fees={}
     )
     pos_info = PositionInfo(
-        pair=bs.Pair("BTC", "USDT"), initial=Decimal(0), initial_avg_price=Decimal(0), target=Decimal(1), order=order
+        pair=pair, initial=Decimal(0), initial_avg_price=Decimal(0), target=Decimal(1), order=order
     )
 
     assert pos_info.avg_price == Decimal(1000)

@@ -307,6 +307,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
                 ],
                 [
                     dict(
+                        pair=Pair("ORCL", "USD"),
                         is_open=True,
                         operation=OrderOperation.BUY,
                         amount=Decimal("2"),

@@ -52,6 +52,8 @@ class Fill:
 class OrderInfo:
     #: The order id.
     id: str
+    #: The pair.
+    pair: Pair
     #: True if the order is open, False otherwise.
     is_open: bool
     #: The operation.
@@ -176,7 +178,7 @@ class Order(metaclass=abc.ABCMeta):
 
     def get_order_info(self) -> OrderInfo:
         return OrderInfo(
-            id=self.id, is_open=self._state == OrderState.OPEN, operation=self.operation,
+            id=self.id, pair=self.pair, is_open=self._state == OrderState.OPEN, operation=self.operation,
             amount=self.amount, amount_filled=self.amount_filled, amount_remaining=self.amount_pending,
             quote_amount_filled=self.quote_amount_filled,
             fees={symbol: -amount for symbol, amount in self._fees.items() if amount},
