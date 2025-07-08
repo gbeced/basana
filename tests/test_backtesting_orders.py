@@ -20,7 +20,7 @@ from decimal import Decimal
 import pytest
 
 from basana.backtesting import exchange, liquidity, value_map
-from basana.backtesting.orders import OrderOperation, OrderState, MarketOrder, LimitOrder, StopOrder, \
+from basana.backtesting.orders import OrderOperation, MarketOrder, LimitOrder, StopOrder, \
     StopLimitOrder
 from basana.core import bar, dt
 from basana.core.pair import Pair, PairInfo
@@ -30,7 +30,7 @@ from basana.core.pair import Pair, PairInfo
     "order, expected_balance_updates", [
         # Buy market
         (
-            MarketOrder(uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), OrderState.OPEN),
+            MarketOrder(uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1")),
             {
                 "BTC": Decimal("1"),
                 "USD": Decimal("-40001.76"),
@@ -38,7 +38,7 @@ from basana.core.pair import Pair, PairInfo
         ),
         # Buy market. Rounding should take place.
         (
-            MarketOrder(uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1.61"), OrderState.OPEN),
+            MarketOrder(uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1.61")),
             {
                 "BTC": Decimal("1.61"),
                 "USD": Decimal("-64402.83"),
@@ -47,8 +47,7 @@ from basana.core.pair import Pair, PairInfo
         # Buy limit
         (
             LimitOrder(
-                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), Decimal("39000.01"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), Decimal("39000.01")
             ),
             {
                 "BTC": Decimal("1"),
@@ -58,7 +57,7 @@ from basana.core.pair import Pair, PairInfo
         # Buy limit uses open price which is better.
         (
             LimitOrder(
-                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2"), Decimal("42000"), OrderState.OPEN
+                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2"), Decimal("42000")
             ),
             {
                 "BTC": Decimal("2"),
@@ -68,8 +67,7 @@ from basana.core.pair import Pair, PairInfo
         # Buy limit uses open price which is better. Rounding should take place
         (
                 LimitOrder(
-                    uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("3.8"), Decimal("42000"),
-                    OrderState.OPEN
+                    uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("3.8"), Decimal("42000")
                 ),
                 {
                     "BTC": Decimal("3.8"),
@@ -79,23 +77,21 @@ from basana.core.pair import Pair, PairInfo
         # Buy limit price not hit.
         (
             LimitOrder(
-                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2"), Decimal("29000"), OrderState.OPEN
+                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2"), Decimal("29000")
             ),
             {}
         ),
         # Buy stop not hit.
         (
             StopOrder(
-                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2"), Decimal("50401.02"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2"), Decimal("50401.02")
             ),
             {}
         ),
         # Buy stop hit on open.
         (
             StopOrder(
-                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), Decimal("30000.01"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), Decimal("30000.01")
             ),
             {
                 "BTC": Decimal("1"),
@@ -105,8 +101,7 @@ from basana.core.pair import Pair, PairInfo
         # Buy stop hit after open.
         (
             StopOrder(
-                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), Decimal("40001.77"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), Decimal("40001.77")
             ),
             {
                 "BTC": Decimal("1"),
@@ -117,23 +112,21 @@ from basana.core.pair import Pair, PairInfo
         (
             StopLimitOrder(
                 uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2"), Decimal("50401.02"),
-                Decimal("60000"), OrderState.OPEN,
+                Decimal("60000"),
             ),
             {}
         ),
         # Buy stop limit not hit.
         (
             StopLimitOrder(
-                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2"), Decimal("20000"), Decimal("21000"),
-                OrderState.OPEN,
+                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2"), Decimal("20000"), Decimal("21000")
             ),
             {}
         ),
         # Buy stop limit hit on open.
         (
             StopLimitOrder(
-                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), Decimal("40000"), Decimal("42000"),
-                OrderState.OPEN,
+                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), Decimal("40000"), Decimal("42000")
             ),
             {
                 "BTC": Decimal("1"),
@@ -143,8 +136,7 @@ from basana.core.pair import Pair, PairInfo
         # Buy stop limit hit after open.
         (
             StopLimitOrder(
-                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2"), Decimal("41000"), Decimal("42000"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2"), Decimal("41000"), Decimal("42000")
             ),
             {
                 "BTC": Decimal("2"),
@@ -153,7 +145,7 @@ from basana.core.pair import Pair, PairInfo
         ),
         # Sell market
         (
-            MarketOrder(uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), OrderState.OPEN),
+            MarketOrder(uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1")),
             {
                 "BTC": Decimal("-1"),
                 "USD": Decimal("40001.76"),
@@ -162,8 +154,7 @@ from basana.core.pair import Pair, PairInfo
         # Sell limit
         (
             LimitOrder(
-                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("41200.02"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("41200.02")
             ),
             {
                 "BTC": Decimal("-1"),
@@ -173,7 +164,7 @@ from basana.core.pair import Pair, PairInfo
         # Sell limit uses open price which is better.
         (
             LimitOrder(
-                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("2"), Decimal("39000"), OrderState.OPEN
+                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("2"), Decimal("39000")
             ),
             {
                 "BTC": Decimal("-2"),
@@ -183,23 +174,21 @@ from basana.core.pair import Pair, PairInfo
         # Sell limit price not hit.
         (
             LimitOrder(
-                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("2"), Decimal("50401.02"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("2"), Decimal("50401.02")
             ),
             {}
         ),
         # Sell stop not hit.
         (
             StopOrder(
-                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("2"), Decimal("29999.99"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("2"), Decimal("29999.99")
             ),
             {}
         ),
         # Sell stop hit on open.
         (
             StopOrder(
-                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("40002"), OrderState.OPEN
+                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("40002")
             ),
             {
                 "BTC": Decimal("-1"),
@@ -209,8 +198,7 @@ from basana.core.pair import Pair, PairInfo
         # Sell stop hit on open. Rounding should take place
         (
             StopOrder(
-                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("3.6"), Decimal("40002"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("3.6"), Decimal("40002")
             ),
             {
                 "BTC": Decimal("-3.6"),
@@ -220,7 +208,7 @@ from basana.core.pair import Pair, PairInfo
         # Sell stop hit after open.
         (
             StopOrder(
-                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("35000"), OrderState.OPEN
+                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("35000")
             ),
             {
                 "BTC": Decimal("-1"),
@@ -230,8 +218,7 @@ from basana.core.pair import Pair, PairInfo
         # Sell stop limit hit on open.
         (
             StopLimitOrder(
-                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("41000"), Decimal("40000"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("41000"), Decimal("40000")
             ),
             {
                 "BTC": Decimal("-1"),
@@ -241,8 +228,7 @@ from basana.core.pair import Pair, PairInfo
         # Sell stop limit hit after open.
         (
             StopLimitOrder(
-                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("35000"), Decimal("41000"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("35000"), Decimal("41000")
             ),
             {
                 "BTC": Decimal("-1"),
@@ -253,7 +239,7 @@ from basana.core.pair import Pair, PairInfo
         (
             StopLimitOrder(
                 uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1.07"), Decimal("35000"),
-                Decimal("41000.09"), OrderState.OPEN
+                Decimal("41000.09")
             ),
             {
                 "BTC": Decimal("-1.07"),
@@ -281,17 +267,17 @@ def test_get_balance_updates_with_infinite_liquidity(order, expected_balance_upd
     "order, expected_balance_updates", [
         # Buy market but there is not enough balance.
         (
-            MarketOrder(uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2000"), OrderState.OPEN),
+            MarketOrder(uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("2000")),
             {}
         ),
         # Buy market. Rounding takes place. 250.075 should be available, which should get truncated to 250.07.
         (
-            MarketOrder(uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("250.08"), OrderState.OPEN),
+            MarketOrder(uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("250.08")),
             {}
         ),
         # Sell market. Rounding takes place. 250.075 should be available, which should get truncated to 250.07.
         (
-            MarketOrder(uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("250.07"), OrderState.OPEN),
+            MarketOrder(uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("250.07")),
             {
                 "BTC": Decimal("-250.07"),
                 "USD": Decimal("9002956.11"),
@@ -300,8 +286,7 @@ def test_get_balance_updates_with_infinite_liquidity(order, expected_balance_upd
         # Sell stop but there is not enough balance.
         (
             StopOrder(
-                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1004"), Decimal("35000"),
-                OrderState.OPEN
+                uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1004"), Decimal("35000")
             ),
             {}
         ),
@@ -327,14 +312,14 @@ def test_get_balance_updates_with_finite_liquidity(order, expected_balance_updat
 @pytest.mark.parametrize(
     "order", [
         LimitOrder(
-            uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("39000.01"), OrderState.OPEN
+            uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("39000.01")
         ),
         LimitOrder(
-            uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), Decimal("49000.01"), OrderState.OPEN
+            uuid4().hex, OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), Decimal("49000.01")
         ),
         StopLimitOrder(
             uuid4().hex, OrderOperation.SELL, Pair("BTC", "USD"), Decimal("1"), Decimal("39000.01"),
-            Decimal("39000.01"), OrderState.OPEN
+            Decimal("39000.01")
         ),
     ]
 )
