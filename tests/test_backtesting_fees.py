@@ -24,7 +24,7 @@ from basana.core.pair import Pair
 
 def test_percentage_fee_with_partial_fills():
     fee_strategy = fees.Percentage(Decimal("1"))
-    order = orders.MarketOrder("1", OrderOperation.BUY, Pair("BTC", "USD"), Decimal("0.01"), orders.OrderState.OPEN)
+    order = orders.MarketOrder("1", OrderOperation.BUY, Pair("BTC", "USD"), Decimal("0.01"))
 
     # Fill #1 - A 0.009 fee gets rounded to 0.01
     balance_updates = {
@@ -54,7 +54,7 @@ def test_percentage_fee_with_partial_fills():
 
 def test_percentage_fee_with_minium():
     fee_strategy = fees.Percentage(Decimal("1"), min_fee=Decimal("5"))
-    order = orders.MarketOrder("1", OrderOperation.BUY, Pair("BTC", "USD"), Decimal("0.1"), orders.OrderState.OPEN)
+    order = orders.MarketOrder("1", OrderOperation.BUY, Pair("BTC", "USD"), Decimal("0.1"))
 
     balance_updates = {
         "BTC": Decimal("0.1"),

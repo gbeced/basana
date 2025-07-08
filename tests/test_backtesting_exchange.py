@@ -59,7 +59,7 @@ def test_order_container():
     for i in range(1, 3):
         idx.add(
             orders.MarketOrder(
-                str(i), OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1"), orders.OrderState.OPEN
+                str(i), OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1")
             )
         )
     assert "1" in [o.id for o in idx.get_open()]
