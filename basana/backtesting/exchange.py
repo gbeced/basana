@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from decimal import Decimal
 from typing import cast, Callable, Dict, List, Optional, Sequence, Tuple
 import dataclasses
@@ -106,7 +107,7 @@ class Exchange:
     ):
         self._dispatcher = dispatcher
         self._balances = account_balances.AccountBalances(initial_balances)
-        self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
+        self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = defaultdict(event.FifoQueueEventSource)
         self._config = config.Config(None, default_pair_info)
         self._prices = prices.Prices(bid_ask_spread, self._config)
         self._loan_mgr = loan_mgr.LoanManager(
@@ -341,10 +342,7 @@ class Exchange:
         :param event_handler: An async callable that receives a basana.BarEvent.
         """
         # Get/create the event source for the given pair.
-        event_source = self._bar_event_source.get(pair)
-        if event_source is None:
-            event_source = event.FifoQueueEventSource()
-            self._bar_event_source[pair] = event_source
+        event_source = self._bar_event_source[pair]
         self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
 
     def subscribe_to_order_events(self, event_handler: OrderEventHandler):
