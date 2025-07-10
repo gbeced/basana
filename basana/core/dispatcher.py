@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from typing import cast, Any, Awaitable, Callable, Dict, Generator, List, Optional, Set, Tuple
 import abc
 import asyncio
@@ -137,7 +138,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
     """
 
     def __init__(self, max_concurrent: int):
-        self._event_handlers: Dict[event.EventSource, List[EventHandler]] = {}
+        self._event_handlers: Dict[event.EventSource, List[EventHandler]] = defaultdict(list)
         self._sniffers_pre: List[EventHandler] = []
         self._sniffers_post: List[EventHandler] = []
         self._producers: Set[event.Producer] = set()
@@ -183,7 +184,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         assert not self._running, "Subscribing once we're running is not currently supported."
 
         self._event_mux.add(source)
-        handlers = self._event_handlers.setdefault(source, [])
+        handlers = self._event_handlers[source]
         if event_handler not in handlers:
             handlers.append(event_handler)
         if source.producer:
@@ -374,7 +375,7 @@ class BacktestingDispatcher(EventDispatcher):
         self._last_dt = dt
         for source, evnt in self._event_mux.pop_while(dt):
             await self._handlers_task_pool.push(
-                self._dispatch_event(EventDispatch(event=evnt, handlers=self._event_handlers.get(source, [])))
+                self._dispatch_event(EventDispatch(event=evnt, handlers=self._event_handlers[source]))
             )
         await self._handlers_task_pool.wait()
 
@@ -451,7 +452,7 @@ class RealtimeDispatcher(EventDispatcher):
             await self._handlers_task_pool.push(
                 self._dispatch_event(EventDispatch(
                     event=evnt,
-                    handlers=self._event_handlers.get(source, [])
+                    handlers=self._event_handlers[source]
                 ))
             )
 
