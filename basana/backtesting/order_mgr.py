@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from decimal import Decimal
 from typing import Any, Awaitable, cast, Callable, Dict, Generator, Iterable, List, Optional
 import dataclasses
@@ -61,14 +62,15 @@ class OrderEvent(bs.Event):
 class OrderManager:
     def __init__(self, exchange_ctx: ExchangeContext):
         self._ctx = exchange_ctx
-        self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
+        self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = defaultdict(
+            exchange_ctx.liquidity_strategy_factory
+        )
         self._orders = helpers.ExchangeObjectContainer[Order]()
         self._holds_by_order: Dict[str, ValueMap] = {}
         self._order_updates = core_helpers.LazyProxy(bs.FifoQueueEventSource)
 
     def on_bar_event(self, bar_event: bar.BarEvent):
-        if (liquidity_strategy := self._liquidity_strategies.get(bar_event.bar.pair)) is None:
-            liquidity_strategy = self._ctx.liquidity_strategy_factory()
+        liquidity_strategy = self._liquidity_strategies[bar_event.bar.pair]
         liquidity_strategy.on_bar(bar_event.bar)
         for order in filter(lambda o: o.pair == bar_event.bar.pair, self._orders.get_open()):
             self._process_order(order, bar_event, liquidity_strategy)
