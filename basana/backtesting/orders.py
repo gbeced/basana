@@ -246,10 +246,10 @@ class MarketOrder(Order):
         amount = self.amount_pending
         base_sign = helpers.get_base_sign_for_operation(self.operation)
         if self.operation == OrderOperation.BUY:
-            price = slipped_price(bar.open, self.operation, amount, liquidity_strategy, cap_high=bar.high)
+            price = slipped_price(bar.open, self.operation, amount, liquidity_strategy)
         else:
             assert self.operation == OrderOperation.SELL
-            price = slipped_price(bar.open, self.operation, amount, liquidity_strategy, cap_low=bar.low)
+            price = slipped_price(bar.open, self.operation, amount, liquidity_strategy)
 
         return {
             self.pair.base_symbol: amount * base_sign,
@@ -346,7 +346,7 @@ class StopOrder(Order):
                 price = self._stop_price
 
             if price:
-                price = slipped_price(price, self.operation, amount, liquidity_strategy, cap_high=bar.high)
+                price = slipped_price(price, self.operation, amount, liquidity_strategy)
         else:
             assert self.operation == OrderOperation.SELL
             # Stop price was hit at bar open.
@@ -357,7 +357,7 @@ class StopOrder(Order):
                 price = self._stop_price
 
             if price:
-                price = slipped_price(price, self.operation, amount, liquidity_strategy, cap_low=bar.low)
+                price = slipped_price(price, self.operation, amount, liquidity_strategy)
 
         ret = {}
         if price:
