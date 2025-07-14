@@ -28,11 +28,11 @@ def test_no_prices():
     conf = config.Config()
     p = prices.Prices(bid_ask_spread_pct=Decimal("0.1"), config=conf)
 
-    with pytest.raises(errors.NoPrice):
+    with pytest.raises(errors.NotFound):
         p.get_bid_ask(Pair("BTC", "USDT"))
-    with pytest.raises(errors.NoPrice):
-        p.get_price(Pair("BTC", "USDT"))
-    with pytest.raises(errors.NoPrice):
+    with pytest.raises(errors.NotFound):
+        p.get_last_price(Pair("BTC", "USDT"))
+    with pytest.raises(errors.NotFound):
         p.convert(Decimal(1), "BTC", "USDT")
 
 
@@ -48,6 +48,6 @@ def test_prices():
     )
 
     assert p.get_bid_ask(pair) == (Decimal("9.95"), Decimal("10.05"))
-    assert p.get_price(pair) == Decimal(10)
+    assert p.get_last_price(pair) == Decimal(10)
     assert p.convert(Decimal(100), pair.base_symbol, pair.quote_symbol) == Decimal(1000)
     assert p.convert(Decimal(1000), pair.quote_symbol, pair.base_symbol) == Decimal(100)

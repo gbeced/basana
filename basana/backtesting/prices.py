@@ -24,6 +24,9 @@ from basana.core.pair import Pair
 
 
 class Prices:
+    """
+    This class provides access to the last known prices of pairs.
+    """
     def __init__(self, bid_ask_spread_pct: Decimal, config: config.Config):
         assert bid_ask_spread_pct > Decimal(0)
 
@@ -37,7 +40,7 @@ class Prices:
     def get_bid_ask(self, pair: Pair) -> Tuple[Decimal, Decimal]:
         last_bar = self._last_bars.get(pair)
         if not last_bar:
-            raise errors.NoPrice(f"No price for {pair}")
+            raise errors.NotFound(f"No price for {pair}")
 
         last_price = last_bar.close
         pair_info = self._config.get_pair_info(pair)
@@ -49,11 +52,17 @@ class Prices:
         ask = last_price + half_spread
         return bid, ask
 
-    def get_price(self, pair: Pair) -> Decimal:
+    def get_last_price(self, pair: Pair) -> Decimal:
         last_bar = self._last_bars.get(pair)
         if not last_bar:
-            raise errors.NoPrice(f"No price for {pair}")
+            raise errors.NotFound(f"No price for {pair}")
         return last_bar.close
+
+    def get_last_bar(self, pair: Pair) -> Bar:
+        last_bar = self._last_bars.get(pair)
+        if not last_bar:
+            raise errors.NotFound(f"No bar for {pair}")
+        return last_bar
 
     def convert(self, amount: Decimal, from_symbol: str, to_symbol: str) -> Decimal:
         if amount == Decimal(0):
@@ -66,7 +75,7 @@ class Prices:
             last_bar = self._last_bars.get(pair)
             if last_bar:
                 return amount * price_fun(last_bar.close)
-        raise errors.NoPrice(f"No price to convert from {from_symbol} to {to_symbol}")
+        raise errors.NotFound(f"No price to convert from {from_symbol} to {to_symbol}")
 
     def convert_value_map(self, values: value_map.ValueMapDict, to_symbol: str) -> Decimal:
         ret = Decimal(0)

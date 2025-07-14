@@ -60,8 +60,21 @@ class OrderEvent(bs.Event):
 
 
 class OrderManager:
-    def __init__(self, exchange_ctx: ExchangeContext):
+    """
+    Manages orders and full lifecycle in a backtesting environment.
+
+    This class is responsible for accepting orders, processing them against bar events and managing holds and
+    balance updates.
+
+    :param exchange_ctx: The exchange context that provides access to different services like account balances,
+        prices, fees, etc.
+    :param immediate_order_processing: If True, orders will be processed immediately after being added,
+        using the close prince of the last bar available. If False, orders will be processed in the next bar event.
+    """
+
+    def __init__(self, exchange_ctx: ExchangeContext, immediate_order_processing: bool = False):
         self._ctx = exchange_ctx
+        self._iop = immediate_order_processing
         self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = defaultdict(
             exchange_ctx.liquidity_strategy_factory
         )
@@ -77,12 +90,11 @@ class OrderManager:
 
     def add_order(self, order: Order):
         try:
-            # When an order gets accepted we need to hold any required balance that will be debited as the order gets
+            # Before the order gets accepted we need to hold any required balance that will be debited as the order gets
             # filled.
             if required_balances := self._estimate_required_balances(order):
                 if order.auto_borrow:
                     self._borrow(required_balances, order)
-
                 self._ctx.account_balances.update(hold_updates=required_balances)
                 self._holds_by_order[order.id] = required_balances
 
@@ -262,7 +274,6 @@ class OrderManager:
             logger.debug(logs.StructuredMessage(
                 "Order updated", order_id=order.id, final_updates=final_updates, order_state=order.state
             ))
-
             if not order.is_open:
                 self._order_closed(order)
 
@@ -304,8 +315,8 @@ class OrderManager:
         estimated_fill_price = order.calculate_estimated_fill_price()
         if not estimated_fill_price:
             try:
-                estimated_fill_price = self._ctx.prices.get_price(order.pair)
-            except errors.NoPrice:
+                estimated_fill_price = self._ctx.prices.get_last_price(order.pair)
+            except errors.NotFound:
                 pass
 
         # Build a dictionary of balance updates suitable for calculating fees.
