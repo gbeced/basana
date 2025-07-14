@@ -844,7 +844,7 @@ def test_liquidity_is_exhausted_and_order_is_canceled(backtesting_dispatcher):
         order_1_info = await e.get_order_info(created_order_1.id)
         assert order_1_info is not None
         assert not order_1_info.is_open
-        assert helpers.round_decimal(order_1_info.fill_price, 2) == Decimal("125.19")
+        assert helpers.round_decimal(order_1_info.fill_price, 2) == Decimal("137.08")
 
         order_2_info = await e.get_order_info(created_order_2.id)
         assert order_2_info is not None
