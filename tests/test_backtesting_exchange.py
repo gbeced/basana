@@ -102,10 +102,10 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         assert order_info is not None
         assert order_info.is_open
 
-        await e.get_orders() == [order_info]
-        await e.get_orders(pair=pair) == [order_info]
-        await e.get_orders(pair=Pair("BTC", "ARS")) == []
-        await e.get_orders(pair=pair, is_open=True) == [order_info]
+        assert await e.get_orders() == [order_info]
+        assert await e.get_orders(pair=pair) == [order_info]
+        assert await e.get_orders(pair=Pair("BTC", "ARS")) == []
+        assert await e.get_orders(pair=pair, is_open=True) == [order_info]
 
         await e.cancel_order(created_order.id)
 
@@ -113,17 +113,17 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         assert order_info is not None
         assert not order_info.is_open
 
-        await e.get_orders() == [order_info]
-        await e.get_orders(pair=pair) == [order_info]
-        await e.get_orders(pair=pair, is_open=False) == [order_info]
-        await e.get_orders(pair=pair, is_open=True) == []
+        assert await e.get_orders() == [order_info]
+        assert await e.get_orders(pair=pair) == [order_info]
+        assert await e.get_orders(pair=pair, is_open=False) == [order_info]
+        assert await e.get_orders(pair=pair, is_open=True) == []
 
         with pytest.raises(exchange.Error):
             await e.cancel_order(created_order.id)
 
         # There should be no holds in place.
         assert sum(e._balances.holds.values()) == 0
-        assert sum(e._order_mgr._holds_by_order.values()) == 0
+        assert len(e._order_mgr._holds_by_order) == 0
 
         nonlocal bar_events
         bar_events.append(bar_event)
@@ -643,7 +643,7 @@ def test_order_requests(order_plan, backtesting_dispatcher):
 
         # All orders are expected to be in a final state, so there should be no holds in place.
         assert sum(e._balances.holds.values()) == 0
-        assert sum(e._order_mgr._holds_by_order.values()) == 0
+        assert len(e._order_mgr._holds_by_order) == 0
 
     asyncio.run(impl())
 
@@ -712,7 +712,7 @@ def test_invalid_parameter(order_request, backtesting_dispatcher):
 
         # Since all orders were rejected there should be no holds in place.
         assert sum(e._balances.holds.values()) == 0
-        assert sum(e._order_mgr._holds_by_order.values()) == 0
+        assert len(e._order_mgr._holds_by_order) == 0
 
     asyncio.run(impl())
 
@@ -749,7 +749,7 @@ def test_not_enough_balance(order_request, backtesting_dispatcher):
 
         # Since all orders were rejected there should be no holds in place.
         assert sum(e._balances.holds.values()) == 0
-        assert sum(e._order_mgr._holds_by_order.values()) == 0
+        assert len(e._order_mgr._holds_by_order) == 0
 
     asyncio.run(impl())
 
@@ -793,7 +793,7 @@ def test_small_fill_is_ignored_after_rounding(backtesting_dispatcher):
 
         # There should be no holds in place since the order is completed.
         assert sum(e._balances.holds.values()) == 0
-        assert sum(e._order_mgr._holds_by_order.values()) == 0
+        assert len(e._order_mgr._holds_by_order) == 0
 
     asyncio.run(impl())
 
@@ -852,7 +852,7 @@ def test_liquidity_is_exhausted_and_order_is_canceled(backtesting_dispatcher):
 
         # There should be no holds in place since the orders are in a final state.
         assert sum(e._balances.holds.values()) == 0
-        assert sum(e._order_mgr._holds_by_order.values()) == 0
+        assert len(e._order_mgr._holds_by_order) == 0
 
     asyncio.run(impl())
 
@@ -898,7 +898,7 @@ def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
 
         # There should be no holds in place since orders got canceled.
         assert sum(e._balances.holds.values()) == 0
-        assert sum(e._order_mgr._holds_by_order.values()) == 0
+        assert len(e._order_mgr._holds_by_order) == 0
 
     asyncio.run(impl())
 
