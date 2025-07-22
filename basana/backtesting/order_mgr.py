@@ -25,7 +25,8 @@ import logging
 from basana.backtesting import account_balances, config, errors, fees, helpers, lending, loan_mgr, liquidity, prices
 from basana.backtesting.orders import Order, OrderInfo
 from basana.backtesting.value_map import ValueMap, ValueMapDict
-from basana.core import bar, dispatcher, helpers as core_helpers, logs
+from basana.core import dispatcher, helpers as core_helpers, logs
+from basana.core.bar import Bar, BarEvent
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 import basana as bs
@@ -82,7 +83,7 @@ class OrderManager:
         self._holds_by_order: Dict[str, ValueMap] = {}
         self._order_updates = core_helpers.LazyProxy(bs.FifoQueueEventSource)
 
-    def on_bar_event(self, bar_event: bar.BarEvent):
+    def on_bar_event(self, bar_event: BarEvent):
         liquidity_strategy = self._liquidity_strategies[bar_event.bar.pair]
         liquidity_strategy.on_bar(bar_event.bar)
         for order in filter(lambda o: o.pair == bar_event.bar.pair, self._orders.get_open()):
@@ -100,13 +101,36 @@ class OrderManager:
 
             # The order got accepted.
             self._orders.add(order)
-            self._push_order_update(order)
-
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage(
                 "Not enough balance to accept order", order=order.get_debug_info(), error=str(e)
             ))
             raise
+
+        # If immediate order processing is enabled we process the order using the last bar available.
+        # Otherwise, we wait for the next bar event.
+        push_order_update = True
+        if self._iop:
+            try:
+                last_bar = self._ctx.prices.get_last_bar(order.pair)
+            except errors.NotFound:
+                logger.debug(logs.StructuredMessage(
+                    "No price available for immediate order processing", order=order.get_debug_info()
+                ))
+                push_order_update = not self._order_not_filled(order)
+            else:
+                now = self._ctx.dispatcher.now()
+                bar = Bar(
+                    datetime=now, pair=order.pair,
+                    open=last_bar.close, high=last_bar.close, low=last_bar.close, close=last_bar.close,
+                    volume=last_bar.volume
+                )
+                liquidity_strategy = self._liquidity_strategies[order.pair]
+                # If the order is not updated during processing, we push an update for the order that is being added.
+                push_order_update = not self._process_order(order, bar, liquidity_strategy)
+
+        if push_order_update:
+            self._push_order_update(order)
 
     def get_order(self, order_id: str) -> Optional[Order]:
         return self._orders.get(order_id)
@@ -239,7 +263,7 @@ class OrderManager:
         return ret
 
     def _process_order(
-            self, order: Order, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy
+            self, order: Order, bar: Bar, liquidity_strategy: liquidity.LiquidityStrategy
     ) -> bool:
 
         # Calculate balance updates for the current bar.

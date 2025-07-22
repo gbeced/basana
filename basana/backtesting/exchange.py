@@ -94,6 +94,8 @@ class Exchange:
         :meth:`Exchange.set_pair_info`.
     :param bid_ask_spread: The spread to use for :meth:`Exchange.get_bid_ask`.
     :param lending_strategy: The strategy to use for managing loans.
+    :param immediate_order_processing: If True, orders will be processed immediately after being added,
+        using the closing prince of the last bar available. If False, orders will be processed in the next bar event.
     """
     def __init__(
             self,
@@ -103,7 +105,8 @@ class Exchange:
             fee_strategy: fees.FeeStrategy = fees.NoFee(),
             default_pair_info: Optional[PairInfo] = PairInfo(base_precision=0, quote_precision=2),
             bid_ask_spread: Decimal = Decimal("0.5"),
-            lending_strategy: lending.LendingStrategy = lending.NoLoans()
+            lending_strategy: lending.LendingStrategy = lending.NoLoans(),
+            immediate_order_processing: bool = False
     ):
         self._dispatcher = dispatcher
         self._balances = account_balances.AccountBalances(initial_balances)
@@ -124,7 +127,8 @@ class Exchange:
                 dispatcher=dispatcher, account_balances=self._balances, prices=self._prices,
                 fee_strategy=fee_strategy, liquidity_strategy_factory=liquidity_strategy_factory,
                 loan_mgr=self._loan_mgr, config=self._config
-            )
+            ),
+            immediate_order_processing=immediate_order_processing
         )
 
     async def get_balance(self, symbol: str) -> Balance:
