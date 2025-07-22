@@ -55,10 +55,8 @@ class Balance:
         self.total = self.available + self.hold - self.borrowed
 
 
-@dataclasses.dataclass
-class CreatedOrder:
-    #: The order id.
-    id: str
+class CreatedOrder(OrderInfo):
+    pass
 
 
 @dataclasses.dataclass
@@ -167,7 +165,14 @@ class Exchange:
         order = order_request.create_order(uuid.uuid4().hex)
         self._order_mgr.add_order(order)
         logger.debug(logs.StructuredMessage("Request accepted", order_id=order.id))
-        return CreatedOrder(id=order.id)
+        order_info = order.get_order_info()
+        return CreatedOrder(
+            id=order_info.id, pair=order_info.pair, is_open=order_info.is_open, operation=order_info.operation,
+            amount=order_info.amount, amount_filled=order_info.amount_filled,
+            amount_remaining=order_info.amount_remaining, quote_amount_filled=order_info.quote_amount_filled,
+            fees=order_info.fees, limit_price=order_info.limit_price, stop_price=order_info.stop_price,
+            loan_ids=order_info.loan_ids, fills=order_info.fills,
+        )
 
     async def create_market_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, auto_borrow: bool = False,

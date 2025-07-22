@@ -17,6 +17,7 @@
 from collections import defaultdict
 from decimal import Decimal
 import asyncio
+import dataclasses
 import datetime
 
 from dateutil import tz
@@ -56,13 +57,14 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         created_order = await e.create_order(order_request)
         assert created_order is not None
 
-        balances = await e.get_balances()
-        for symbol in ["ARS", "BTC", "ETH", "USD"]:
-            assert symbol in balances
-
         order_info = await e.get_order_info(created_order.id)
         assert order_info is not None
         assert order_info.is_open
+        assert dataclasses.asdict(order_info) == dataclasses.asdict(created_order)
+
+        balances = await e.get_balances()
+        for symbol in ["ARS", "BTC", "ETH", "USD"]:
+            assert symbol in balances
 
         assert await e.get_orders() == [order_info]
         assert await e.get_orders(pair=pair) == [order_info]

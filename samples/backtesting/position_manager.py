@@ -217,13 +217,12 @@ class PositionManager:
                 operation, pair, order_size, auto_borrow=True, auto_repay=True
             )
             logging.info(StructuredMessage("Order created", id=created_order.id))
-            order = await self._exchange.get_order_info(created_order.id)
 
             # 4. Keep track of the position.
             initial_avg_price = Decimal(0) if current_pos_info is None else current_pos_info.avg_price
             pos_info = PositionInfo(
                 pair=pair, pair_info=pair_info, initial=current, initial_avg_price=initial_avg_price, target=target,
-                order=order
+                order=created_order
             )
             self._positions[pair] = pos_info
 
