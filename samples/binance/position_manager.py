@@ -137,17 +137,20 @@ class SpotAccountPositionManager:
         return pos_info
 
     async def check_loss(self):
-        pairs = [pos_info.pair for pos_info in self._positions.values() if pos_info.current != 0]
-        # For every pair get position information along with bid and ask prices.
-        coros = [self.get_position_info(pair) for pair in pairs]
-        coros.extend(self._exchange.get_bid_ask(pair) for pair in pairs)
-        res = await asyncio.gather(*coros)
-        midpoint = int(len(res) / 2)
-        all_pos_info = res[0:midpoint]
-        all_bid_ask = res[midpoint:]
+        # Refresh positions that have an open order.
+        refresh_pairs = [pair for pair, pos_info in self._positions.items() if pos_info.order_open]
+        coros = [self.get_position_info(pair) for pair in refresh_pairs]
+        if coros:
+            await asyncio.gather(*coros)
 
-        # Log each position an check PnL.
-        for pos_info, (bid, ask) in zip(all_pos_info, all_bid_ask):
+        # Check unrealized PnL for all non-neutral positions.
+        non_neutral = [pos_info for pos_info in self._positions.values() if pos_info.current != Decimal(0)]
+        if not non_neutral:
+            return
+
+        # Get bid and ask prices and calculate unrealized PnL.
+        bids_and_asks = await asyncio.gather(*[self._exchange.get_bid_ask(pos_info.pair) for pos_info in non_neutral])
+        for pos_info, (bid, ask) in zip(non_neutral, bids_and_asks):
             pnl_pct = pos_info.calculate_unrealized_pnl_pct(bid, ask)
             logging.info(StructuredMessage(
                 f"Position for {pos_info.pair}", current=pos_info.current, target=pos_info.target,
