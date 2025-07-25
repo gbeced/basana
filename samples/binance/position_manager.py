@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Dict, Optional
+from typing import cast, Dict, List, Optional
 import asyncio
 import dataclasses
 import datetime
@@ -30,6 +30,7 @@ import basana as bs
 @dataclasses.dataclass
 class PositionInfo:
     pair: bs.Pair
+    pair_info: bs.PairInfo
     initial: Decimal
     initial_avg_price: Decimal
     target: Decimal
@@ -146,10 +147,8 @@ class SpotAccountPositionManager:
 
     async def cancel_open_orders(self, pair: bs.Pair):
         open_orders = await self._exchange.spot_account.get_open_orders(pair)
-        await asyncio.gather(*[
-            self._exchange.spot_account.cancel_order(pair, order_id=open_order.id)
-            for open_order in open_orders
-        ])
+        if open_orders:
+            await self._cancel_orders(pair, [open_order.id for open_order in open_orders])
 
     async def get_position_info(self, pair: bs.Pair) -> Optional[PositionInfo]:
         pos_info = self._positions.get(pair)
@@ -176,7 +175,9 @@ class SpotAccountPositionManager:
             pnl_pct = pos_info.calculate_unrealized_pnl_pct(bid, ask)
             logging.info(StructuredMessage(
                 f"Position for {pos_info.pair}", current=pos_info.current, target=pos_info.target,
-                avg_price=pos_info.avg_price, pnl_pct=pnl_pct, order_open=pos_info.order_open
+                order_open=pos_info.order_open,
+                avg_price=bs.round_decimal(pos_info.avg_price, pos_info.pair_info.quote_precision),
+                pnl_pct=bs.round_decimal(pnl_pct, 2)
             ))
             if pnl_pct <= self._stop_loss_pct * -1:
                 logging.info(f"Stop loss for {pos_info.pair}")
@@ -197,7 +198,7 @@ class SpotAccountPositionManager:
 
         # Cancel the previous order.
         if current_pos_info and current_pos_info.order_open:
-            await self._exchange.spot_account.cancel_order(pair, order_id=current_pos_info.order.id)
+            await self._cancel_orders(pair, [current_pos_info.order.id])
             current_pos_info.order = await self._exchange.spot_account.get_order_info(
                 pair, order_id=current_pos_info.order.id
             )
@@ -235,12 +236,14 @@ class SpotAccountPositionManager:
         operation = bs.OrderOperation.BUY if delta > 0 else bs.OrderOperation.SELL
         logging.info(StructuredMessage("Creating market order", operation=operation, pair=pair, order_size=order_size))
         created_order = await self._exchange.spot_account.create_market_order(operation, pair, order_size)
+        logging.info(StructuredMessage("Order created", id=created_order.id))
         order = await self._exchange.spot_account.get_order_info(pair, order_id=created_order.id)
 
         # 4. Keep track of the position.
         initial_avg_price = Decimal(0) if current_pos_info is None else current_pos_info.avg_price
         pos_info = PositionInfo(
-            pair=pair, initial=current, initial_avg_price=initial_avg_price, target=target, order=order
+            pair=pair, pair_info=pair_info, initial=current, initial_avg_price=initial_avg_price, target=target,
+            order=order
         )
         self._positions[pair] = pos_info
         self.save()
@@ -266,6 +269,13 @@ class SpotAccountPositionManager:
         if self._last_check_loss is None or self._last_check_loss < bar_event.when:
             self._last_check_loss = bar_event.when
             await self.check_loss()
+
+    async def _cancel_orders(self, pair: bs.Pair, order_ids: List[str]):
+        logging.info(StructuredMessage("Canceling orders", order_ids=order_ids))
+        await asyncio.gather(*[
+            self._exchange.spot_account.cancel_order(pair, order_id=order_id)
+            for order_id in order_ids
+        ])
 
 
 def signed_to_position(signed):

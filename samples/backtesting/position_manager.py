@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Dict, Optional
+from typing import cast, Dict, List, Optional
 import asyncio
 import dataclasses
 import datetime
@@ -29,6 +29,7 @@ import basana.backtesting.exchange as backtesting_exchange
 @dataclasses.dataclass
 class PositionInfo:
     pair: bs.Pair
+    pair_info: bs.PairInfo
     initial: Decimal
     initial_avg_price: Decimal
     target: Decimal
@@ -121,10 +122,8 @@ class PositionManager:
 
     async def cancel_open_orders(self, pair: bs.Pair):
         open_orders = await self._exchange.get_open_orders(pair)
-        await asyncio.gather(*[
-            self._exchange.cancel_order(open_order.id)
-            for open_order in open_orders
-        ])
+        if open_orders:
+            await self._cancel_orders([open_order.id for open_order in open_orders])
 
     async def get_position_info(self, pair: bs.Pair) -> Optional[PositionInfo]:
         pos_info = self._positions.get(pair)
@@ -150,7 +149,9 @@ class PositionManager:
             pnl_pct = pos_info.calculate_unrealized_pnl_pct(bid, ask)
             logging.info(StructuredMessage(
                 f"Position for {pos_info.pair}", current=pos_info.current, target=pos_info.target,
-                avg_price=pos_info.avg_price, pnl_pct=pnl_pct, order_open=pos_info.order_open
+                order_open=pos_info.order_open,
+                avg_price=bs.round_decimal(pos_info.avg_price, pos_info.pair_info.quote_precision),
+                pnl_pct=bs.round_decimal(pnl_pct, 2)
             ))
             if pnl_pct <= self._stop_loss_pct * -1:
                 logging.info(f"Stop loss for {pos_info.pair}")
@@ -171,7 +172,7 @@ class PositionManager:
 
         # Cancel the previous order.
         if current_pos_info and current_pos_info.order_open:
-            await self._exchange.cancel_order(current_pos_info.order.id)
+            await self._cancel_orders([current_pos_info.order.id])
             current_pos_info.order = await self._exchange.get_order_info(current_pos_info.order.id)
 
         (bid, ask), pair_info = await asyncio.gather(
@@ -209,12 +210,14 @@ class PositionManager:
         created_order = await self._exchange.create_market_order(
             operation, pair, order_size, auto_borrow=True, auto_repay=True
         )
+        logging.info(StructuredMessage("Order created", id=created_order.id))
         order = await self._exchange.get_order_info(created_order.id)
 
         # 4. Keep track of the position.
         initial_avg_price = Decimal(0) if current_pos_info is None else current_pos_info.avg_price
         pos_info = PositionInfo(
-            pair=pair, initial=current, initial_avg_price=initial_avg_price, target=target, order=order
+            pair=pair, pair_info=pair_info, initial=current, initial_avg_price=initial_avg_price, target=target,
+            order=order
         )
         self._positions[pair] = pos_info
 
@@ -242,9 +245,13 @@ class PositionManager:
     async def on_order_event(self, order_event: backtesting_exchange.OrderEvent):
         order = order_event.order
         logging.info(StructuredMessage(
-            "Order udpated", id=order.id, is_open=order.is_open, amount=order.amount,
+            "Order updated", id=order.id, is_open=order.is_open, amount=order.amount,
             amount_filled=order.amount_filled, avg_fill_price=order.fill_price
         ))
+
+    async def _cancel_orders(self, order_ids: List[str]):
+        logging.info(StructuredMessage("Canceling orders", order_ids=order_ids))
+        await asyncio.gather(*[self._exchange.cancel_order(order_id) for order_id in order_ids])
 
 
 def signed_to_position(signed):
