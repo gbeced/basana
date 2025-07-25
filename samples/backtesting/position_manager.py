@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Dict, Optional
+from typing import cast, Dict, Optional
 import asyncio
 import dataclasses
 import datetime
@@ -34,6 +34,11 @@ class PositionInfo:
     target: Decimal
     order: backtesting_exchange.OrderInfo
 
+    def __post_init__(self):
+        # Both initial and initial_avg_price should be set to 0, or none of them.
+        assert (self.initial == Decimal(0)) is (self.initial_avg_price == Decimal(0)), \
+                f"initial={self.initial}, initial_avg_price={self.initial_avg_price}"
+
     @property
     def current(self) -> Decimal:
         delta = self.order.amount_filled if self.order.operation == bs.OrderOperation.BUY else -self.order.amount_filled
@@ -41,16 +46,32 @@ class PositionInfo:
 
     @property
     def avg_price(self) -> Decimal:
-        order_fill_price = Decimal(0) if self.order.fill_price is None else self.order.fill_price
-        ret = order_fill_price
+        # If the current position is 0, then the average price is 0.
+        current = self.current
+        if current == Decimal(0):
+            return Decimal(0)
 
+        # If the current position is not 0, then the order will have a fill price.
+        order_fill_price = cast(Decimal, self.order.fill_price)
+
+        # If we're going from a neutral position to a non-neutral position, the order fill price is returned.
         if self.initial == 0:
             ret = order_fill_price
-        # Transition from long to short, or viceversa, and already on the target side.
-        elif self.initial * self.target < 0 and self.current * self.target > 0:
-            ret = order_fill_price
+        # If we are closing the position, going from a non-neutral position to a neutral position, the initial average
+        # price is returned.
+        elif self.target == 0:
+            ret = self.initial_avg_price
+        # Going from long to short, or the other way around.
+        elif self.initial * self.target < 0:
+            # If we are on the target side, the order fill price is returned.
+            if current * self.target > 0:
+                ret = order_fill_price
+            # If we're still on the initial side, the initial average price is returned.
+            else:
+                ret = self.initial_avg_price
         # Rebalancing on the same side.
-        elif self.initial * self.target > 0:
+        else:
+            assert self.initial * self.target > 0
             # Reducing the position.
             if self.target > 0 and self.order.operation == bs.OrderOperation.SELL \
                     or self.target < 0 and self.order.operation == bs.OrderOperation.BUY:
@@ -59,6 +80,7 @@ class PositionInfo:
             else:
                 ret = (abs(self.initial) * self.initial_avg_price + self.order.amount_filled * order_fill_price) \
                     / (abs(self.initial) + self.order.amount_filled)
+
         return ret
 
     @property
