@@ -14,9 +14,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from decimal import Decimal
-from typing import cast, Dict, List, Optional
+from typing import cast, Dict, Optional
 import asyncio
+import copy
 import dataclasses
 import datetime
 import logging
@@ -116,30 +118,26 @@ class PositionManager:
         self._position_amount = position_amount
         self._quote_symbol = quote_symbol
         self._positions: Dict[bs.Pair, PositionInfo] = {}
+        self._pos_mutex: Dict[bs.Pair, asyncio.Lock] = defaultdict(asyncio.Lock)
         self._stop_loss_pct = stop_loss_pct
         self._borrowing_disabled = borrowing_disabled
         self._last_check_loss: Optional[datetime.datetime] = None
 
-    async def cancel_open_orders(self, pair: bs.Pair):
-        open_orders = await self._exchange.get_open_orders(pair)
-        if open_orders:
-            await self._cancel_orders([open_order.id for open_order in open_orders])
-
     async def get_position_info(self, pair: bs.Pair) -> Optional[PositionInfo]:
         pos_info = self._positions.get(pair)
         if pos_info and pos_info.order_open:
-            pos_info.order = await self._exchange.get_order_info(pos_info.order.id)
-        return pos_info
+            async with self._pos_mutex[pair]:
+                pos_info.order = await self._exchange.get_order_info(pos_info.order.id)
+        return copy.deepcopy(pos_info)
 
     async def check_loss(self):
-        # Refresh positions that have an open order.
-        refresh_pairs = [pair for pair, pos_info in self._positions.items() if pos_info.order_open]
-        coros = [self.get_position_info(pair) for pair in refresh_pairs]
+        positions = []
+        coros = [self.get_position_info(pair) for pair in self._positions.keys()]
         if coros:
-            await asyncio.gather(*coros)
+            positions.extend(await asyncio.gather(*coros))
 
         # Check unrealized PnL for all non-neutral positions.
-        non_neutral = [pos_info for pos_info in self._positions.values() if pos_info.current != Decimal(0)]
+        non_neutral = [pos_info for pos_info in positions if pos_info.current != Decimal(0)]
         if not non_neutral:
             return
 
@@ -159,6 +157,7 @@ class PositionManager:
 
     async def switch_position(self, pair: bs.Pair, target_position: bs.Position, force: bool = False):
         current_pos_info = await self.get_position_info(pair)
+
         # Unless force is set, we can ignore the request if we're already there.
         if not force and any([
                 current_pos_info is None and target_position == bs.Position.NEUTRAL,
@@ -170,56 +169,63 @@ class PositionManager:
         ]):
             return
 
-        # Cancel the previous order.
-        if current_pos_info and current_pos_info.order_open:
-            await self._cancel_orders([current_pos_info.order.id])
-            current_pos_info.order = await self._exchange.get_order_info(current_pos_info.order.id)
+        # Exclusive access to the position since we're going to modify it.
+        async with self._pos_mutex[pair]:
+            # Cancel the previous order.
+            if current_pos_info and current_pos_info.order_open:
+                logging.info(StructuredMessage("Canceling order", order_ids=current_pos_info.order.id))
+                await self._exchange.cancel_order(current_pos_info.order.id)
+                current_pos_info.order = await self._exchange.get_order_info(current_pos_info.order.id)
 
-        (bid, ask), pair_info = await asyncio.gather(
-            self._exchange.get_bid_ask(pair),
-            self._exchange.get_pair_info(pair),
-        )
+            (bid, ask), pair_info = await asyncio.gather(
+                self._exchange.get_bid_ask(pair),
+                self._exchange.get_pair_info(pair),
+            )
 
-        # 1. Calculate the target balance.
-        # If the target position is neutral, the target balance is 0, otherwise we need to convert
-        # self._position_amount, which is expressed in self._quote_symbol units, into base units.
-        if target_position == bs.Position.NEUTRAL:
-            target = Decimal(0)
-        else:
-            if pair.quote_symbol == self._quote_symbol:
-                target = self._position_amount / ((bid + ask) / 2)
+            # 1. Calculate the target balance.
+            # If the target position is neutral, the target balance is 0, otherwise we need to convert
+            # self._position_amount, which is expressed in self._quote_symbol units, into base units.
+            if target_position == bs.Position.NEUTRAL:
+                target = Decimal(0)
             else:
-                quote_bid, quote_ask = await self._exchange.get_bid_ask(bs.Pair(pair.base_symbol, self._quote_symbol))
-                target = self._position_amount / ((quote_bid + quote_ask) / 2)
+                if pair.quote_symbol == self._quote_symbol:
+                    target = self._position_amount / ((bid + ask) / 2)
+                else:
+                    quote_bid, quote_ask = await self._exchange.get_bid_ask(
+                        bs.Pair(pair.base_symbol, self._quote_symbol)
+                    )
+                    target = self._position_amount / ((quote_bid + quote_ask) / 2)
 
-            if target_position == bs.Position.SHORT:
-                target *= -1
-            target = bs.truncate_decimal(target, pair_info.base_precision)
+                if target_position == bs.Position.SHORT:
+                    target *= -1
+                target = bs.truncate_decimal(target, pair_info.base_precision)
 
-        # 2. Calculate the difference between the target balance and our current balance.
-        current = Decimal(0) if current_pos_info is None else current_pos_info.current
-        delta = target - current
-        logging.info(StructuredMessage("Switch position", pair=pair, current=current, target=target, delta=delta))
-        if delta == 0:
-            return
+            # 2. Calculate the difference between the target balance and our current balance.
+            current = Decimal(0) if current_pos_info is None else current_pos_info.current
+            delta = target - current
+            logging.info(StructuredMessage("Switch position", pair=pair, current=current, target=target, delta=delta))
+            if delta == 0:
+                return
 
-        # 3. Create the order.
-        order_size = abs(delta)
-        operation = bs.OrderOperation.BUY if delta > 0 else bs.OrderOperation.SELL
-        logging.info(StructuredMessage("Creating market order", operation=operation, pair=pair, order_size=order_size))
-        created_order = await self._exchange.create_market_order(
-            operation, pair, order_size, auto_borrow=True, auto_repay=True
-        )
-        logging.info(StructuredMessage("Order created", id=created_order.id))
-        order = await self._exchange.get_order_info(created_order.id)
+            # 3. Create the order.
+            order_size = abs(delta)
+            operation = bs.OrderOperation.BUY if delta > 0 else bs.OrderOperation.SELL
+            logging.info(StructuredMessage(
+                "Creating market order", operation=operation, pair=pair, order_size=order_size
+            ))
+            created_order = await self._exchange.create_market_order(
+                operation, pair, order_size, auto_borrow=True, auto_repay=True
+            )
+            logging.info(StructuredMessage("Order created", id=created_order.id))
+            order = await self._exchange.get_order_info(created_order.id)
 
-        # 4. Keep track of the position.
-        initial_avg_price = Decimal(0) if current_pos_info is None else current_pos_info.avg_price
-        pos_info = PositionInfo(
-            pair=pair, pair_info=pair_info, initial=current, initial_avg_price=initial_avg_price, target=target,
-            order=order
-        )
-        self._positions[pair] = pos_info
+            # 4. Keep track of the position.
+            initial_avg_price = Decimal(0) if current_pos_info is None else current_pos_info.avg_price
+            pos_info = PositionInfo(
+                pair=pair, pair_info=pair_info, initial=current, initial_avg_price=initial_avg_price, target=target,
+                order=order
+            )
+            self._positions[pair] = pos_info
 
     async def on_trading_signal(self, trading_signal: bs.TradingSignal):
         pairs = list(trading_signal.get_pairs())
@@ -248,10 +254,6 @@ class PositionManager:
             "Order updated", id=order.id, is_open=order.is_open, amount=order.amount,
             amount_filled=order.amount_filled, avg_fill_price=order.fill_price
         ))
-
-    async def _cancel_orders(self, order_ids: List[str]):
-        logging.info(StructuredMessage("Canceling orders", order_ids=order_ids))
-        await asyncio.gather(*[self._exchange.cancel_order(order_id) for order_id in order_ids])
 
 
 def signed_to_position(signed):
