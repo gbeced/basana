@@ -21,7 +21,6 @@ import asyncio
 import copy
 import dataclasses
 import datetime
-import json
 import logging
 
 from basana.core.logs import StructuredMessage
@@ -124,37 +123,11 @@ class SpotAccountPositionManager:
         self._checkpoint_fname = checkpoint_fname
         self._last_check_loss: Optional[datetime.datetime] = None
 
-    def save(self):
-        with open(self._checkpoint_fname, "w") as f:
-            json_dict = {
-                str(pair): dataclasses.asdict(pos_info) for pair, pos_info in self._positions.items()
-            }
-            for pos_info in json_dict.values():
-                pos_info["order"] = pos_info["order"].json
-
-            json.dump(json_dict, f, default=str)
-
-    def load(self):
-        with open(self._checkpoint_fname) as f:
-            json_dict = json.load(f)
-            json_dict = {
-                bs.Pair(*pair.split("/")): PositionInfo(
-                    pair=bs.Pair(*pair.split("/")),
-                    pair_info=bs.PairInfo(**pos_info["pair_info"]),
-                    initial=Decimal(pos_info["initial"]),
-                    initial_avg_price=Decimal(pos_info["initial_avg_price"]),
-                    target=Decimal(pos_info["target"]),
-                    order=spot.OrderInfo(pos_info["order"], []),
-                ) for pair, pos_info in json_dict.items()
-            }
-            self._positions = json_dict
-
     async def get_position_info(self, pair: bs.Pair) -> Optional[PositionInfo]:
         pos_info = self._positions.get(pair)
         if pos_info and pos_info.order_open:
             async with self._pos_mutex[pair]:
                 pos_info.order = await self._exchange.spot_account.get_order_info(pair, order_id=pos_info.order.id)
-                self.save()
         return copy.deepcopy(pos_info)
 
     async def check_loss(self):
@@ -253,7 +226,6 @@ class SpotAccountPositionManager:
                 order=order
             )
             self._positions[pair] = pos_info
-            self.save()
 
     async def on_trading_signal(self, trading_signal: bs.TradingSignal):
         pairs = list(trading_signal.get_pairs())
