@@ -4,7 +4,9 @@
 
 ### Features
 
-* `backtesting.exchange.OrderInfo` now includes pair and order fills.
+* Backtesting `OrderInfo` now includes pair and order fills.
+* Backtesting exchange returns a full `OrderInfo` when creating an order.
+* Support for immediate order processing.
 
 ## 1.7.1
 
