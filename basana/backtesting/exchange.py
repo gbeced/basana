@@ -93,7 +93,7 @@ class Exchange:
     :param bid_ask_spread: The spread to use for :meth:`Exchange.get_bid_ask`.
     :param lending_strategy: The strategy to use for managing loans.
     :param immediate_order_processing: If True, orders will be processed immediately after being added,
-        using the closing prince of the last bar available. If False, orders will be processed in the next bar event.
+        using the closing price of the last bar available. If False, orders will be processed in the next bar event.
     """
     def __init__(
             self,

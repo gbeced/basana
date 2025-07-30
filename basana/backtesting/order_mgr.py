@@ -70,7 +70,7 @@ class OrderManager:
     :param exchange_ctx: The exchange context that provides access to different services like account balances,
         prices, fees, etc.
     :param immediate_order_processing: If True, orders will be processed immediately after being added,
-        using the close prince of the last bar available. If False, orders will be processed in the next bar event.
+        using the close price of the last bar available. If False, orders will be processed in the next bar event.
     """
 
     def __init__(self, exchange_ctx: ExchangeContext, immediate_order_processing: bool = False):
