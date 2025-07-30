@@ -53,6 +53,7 @@ async def main():
         event_dispatcher,
         initial_balances={quote_symbol: Decimal(1200)},
         lending_strategy=lending_strategy,
+        immediate_order_processing=True
     )
     exchange.set_symbol_precision(pair_1.base_symbol, 8)
     exchange.set_symbol_precision(pair_2.base_symbol, 8)

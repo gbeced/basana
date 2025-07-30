@@ -89,7 +89,7 @@ class OrderInfo:
 # This is an internal abstraction to be used by the exchange.
 class Order(metaclass=abc.ABCMeta):
     def __init__(
-            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState,
+            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal,
             auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert amount > Decimal(0), f"Invalid amount {amount}"
@@ -98,7 +98,7 @@ class Order(metaclass=abc.ABCMeta):
         self._operation = operation
         self._pair = pair
         self._amount = amount
-        self._state = state
+        self._state = OrderState.OPEN
         self._balance_updates = value_map.ValueMap()
         self._fees = value_map.ValueMap()
         self._fills: List[Fill] = []
@@ -228,10 +228,10 @@ class Order(metaclass=abc.ABCMeta):
 
 class MarketOrder(Order):
     def __init__(
-            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, state: OrderState,
+            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal,
             auto_borrow: bool = False, auto_repay: bool = False
     ):
-        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
+        super().__init__(id, operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
 
     def not_filled(self):
         # Fill or kill market orders.
@@ -246,10 +246,10 @@ class MarketOrder(Order):
         amount = self.amount_pending
         base_sign = helpers.get_base_sign_for_operation(self.operation)
         if self.operation == OrderOperation.BUY:
-            price = slipped_price(bar.open, self.operation, amount, liquidity_strategy, cap_high=bar.high)
+            price = slipped_price(bar.open, self.operation, amount, liquidity_strategy)
         else:
             assert self.operation == OrderOperation.SELL
-            price = slipped_price(bar.open, self.operation, amount, liquidity_strategy, cap_low=bar.low)
+            price = slipped_price(bar.open, self.operation, amount, liquidity_strategy)
 
         return {
             self.pair.base_symbol: amount * base_sign,
@@ -260,11 +260,11 @@ class MarketOrder(Order):
 class LimitOrder(Order):
     def __init__(
             self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            state: OrderState, auto_borrow: bool = False, auto_repay: bool = False
+            auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert limit_price > Decimal(0), "Invalid limit_price {limit_price}"
 
-        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
+        super().__init__(id, operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._limit_price = limit_price
 
     def get_balance_updates(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Dict[str, Decimal]:
@@ -317,11 +317,11 @@ class LimitOrder(Order):
 class StopOrder(Order):
     def __init__(
             self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
-            state: OrderState, auto_borrow: bool = False, auto_repay: bool = False
+            auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert stop_price > Decimal(0), "Invalid stop_price {stop_price}"
 
-        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
+        super().__init__(id, operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
 
     def not_filled(self):
@@ -346,7 +346,7 @@ class StopOrder(Order):
                 price = self._stop_price
 
             if price:
-                price = slipped_price(price, self.operation, amount, liquidity_strategy, cap_high=bar.high)
+                price = slipped_price(price, self.operation, amount, liquidity_strategy)
         else:
             assert self.operation == OrderOperation.SELL
             # Stop price was hit at bar open.
@@ -357,7 +357,7 @@ class StopOrder(Order):
                 price = self._stop_price
 
             if price:
-                price = slipped_price(price, self.operation, amount, liquidity_strategy, cap_low=bar.low)
+                price = slipped_price(price, self.operation, amount, liquidity_strategy)
 
         ret = {}
         if price:
@@ -385,12 +385,12 @@ class StopOrder(Order):
 class StopLimitOrder(Order):
     def __init__(
             self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
-            limit_price: Decimal, state: OrderState, auto_borrow: bool = False, auto_repay: bool = False
+            limit_price: Decimal, auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert stop_price > Decimal(0), "Invalid stop_price {stop_price}"
         assert limit_price > Decimal(0), "Invalid limit_price {limit_price}"
 
-        super().__init__(id, operation, pair, amount, state, auto_borrow=auto_borrow, auto_repay=auto_repay)
+        super().__init__(id, operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
         self._limit_price = limit_price
         self._stop_price_hit = False

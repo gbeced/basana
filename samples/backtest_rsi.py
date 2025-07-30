@@ -38,7 +38,8 @@ async def main():
     pair = bs.Pair("BTC", "USD")
     exchange = backtesting_exchange.Exchange(
         event_dispatcher,
-        initial_balances={"BTC": Decimal(0), "USD": Decimal(1200)}
+        initial_balances={"BTC": Decimal(0), "USD": Decimal(1200)},
+        immediate_order_processing=True
     )
     exchange.set_symbol_precision(pair.base_symbol, 8)
     exchange.set_symbol_precision(pair.quote_symbol, 2)

@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from decimal import Decimal
 from typing import Any, Awaitable, cast, Callable, Dict, Generator, Iterable, List, Optional
 import dataclasses
@@ -24,7 +25,8 @@ import logging
 from basana.backtesting import account_balances, config, errors, fees, helpers, lending, loan_mgr, liquidity, prices
 from basana.backtesting.orders import Order, OrderInfo
 from basana.backtesting.value_map import ValueMap, ValueMapDict
-from basana.core import bar, dispatcher, helpers as core_helpers, logs
+from basana.core import dispatcher, helpers as core_helpers, logs
+from basana.core.bar import Bar, BarEvent
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 import basana as bs
@@ -59,40 +61,76 @@ class OrderEvent(bs.Event):
 
 
 class OrderManager:
-    def __init__(self, exchange_ctx: ExchangeContext):
+    """
+    Manages orders and full lifecycle in a backtesting environment.
+
+    This class is responsible for accepting orders, processing them against bar events and managing holds and
+    balance updates.
+
+    :param exchange_ctx: The exchange context that provides access to different services like account balances,
+        prices, fees, etc.
+    :param immediate_order_processing: If True, orders will be processed immediately after being added,
+        using the close price of the last bar available. If False, orders will be processed in the next bar event.
+    """
+
+    def __init__(self, exchange_ctx: ExchangeContext, immediate_order_processing: bool = False):
         self._ctx = exchange_ctx
-        self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = {}
+        self._iop = immediate_order_processing
+        self._liquidity_strategies: Dict[Pair, liquidity.LiquidityStrategy] = defaultdict(
+            exchange_ctx.liquidity_strategy_factory
+        )
         self._orders = helpers.ExchangeObjectContainer[Order]()
         self._holds_by_order: Dict[str, ValueMap] = {}
         self._order_updates = core_helpers.LazyProxy(bs.FifoQueueEventSource)
 
-    def on_bar_event(self, bar_event: bar.BarEvent):
-        if (liquidity_strategy := self._liquidity_strategies.get(bar_event.bar.pair)) is None:
-            liquidity_strategy = self._ctx.liquidity_strategy_factory()
+    def on_bar_event(self, bar_event: BarEvent):
+        liquidity_strategy = self._liquidity_strategies[bar_event.bar.pair]
         liquidity_strategy.on_bar(bar_event.bar)
         for order in filter(lambda o: o.pair == bar_event.bar.pair, self._orders.get_open()):
-            self._process_order(order, bar_event, liquidity_strategy)
+            self._process_order(order, bar_event.bar, liquidity_strategy)
 
     def add_order(self, order: Order):
         try:
-            # When an order gets accepted we need to hold any required balance that will be debited as the order gets
+            # Before the order gets accepted we need to hold any required balance that will be debited as the order gets
             # filled.
             if required_balances := self._estimate_required_balances(order):
                 if order.auto_borrow:
                     self._borrow(required_balances, order)
-
                 self._ctx.account_balances.update(hold_updates=required_balances)
                 self._holds_by_order[order.id] = required_balances
 
             # The order got accepted.
             self._orders.add(order)
-            self._push_order_update(order)
-
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage(
                 "Not enough balance to accept order", order=order.get_debug_info(), error=str(e)
             ))
             raise
+
+        # If immediate order processing is enabled we process the order using the last bar available.
+        # Otherwise, we wait for the next bar event.
+        push_order_update = True
+        if self._iop:
+            try:
+                last_bar = self._ctx.prices.get_last_bar(order.pair)
+            except errors.NotFound:
+                logger.debug(logs.StructuredMessage(
+                    "No price available for immediate order processing", order=order.get_debug_info()
+                ))
+                push_order_update = not self._order_not_filled(order)
+            else:
+                now = self._ctx.dispatcher.now()
+                bar = Bar(
+                    datetime=now, pair=order.pair,
+                    open=last_bar.close, high=last_bar.close, low=last_bar.close, close=last_bar.close,
+                    volume=last_bar.volume
+                )
+                liquidity_strategy = self._liquidity_strategies[order.pair]
+                # If the order is not updated during processing, we push an update for the order that is being added.
+                push_order_update = not self._process_order(order, bar, liquidity_strategy)
+
+        if push_order_update:
+            self._push_order_update(order)
 
     def get_order(self, order_id: str) -> Optional[Order]:
         return self._orders.get(order_id)
@@ -212,34 +250,37 @@ class OrderManager:
         if order.auto_repay and order.amount_filled:
             self._repay_loans(order)
 
+    def _order_not_filled(self, order: Order) -> bool:
+        assert order.is_open
+
+        ret = False
+        order.not_filled()
+        logger.debug(logs.StructuredMessage("Order not filled", order_id=order.id, order_state=order.state))
+        if not order.is_open:
+            self._order_closed(order)
+            self._push_order_update(order)
+            ret = True
+        return ret
+
     def _process_order(
-            self, order: Order, bar_event: bar.BarEvent, liquidity_strategy: liquidity.LiquidityStrategy
-    ):
-        def order_not_filled():
-            order.not_filled()
-            logger.debug(logs.StructuredMessage("Order not filled", order_id=order.id, order_state=order.state))
-            if not order.is_open:
-                self._order_closed(order)
-                self._push_order_update(order, when=bar_event.when)
+            self, order: Order, bar: Bar, liquidity_strategy: liquidity.LiquidityStrategy
+    ) -> bool:
 
         # Calculate balance updates for the current bar.
         logger.debug(logs.StructuredMessage(
             "Processing order", order=order.get_debug_info(),
-            bar={
-                "open": bar_event.bar.open, "high": bar_event.bar.high, "low": bar_event.bar.low,
-                "close": bar_event.bar.close, "volume": bar_event.bar.volume,
-            }
+            bar={"open": bar.open, "high": bar.high, "low": bar.low, "close": bar.close, "volume": bar.volume}
         ))
         prev_state = order.state
-        balance_updates = ValueMap(order.get_balance_updates(bar_event.bar, liquidity_strategy))
+        balance_updates = ValueMap(order.get_balance_updates(bar, liquidity_strategy))
         assert order.state == prev_state, "The order state should not change inside get_balance_updates"
         self._round_balance_updates(balance_updates, order.pair)
         logger.debug(logs.StructuredMessage(
             "Order balance updates", order_id=order.id, balance_updates=balance_updates
         ))
+        # Base and quote symbols must be present in the balance updates, otherwise the order can't be filled.
         if order.pair.base_symbol not in balance_updates or order.pair.quote_symbol not in balance_updates:
-            order_not_filled()
-            return
+            return self._order_not_filled(order)
 
         # Get fees, round them, and combine them with the balance updates.
         fees = ValueMap(self._ctx.fee_strategy.calculate_fees(order, balance_updates))
@@ -248,29 +289,30 @@ class OrderManager:
             "Order fees", order_id=order.id, fees=fees
         ))
 
+        ret = False
         try:
             # Update balances. This may fail if there is not enough balance, so we do this first.
             final_updates = balance_updates + fees
             final_updates.prune()
             self._update_balances(order, final_updates)
             # Update the liquidity strategy.
-            liquidity_strategy.take_liquidity(abs(balance_updates[bar_event.bar.pair.base_symbol]))
+            liquidity_strategy.take_liquidity(abs(balance_updates[bar.pair.base_symbol]))
             # Update the order and release any pending balance on hold if the order is now closed.
-            order.add_fill(bar_event.when, balance_updates, fees)
+            order.add_fill(self._ctx.dispatcher.now(), balance_updates, fees)
             logger.debug(logs.StructuredMessage(
                 "Order updated", order_id=order.id, final_updates=final_updates, order_state=order.state
             ))
-
             if not order.is_open:
                 self._order_closed(order)
-
-            self._push_order_update(order, when=bar_event.when)
+            self._push_order_update(order)
+            ret = True
 
         except errors.NotEnoughBalance as e:
             logger.debug(logs.StructuredMessage(
                 "Balance short processing order", order=order.get_debug_info(), error=str(e)
             ))
-            order_not_filled()
+            ret = self._order_not_filled(order)
+        return ret
 
     def _round_balance_updates(self, balance_updates: ValueMap, pair: Pair):
         pair_info = self._ctx.config.get_pair_info(pair)
@@ -302,8 +344,8 @@ class OrderManager:
         estimated_fill_price = order.calculate_estimated_fill_price()
         if not estimated_fill_price:
             try:
-                estimated_fill_price = self._ctx.prices.get_price(order.pair)
-            except errors.NoPrice:
+                estimated_fill_price = self._ctx.prices.get_last_price(order.pair)
+            except errors.NotFound:
                 pass
 
         # Build a dictionary of balance updates suitable for calculating fees.
@@ -328,10 +370,9 @@ class OrderManager:
             if amount < Decimal(0)
         })
 
-    def _push_order_update(self, order: Order, when: Optional[datetime.datetime] = None):
+    def _push_order_update(self, order: Order):
         # Checking dispatcher.now_available is necessary to avoid calling dispatcher.now() when no events have been
         # processed yet.
-        if when is None and self._ctx.dispatcher.now_available:
-            when = self._ctx.dispatcher.now()
-        if when and self._order_updates.initialized:
-            self._order_updates.push(OrderEvent(when, order.get_order_info()))
+        now = self._ctx.dispatcher.now() if self._ctx.dispatcher.now_available else None
+        if now and self._order_updates.initialized:
+            self._order_updates.push(OrderEvent(now, order.get_order_info()))

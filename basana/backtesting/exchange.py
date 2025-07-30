@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from collections import defaultdict
 from decimal import Decimal
 from typing import cast, Callable, Dict, List, Optional, Sequence, Tuple
 import dataclasses
@@ -54,10 +55,8 @@ class Balance:
         self.total = self.available + self.hold - self.borrowed
 
 
-@dataclasses.dataclass
-class CreatedOrder:
-    #: The order id.
-    id: str
+class CreatedOrder(OrderInfo):
+    pass
 
 
 @dataclasses.dataclass
@@ -93,6 +92,8 @@ class Exchange:
         :meth:`Exchange.set_pair_info`.
     :param bid_ask_spread: The spread to use for :meth:`Exchange.get_bid_ask`.
     :param lending_strategy: The strategy to use for managing loans.
+    :param immediate_order_processing: If True, orders will be processed immediately after being added,
+        using the closing price of the last bar available. If False, orders will be processed in the next bar event.
     """
     def __init__(
             self,
@@ -102,11 +103,12 @@ class Exchange:
             fee_strategy: fees.FeeStrategy = fees.NoFee(),
             default_pair_info: Optional[PairInfo] = PairInfo(base_precision=0, quote_precision=2),
             bid_ask_spread: Decimal = Decimal("0.5"),
-            lending_strategy: lending.LendingStrategy = lending.NoLoans()
+            lending_strategy: lending.LendingStrategy = lending.NoLoans(),
+            immediate_order_processing: bool = False
     ):
         self._dispatcher = dispatcher
         self._balances = account_balances.AccountBalances(initial_balances)
-        self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = {}
+        self._bar_event_source: Dict[Pair, event.FifoQueueEventSource] = defaultdict(event.FifoQueueEventSource)
         self._config = config.Config(None, default_pair_info)
         self._prices = prices.Prices(bid_ask_spread, self._config)
         self._loan_mgr = loan_mgr.LoanManager(
@@ -123,7 +125,8 @@ class Exchange:
                 dispatcher=dispatcher, account_balances=self._balances, prices=self._prices,
                 fee_strategy=fee_strategy, liquidity_strategy_factory=liquidity_strategy_factory,
                 loan_mgr=self._loan_mgr, config=self._config
-            )
+            ),
+            immediate_order_processing=immediate_order_processing
         )
 
     async def get_balance(self, symbol: str) -> Balance:
@@ -162,7 +165,14 @@ class Exchange:
         order = order_request.create_order(uuid.uuid4().hex)
         self._order_mgr.add_order(order)
         logger.debug(logs.StructuredMessage("Request accepted", order_id=order.id))
-        return CreatedOrder(id=order.id)
+        order_info = order.get_order_info()
+        return CreatedOrder(
+            id=order_info.id, pair=order_info.pair, is_open=order_info.is_open, operation=order_info.operation,
+            amount=order_info.amount, amount_filled=order_info.amount_filled,
+            amount_remaining=order_info.amount_remaining, quote_amount_filled=order_info.quote_amount_filled,
+            fees=order_info.fees, limit_price=order_info.limit_price, stop_price=order_info.stop_price,
+            loan_ids=order_info.loan_ids, fills=order_info.fills,
+        )
 
     async def create_market_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, auto_borrow: bool = False,
@@ -341,10 +351,7 @@ class Exchange:
         :param event_handler: An async callable that receives a basana.BarEvent.
         """
         # Get/create the event source for the given pair.
-        event_source = self._bar_event_source.get(pair)
-        if event_source is None:
-            event_source = event.FifoQueueEventSource()
-            self._bar_event_source[pair] = event_source
+        event_source = self._bar_event_source[pair]
         self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
 
     def subscribe_to_order_events(self, event_handler: OrderEventHandler):

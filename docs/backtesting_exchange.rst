@@ -10,6 +10,7 @@ basana.backtesting.exchange
 .. autoclass:: basana.backtesting.exchange.Balance
     :members:
 .. autoclass:: basana.backtesting.exchange.CreatedOrder
+    :inherited-members:
     :members:
 .. autoclass:: basana.backtesting.exchange.CanceledOrder
     :members:

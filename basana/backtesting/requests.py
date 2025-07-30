@@ -80,7 +80,7 @@ class MarketOrder(ExchangeOrder):
 
     def create_order(self, id: str) -> orders.Order:
         return orders.MarketOrder(
-            id, self.operation, self.pair, self.amount, orders.OrderState.OPEN, auto_borrow=self.auto_borrow,
+            id, self.operation, self.pair, self.amount, auto_borrow=self.auto_borrow,
             auto_repay=self.auto_repay
         )
 
@@ -115,7 +115,7 @@ class LimitOrder(ExchangeOrder):
 
     def create_order(self, id: str) -> orders.Order:
         return orders.LimitOrder(
-            id, self.operation, self.pair, self.amount, self._limit_price, orders.OrderState.OPEN,
+            id, self.operation, self.pair, self.amount, self._limit_price,
             auto_borrow=self.auto_borrow, auto_repay=self.auto_repay
         )
 
@@ -154,7 +154,7 @@ class StopOrder(ExchangeOrder):
 
     def create_order(self, id: str) -> orders.Order:
         return orders.StopOrder(
-            id, self.operation, self.pair, self.amount, self._stop_price, orders.OrderState.OPEN,
+            id, self.operation, self.pair, self.amount, self._stop_price,
             auto_borrow=self.auto_borrow, auto_repay=self.auto_repay
         )
 
@@ -199,6 +199,6 @@ class StopLimitOrder(ExchangeOrder):
 
     def create_order(self, id: str) -> orders.Order:
         return orders.StopLimitOrder(
-            id, self.operation, self.pair, self.amount, self._stop_price, self._limit_price, orders.OrderState.OPEN,
+            id, self.operation, self.pair, self.amount, self._stop_price, self._limit_price,
             auto_borrow=self.auto_borrow, auto_repay=self.auto_repay
         )
