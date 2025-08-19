@@ -124,11 +124,11 @@ class SpotAccountPositionManager:
         self._last_check_loss: Optional[datetime.datetime] = None
 
     async def get_position_info(self, pair: bs.Pair) -> Optional[PositionInfo]:
-        pos_info = self._positions.get(pair)
-        if pos_info and pos_info.order_open:
-            async with self._pos_mutex[pair]:
+        async with self._pos_mutex[pair]:
+            pos_info = self._positions.get(pair)
+            if pos_info and pos_info.order_open:
                 pos_info.order = await self._exchange.spot_account.get_order_info(pair, order_id=pos_info.order.id)
-        return copy.deepcopy(pos_info)
+            return copy.deepcopy(pos_info)
 
     async def check_loss(self):
         positions = []
