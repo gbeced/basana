@@ -192,10 +192,11 @@ class PortfolioValueLineChart(LineChart):
                 continue
 
             try:
-                rate: Decimal = Decimal(1)
-                if symbol != self._symbol:
-                    rate, _ = await self._exchange.get_bid_ask(Pair(symbol, self._symbol))
-                portfolio_value += rate * balance.total
+                price = Decimal(1)
+                if symbol != self._quote_symbol:
+                    bid, ask = await self._exchange.get_bid_ask(Pair(symbol, self._quote_symbol))
+                    price = bid if balance.total > 0 else ask
+                portfolio_value += balance.total * price
             except errors.Error as e:
                 logger.debug(str(e))
 
