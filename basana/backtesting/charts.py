@@ -166,8 +166,8 @@ class AccountBalanceLineChart(LineChart):
 
 
 class PortfolioValueLineChart(LineChart):
-    def __init__(self, symbol: str, exchange: Exchange, precision: int = 2):
-        self._symbol = symbol
+    def __init__(self, quote_symbol: str, exchange: Exchange, precision: int = 2):
+        self._quote_symbol = quote_symbol
         self._exchange = exchange
         self._ts = TimeSeries()
         self._precision = precision
@@ -177,12 +177,12 @@ class PortfolioValueLineChart(LineChart):
         exchange._get_dispatcher().subscribe_all(self._on_any_event)
 
     def get_title(self) -> str:
-        return f"Portfolio value in {self._symbol}"
+        return f"Portfolio value in {self._quote_symbol}"
 
     def add_traces(self, figure: go.Figure, row: int):
         # Add a trace with the portfolio values.
         x, y = self._ts.get_x_y()
-        figure.add_trace(go.Scatter(x=x, y=y, name=f"Portfolio ({self._symbol})"), row=row, col=1)
+        figure.add_trace(go.Scatter(x=x, y=y, name=f"Portfolio ({self._quote_symbol})"), row=row, col=1)
 
     async def _on_any_event(self, event: event.Event):
         portfolio_value = Decimal(0)
