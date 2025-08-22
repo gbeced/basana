@@ -184,7 +184,7 @@ def test_long_jump(target_position):
             (-1, 100, -2, bs.OrderOperation.SELL, 1, 100, 100),
             (-1, 100, -2, bs.OrderOperation.SELL, 1, 200, 150),
             (-2, 1000, -1, bs.OrderOperation.BUY, 1, 5000, 1000),
-            # Regresion
+            # Regression
             (1, 1234, 0, bs.OrderOperation.SELL, 1, 55, 0),
         ]
 )
