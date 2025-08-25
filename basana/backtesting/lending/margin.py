@@ -132,7 +132,9 @@ class MarginLoans(base.LendingStrategy):
             {symbol: self.get_conditions(symbol).margin_requirement for symbol in updated_borrowed}
         )
         used_margin_by_symbol = margin_requirements * updated_borrowed
-        used_margin = self._exchange_ctx.prices.convert_value_map(used_margin_by_symbol, self._quote_symbol)
+        used_margin = sum(
+            self._exchange_ctx.prices.convert_value_map(used_margin_by_symbol, self._quote_symbol).values()
+        )
         if used_margin == Decimal(0):
             return Decimal(0)
 
@@ -140,7 +142,9 @@ class MarginLoans(base.LendingStrategy):
         interest_by_symbol = ValueMap()
         for loan in self._loan_mgr.get_loans(is_open=True):
             interest_by_symbol += loan.outstanding_interest
-        interest = self._exchange_ctx.prices.convert_value_map(interest_by_symbol, self._quote_symbol)
+        interest = sum(
+            self._exchange_ctx.prices.convert_value_map(interest_by_symbol, self._quote_symbol).values()
+        )
 
         # Calculate equity.
         equity = Decimal(0)
