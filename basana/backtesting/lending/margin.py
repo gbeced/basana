@@ -173,5 +173,8 @@ class CheckMarginLevel(account_balances.UpdateRule):
     def __init__(self, margin_loans: MarginLoans):
         self._margin_loans = margin_loans
 
-    def check(self, updated_balances: ValueMapDict, updated_holds: ValueMapDict, updated_borrowed: ValueMapDict):
+    def check(
+            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap,
+            delta_balances: ValueMap, delta_holds: ValueMap, delta_borrowed: ValueMap
+    ):
         self._margin_loans._check_margin_level(updated_balances, updated_holds, updated_borrowed)

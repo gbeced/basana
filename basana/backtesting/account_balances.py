@@ -25,12 +25,18 @@ from basana.backtesting.value_map import ValueMap, ValueMapDict
 
 class UpdateRule(metaclass=abc.ABCMeta):
     @abc.abstractmethod
-    def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
+    def check(
+            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap,
+            delta_balances: ValueMap, delta_holds: ValueMap, delta_borrowed: ValueMap
+    ):
         raise NotImplementedError()
 
 
 class NonZero(UpdateRule):
-    def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
+    def check(
+            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap,
+            delta_balances: ValueMap, delta_holds: ValueMap, delta_borrowed: ValueMap
+    ):
         # balance >= 0
         for symbol, value in updated_balances.items():
             if value < Decimal(0):
@@ -47,7 +53,10 @@ class NonZero(UpdateRule):
 
 class ValidHold(UpdateRule):
     # * hold <= balance
-    def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
+    def check(
+            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap,
+            delta_balances: ValueMap, delta_holds: ValueMap, delta_borrowed: ValueMap
+    ):
         symbols = set(itertools.chain(updated_holds.keys(), updated_balances.keys()))
         for symbol in symbols:
             updated_hold = updated_holds.get(symbol, Decimal(0))
@@ -82,7 +91,10 @@ class AccountBalances:
         updated_borrowed = self.borrowed + borrowed_updates
 
         for rule in self._update_rules:
-            rule.check(updated_balances, updated_holds, updated_borrowed)
+            rule.check(
+                updated_balances, updated_holds, updated_borrowed,
+                ValueMap(balance_updates), ValueMap(hold_updates), ValueMap(borrowed_updates)
+            )
 
         # Update if no error ocurred.
         self.balances = updated_balances
