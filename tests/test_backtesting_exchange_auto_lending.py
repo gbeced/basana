@@ -21,7 +21,7 @@ from typing import List, Tuple
 
 import pytest
 
-from basana.backtesting import exchange, fees
+from basana.backtesting import errors, exchange, fees
 from basana.backtesting.lending import margin
 from basana.core import bar, dt, event
 from basana.core.enums import OrderOperation
@@ -45,85 +45,107 @@ def build_bar_source(
     return bs
 
 
-@pytest.mark.parametrize("entry_dt, entry_limit_price, exit_dt, exit_limit_price, amount, final_balances", [
-    # Limit order buy.
-    (
-        dt.local_datetime(2000, 1, 2), Decimal(1000),
-        dt.local_datetime(2000, 1, 3), Decimal(2000),
-        Decimal("5"),
-        {
-            "BTC": Decimal(0),
-            "USD": Decimal("1000") + Decimal("5000") - Decimal("12.50") - Decimal("25") - Decimal("2.19")
-        },
-    ),
-    # Limit order sell.
-    (
-        dt.local_datetime(2000, 1, 4), Decimal(3000),
-        dt.local_datetime(2000, 1, 6), Decimal(1000),
-        Decimal("-1"),
-        {
-            "BTC": Decimal(0),
-            "USD": Decimal("1000") + Decimal("2000") - Decimal("7.5") - Decimal("2.5") - Decimal("1")
-        },
-    ),
-    # Market order buy.
-    (
-        dt.local_datetime(2000, 1, 2), None,
-        dt.local_datetime(2000, 1, 3), None,
-        Decimal("5"),
-        {
-            "BTC": Decimal(0),
-            "USD": Decimal("1000") + Decimal("5000") - Decimal("12.50") - Decimal("25") - Decimal("2.19")
-        },
-    ),
-    # Market order sell.
-    (
-        dt.local_datetime(2000, 1, 4), None,
-        dt.local_datetime(2000, 1, 6), None,
-        Decimal("-1"),
-        {
-            "BTC": Decimal(0),
-            "USD": Decimal("1000") + Decimal("2000") - Decimal("7.5") - Decimal("2.5") - Decimal("1")
-        },
-    ),
-])
+@pytest.mark.parametrize(
+    "initial_balances, entry_dt, entry_limit_price, exit_dt, exit_limit_price, amount, final_balances",
+    [
+        # Limit order buy.
+        (
+            {
+                "BTC": Decimal(0),
+                "USD": Decimal("1000") + Decimal("12.5") + Decimal("1.09")
+            },
+            dt.local_datetime(2000, 1, 2), Decimal(1000),
+            dt.local_datetime(2000, 1, 3), Decimal(2000),
+            Decimal("5"),
+            {
+                "BTC": Decimal(0),
+                "USD": Decimal("1000") + Decimal("5000") - Decimal("25") - Decimal("1.1")
+            },
+        ),
+        # Limit order sell.
+        (
+            {
+                "BTC": Decimal(0),
+                "USD": Decimal(1000)
+            },
+            dt.local_datetime(2000, 1, 4), Decimal(3000),
+            dt.local_datetime(2000, 1, 6), Decimal(1000),
+            Decimal("-1"),
+            {
+                "BTC": Decimal(0),
+                "USD": Decimal("1000") + Decimal("2000") - Decimal("7.5") - Decimal("2.5") - Decimal("1")
+            },
+        ),
+        # Market order buy.
+        (
+            {
+                "BTC": Decimal(0),
+                "USD": Decimal("1000") + Decimal("12.5") + Decimal("1.09")
+            },
+            dt.local_datetime(2000, 1, 2), None,
+            dt.local_datetime(2000, 1, 3), None,
+            Decimal("5"),
+            {
+                "BTC": Decimal(0),
+                "USD": Decimal("1000") + Decimal("5000") - Decimal("25") - Decimal("1.1")
+            },
+        ),
+        # Market order sell.
+        (
+            {
+                "BTC": Decimal(0),
+                "USD": Decimal(1000)
+            },
+            dt.local_datetime(2000, 1, 4), None,
+            dt.local_datetime(2000, 1, 6), None,
+            Decimal("-1"),
+            {
+                "BTC": Decimal(0),
+                "USD": Decimal("1000") + Decimal("2000") - Decimal("7.5") - Decimal("2.5") - Decimal("1")
+            },
+        ),
+    ]
+)
 def test_entry_and_exit_ok(
-        entry_dt, entry_limit_price, exit_dt, exit_limit_price, amount, final_balances, backtesting_dispatcher, caplog
+        initial_balances, entry_dt, entry_limit_price, exit_dt, exit_limit_price, amount, final_balances,
+        backtesting_dispatcher, caplog
 ):
     caplog.set_level(0)
     pair = Pair("BTC", "USD")
-    order_ids = []
-    # Should be able to borrow up to 5 times our initial balance.
+    entry_order = None
+    exit_order = None
+    # Should be able to open a position up to 5 times our initial balance.
     lending_strategy = margin.MarginLoans(
-        "USD",
+        "USD", Decimal("0.2"),
         default_conditions=margin.MarginLoanConditions(
             interest_symbol="USD", interest_percentage=Decimal(10), interest_period=datetime.timedelta(days=365),
-            min_interest=Decimal(1), margin_requirement=Decimal("0.2")
+            min_interest=Decimal(1),
         )
     )
     e = exchange.Exchange(
-        backtesting_dispatcher, {"BTC": Decimal(0), "USD": Decimal(1000)},
+        backtesting_dispatcher, initial_balances,
         fee_strategy=fees.Percentage(percentage=Decimal("0.25")),
         lending_strategy=lending_strategy
     )
 
     async def enter_position():
+        nonlocal entry_order
         operation = OrderOperation.BUY if amount > Decimal(0) else OrderOperation.SELL
         if entry_limit_price:
             coro = e.create_limit_order(operation, pair, abs(amount), entry_limit_price, auto_borrow=True)
         else:
             coro = e.create_market_order(operation, pair, abs(amount), auto_borrow=True)
-        order = await coro
-        order_ids.append(order.id)
+        entry_order = await coro
 
     async def exit_position():
+        nonlocal exit_order
+
         operation = OrderOperation.SELL if amount > Decimal(0) else OrderOperation.BUY
         if entry_limit_price:
             coro = e.create_limit_order(operation, pair, abs(amount), exit_limit_price, auto_repay=True)
         else:
             coro = e.create_market_order(operation, pair, abs(amount), auto_repay=True)
-        order = await coro
-        order_ids.append(order.id)
+        exit_order = await coro
 
     async def on_bar(bar_event):
         action = {
@@ -155,9 +177,9 @@ def test_entry_and_exit_ok(
         await backtesting_dispatcher.run()
 
         # All orders must be completed.
-        assert len(order_ids) == 2
-        for order_id in order_ids:
-            order_info = await e.get_order_info(order_id)
+        for created_order in [entry_order, exit_order]:
+            assert created_order is not None
+            order_info = await e.get_order_info(created_order.id)
             assert order_info.is_open is False
             assert order_info.amount_remaining == Decimal(0)
             assert len(order_info.loan_ids) == 1
@@ -179,14 +201,16 @@ def test_entry_and_exit_ok(
 
 def test_rollback_if_borrowing_fails(backtesting_dispatcher, caplog):
     caplog.set_level(0)
+
     pair = Pair("BTC", "USD")
-    order_ids = []
-    # Should be able to borrow up to 2 times our initial balance.
+    entry_failed = False
+
+    # Should be able to borrow up to our initial balance.
     lending_strategy = margin.MarginLoans(
-        "USD",
+        "USD", Decimal("0.5"),
         default_conditions=margin.MarginLoanConditions(
             interest_symbol="USD", interest_percentage=Decimal(10), interest_period=datetime.timedelta(days=365),
-            min_interest=Decimal(1), margin_requirement=Decimal("0.5")
+            min_interest=Decimal(1)
         )
     )
     e = exchange.Exchange(
@@ -196,11 +220,12 @@ def test_rollback_if_borrowing_fails(backtesting_dispatcher, caplog):
     )
 
     async def enter_position():
-        # Short sell so we need to borrow not only BTC, but also USD for the fees.
-        order = await e.create_limit_order(
-            OrderOperation.SELL, pair, Decimal(2), Decimal(1000), auto_borrow=True
-        )
-        order_ids.append(order.id)
+        nonlocal entry_failed
+        try:
+            # Short sell so we need to borrow not only BTC, but also USD for the fees which will make this fail.
+            await e.create_limit_order(OrderOperation.SELL, pair, Decimal(1), Decimal(1000), auto_borrow=True)
+        except errors.NotEnoughBalance:
+            entry_failed = True
 
     async def on_bar(bar_event):
         action = {
@@ -238,8 +263,8 @@ def test_rollback_if_borrowing_fails(backtesting_dispatcher, caplog):
 
         await backtesting_dispatcher.run()
 
-        # There should be no orders created.
-        assert len(order_ids) == 0
+        # Selling should have failed.
+        assert entry_failed is True
 
         # There should be no open loans.
         open_loans = await e.get_loans(is_open=True)
@@ -265,13 +290,14 @@ def test_rollback_if_borrowing_fails(backtesting_dispatcher, caplog):
 def test_repay_fails(backtesting_dispatcher, caplog):
     caplog.set_level(0)
     pair = Pair("BTC", "USD")
-    order_ids = []
-    # Should be able to borrow up to 2 times our initial balance.
+    entry_order = None
+    exit_order = None
+    # Should be able to borrow up to our initial balance.
     lending_strategy = margin.MarginLoans(
-        "USD",
+        "USD", Decimal("0.5"),
         default_conditions=margin.MarginLoanConditions(
             interest_symbol="USD", interest_percentage=Decimal(10), interest_period=datetime.timedelta(days=365),
-            min_interest=Decimal(1), margin_requirement=Decimal("0.5")
+            min_interest=Decimal(1)
         )
     )
     e = exchange.Exchange(
@@ -282,12 +308,12 @@ def test_repay_fails(backtesting_dispatcher, caplog):
     amount = Decimal("1.8")
 
     async def enter_position():
-        order = await e.create_limit_order(OrderOperation.BUY, pair, amount, Decimal(1000), auto_borrow=True)
-        order_ids.append(order.id)
+        nonlocal entry_order
+        entry_order = await e.create_limit_order(OrderOperation.BUY, pair, amount, Decimal(1000), auto_borrow=True)
 
     async def exit_position():
-        order = await e.create_market_order(OrderOperation.SELL, pair, amount, auto_repay=True)
-        order_ids.append(order.id)
+        nonlocal exit_order
+        exit_order = await e.create_market_order(OrderOperation.SELL, pair, amount, auto_repay=True)
 
     async def on_bar(bar_event):
         action = {
@@ -315,15 +341,15 @@ def test_repay_fails(backtesting_dispatcher, caplog):
         e.add_bar_source(bs)
         await backtesting_dispatcher.run()
 
-        # All orders must be completed.
-        assert len(order_ids) == 2
-        for order_id in order_ids:
-            order_info = await e.get_order_info(order_id)
+        # All orders must be completed, even though the exit order couldn't repay the loan.
+        for created_order in [entry_order, exit_order]:
+            assert created_order is not None
+            order_info = await e.get_order_info(created_order.id)
             assert order_info.is_open is False
             assert order_info.amount_remaining == Decimal(0)
-            # Borrowing should have succeeded, but repaying should have failed.
-            expected_loans = 1 if order_info.operation == OrderOperation.BUY else 0
-            assert len(order_info.loan_ids) == expected_loans
+            if created_order == entry_order:
+                # The entry order should have created a loan.
+                assert len(order_info.loan_ids) == 1
 
         # There should be 1 open loans.
         open_loans = await e.get_loans(is_open=True)

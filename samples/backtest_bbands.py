@@ -42,11 +42,13 @@ async def main():
     stop_loss_pct = Decimal(5)
 
     # We'll be opening short positions so we need to set a lending strategy when initializing the exchange.
-    lending_strategy = lending.MarginLoans(pair.quote_symbol, default_conditions=lending.MarginLoanConditions(
-        interest_symbol=pair.quote_symbol, interest_percentage=Decimal("7"),
-        interest_period=datetime.timedelta(days=365), min_interest=Decimal("0.01"),
-        margin_requirement=Decimal("0.5")
-    ))
+    lending_strategy = lending.MarginLoans(
+        pair.quote_symbol, Decimal("0.5"),
+        default_conditions=lending.MarginLoanConditions(
+            interest_symbol=pair.quote_symbol, interest_percentage=Decimal("7"),
+            interest_period=datetime.timedelta(days=365), min_interest=Decimal("0.01"),
+        )
+    )
     exchange = backtesting_exchange.Exchange(
         event_dispatcher,
         initial_balances={pair.quote_symbol: Decimal(1200)},
