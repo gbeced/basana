@@ -8,6 +8,10 @@
 * Backtesting exchange returns a full `OrderInfo` when creating an order.
 * Backtesting exchange support for immediate order processing.
 
+### Bug fixes
+
+* Backtesting margin level calculations were wrong. `margin_requirement` was moved from `MarginLoanConditions` into `MarginLoans`
+
 ## 1.7.1
 
 ### Bug fixes

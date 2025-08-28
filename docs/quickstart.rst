@@ -66,7 +66,7 @@ This is how all the pieces are put together:
 
 .. literalinclude:: ../samples/backtest_bbands.py
    :language: python
-   :lines: 39-70
+   :lines: 39-72
    :dedent: 4
 
 The full source code for this example can be found `here <https://github.com/gbeced/basana/tree/master/samples/backtest_bbands.py>`_,
