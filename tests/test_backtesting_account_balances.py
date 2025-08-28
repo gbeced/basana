@@ -160,7 +160,10 @@ def test_balance_updates_as_orders_get_processed(order_fun, checkpoints, backtes
 
 def test_account_locked():
     class LockAccount(account_balances.UpdateRule):
-        def check(self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap):
+        def check(
+            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap,
+            delta_balances: ValueMap, delta_holds: ValueMap, delta_borrowed: ValueMap
+        ):
             raise Exception("Account locked")
 
     balances = account_balances.AccountBalances({})

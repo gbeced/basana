@@ -36,8 +36,6 @@ class MarginLoanConditions:
     interest_period: datetime.timedelta
     #: The minimum interest to charge.
     min_interest: Decimal
-    # Minimum threshold for the value of the collateral relative to the loan amount + outstanding interests.
-    margin_requirement: Decimal
 
 
 class MarginLoan(base.Loan):
@@ -73,10 +71,17 @@ class MarginLoans(base.LendingStrategy):
     This strategy will use the accounts assets as collateral for the loans.
 
     :param quote_symbol: The symbol to use to normalize balances.
+    :param margin_requirement: Minimum threshold for the value of the collateral relative to the total position.
     :param default_conditions: The default margin loan conditions.
     """
-    def __init__(self, quote_symbol: str, default_conditions: Optional[MarginLoanConditions] = None):
+    def __init__(
+            self, quote_symbol: str, margin_requirement: Decimal,
+            default_conditions: Optional[MarginLoanConditions] = None
+    ):
+        assert margin_requirement > 0, "Margin requirement must be greater than zero"
+
         self._quote_symbol = quote_symbol
+        self._margin_requirement = margin_requirement
         self._conditions: Dict[str, MarginLoanConditions] = {}
         self._default_conditions = default_conditions
         self._loan_mgr: Optional[loan_mgr.LoanManager] = None
@@ -118,56 +123,47 @@ class MarginLoans(base.LendingStrategy):
         """
         assert self._exchange_ctx, "Not yet connected with the exchange"
         acc_balances = self._exchange_ctx.account_balances
-        return self._calculate_margin_level(
+        return self.calculate_margin_level(
             acc_balances.balances, acc_balances.holds, acc_balances.borrowed
         )
 
-    def _calculate_margin_level(
+    def calculate_margin_level(
             self, updated_balances: ValueMapDict, updated_holds: ValueMapDict, updated_borrowed: ValueMapDict
     ) -> Decimal:
         assert self._exchange_ctx and self._loan_mgr, "Not yet connected with the exchange"
 
-        # Calculate used margin.
-        margin_requirements = ValueMap(
-            {symbol: self.get_conditions(symbol).margin_requirement for symbol in updated_borrowed}
-        )
-        used_margin_by_symbol = margin_requirements * updated_borrowed
-        used_margin = self._exchange_ctx.prices.convert_value_map(used_margin_by_symbol, self._quote_symbol)
-        if used_margin == Decimal(0):
-            return Decimal(0)
+        # If we haven't borrowed anything yet, the margin level is infinite.
+        if all(v == Decimal(0) for v in updated_borrowed.values()):
+            # used_margin = 0,  margin_level = Infinity
+            return Decimal("Infinity")
 
         # Calculate outstanding interest.
-        interest_by_symbol = ValueMap()
+        outstanding_interest = ValueMap()
         for loan in self._loan_mgr.get_loans(is_open=True):
-            interest_by_symbol += loan.outstanding_interest
-        interest = self._exchange_ctx.prices.convert_value_map(interest_by_symbol, self._quote_symbol)
+            outstanding_interest += loan.outstanding_interest
+        outstanding_interest = self._exchange_ctx.prices.convert_value_map(outstanding_interest, self._quote_symbol)
 
-        # Calculate equity.
-        equity = Decimal(0)
-        for symbol, balance in updated_balances.items():
-            borrowed = updated_borrowed.get(symbol, Decimal(0))
-            net = balance - borrowed
-            if net <= Decimal(0):
-                continue
-
-            if symbol != self._quote_symbol:
-                net = self._exchange_ctx.prices.convert(net, symbol, self._quote_symbol)
-
-            equity += net
-
-        return equity / (used_margin + interest) * Decimal(100)
-
-    def _check_margin_level(
-            self, updated_balances: ValueMapDict, updated_holds: ValueMapDict, updated_borrowed: ValueMapDict
-    ):
-        margin_level = self._calculate_margin_level(updated_balances, updated_holds, updated_borrowed)
-        if margin_level > Decimal(0) and margin_level < Decimal(100):
-            raise errors.NotEnoughBalance(f"Margin level too low {margin_level}")
+        # Calculate margin level.
+        borrowed = self._exchange_ctx.prices.convert_value_map(updated_borrowed, self._quote_symbol)
+        total_position_size = self._exchange_ctx.prices.convert_value_map(updated_balances, self._quote_symbol)
+        total_position_size -= outstanding_interest
+        equity = total_position_size - borrowed
+        used_margin = Decimal(sum(total_position_size.values())) * self._margin_requirement
+        margin_level = Decimal(sum(equity.values())) / used_margin * Decimal(100)
+        return margin_level
 
 
 class CheckMarginLevel(account_balances.UpdateRule):
     def __init__(self, margin_loans: MarginLoans):
         self._margin_loans = margin_loans
+        self._threshold = Decimal(100)
 
-    def check(self, updated_balances: ValueMapDict, updated_holds: ValueMapDict, updated_borrowed: ValueMapDict):
-        self._margin_loans._check_margin_level(updated_balances, updated_holds, updated_borrowed)
+    def check(
+            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap,
+            delta_balances: ValueMap, delta_holds: ValueMap, delta_borrowed: ValueMap
+    ):
+        # If we're increasing any borrowed amount we need to check the margin level.
+        if any(v > 0 for v in delta_borrowed.values()):
+            margin_level = self._margin_loans.calculate_margin_level(updated_balances, updated_holds, updated_borrowed)
+            if margin_level < self._threshold:
+                raise errors.NotEnoughBalance(f"Margin level too low {margin_level}")

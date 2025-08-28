@@ -77,10 +77,10 @@ class Prices:
                 return amount * price_fun(last_bar.close)
         raise errors.NotFound(f"No price to convert from {from_symbol} to {to_symbol}")
 
-    def convert_value_map(self, values: value_map.ValueMapDict, to_symbol: str) -> Decimal:
-        ret = Decimal(0)
+    def convert_value_map(self, values: value_map.ValueMapDict, to_symbol: str) -> value_map.ValueMap:
+        ret = value_map.ValueMap()
         for symbol, value in values.items():
             if symbol != to_symbol:
                 value = self.convert(value, symbol, to_symbol)
-            ret += value
+            ret[symbol] = value
         return ret

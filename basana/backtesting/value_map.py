@@ -39,8 +39,9 @@ class ValueMap(ValueMapDict):
             self[symbol] = helpers.truncate_decimal(amount, symbol_info.precision)
 
     def __add__(self, other: ValueMapDict) -> "ValueMap":
-        keys = set(itertools.chain(self.keys(), other.keys()))
-        return ValueMap({key: self.get(key, ZERO) + other.get(key, ZERO) for key in keys})
+        ret = ValueMap(self)
+        ret += other
+        return ret
 
     def __iadd__(self, other: ValueMapDict) -> "ValueMap":
         keys = set(itertools.chain(self.keys(), other.keys()))
@@ -49,11 +50,14 @@ class ValueMap(ValueMapDict):
         return self
 
     def __radd__(self, other: ValueMapDict) -> "ValueMap":
-        return self.__add__(other)
+        ret = ValueMap(other)
+        ret += self
+        return ret
 
     def __sub__(self, other: ValueMapDict) -> "ValueMap":
-        keys = set(itertools.chain(self.keys(), other.keys()))
-        return ValueMap({key: self.get(key, ZERO) - other.get(key, ZERO) for key in keys})
+        ret = ValueMap(self)
+        ret -= other
+        return ret
 
     def __isub__(self, other: ValueMapDict) -> "ValueMap":
         keys = set(itertools.chain(self.keys(), other.keys()))
@@ -62,14 +66,13 @@ class ValueMap(ValueMapDict):
         return self
 
     def __rsub__(self, other: ValueMapDict) -> "ValueMap":
-        keys = set(itertools.chain(self.keys(), other.keys()))
-        return ValueMap({key: other.get(key, ZERO) - self.get(key, ZERO) for key in keys})
+        ret = ValueMap(other)
+        ret -= self
+        return ret
 
     def __mul__(self, other: ValueMapDict) -> "ValueMap":
-        keys = set(itertools.chain(self.keys(), other.keys()))
-        ret = ValueMap()
-        for key in keys:
-            ret[key] = self.get(key, ZERO) * other.get(key, ZERO)
+        ret = ValueMap(self)
+        ret *= other
         return ret
 
     def __imul__(self, other: ValueMapDict) -> "ValueMap":
@@ -79,4 +82,29 @@ class ValueMap(ValueMapDict):
         return self
 
     def __rmul__(self, other: ValueMapDict) -> "ValueMap":
-        return self.__mul__(other)
+        ret = ValueMap(other)
+        ret *= self
+        return ret
+
+    def __truediv__(self, other: ValueMapDict) -> "ValueMap":
+        ret = ValueMap(self)
+        ret /= other
+        return ret
+
+    def __itruediv__(self, other: ValueMapDict) -> "ValueMap":
+        keys = set(itertools.chain(self.keys(), other.keys()))
+        for key in keys:
+            divisor = other.get(key, ZERO)
+            if divisor == ZERO:
+                if key in self and self[key] != ZERO:
+                    raise ZeroDivisionError(f"Division by zero for key {key}")
+                else:
+                    self[key] = ZERO
+            else:
+                self[key] = self.get(key, ZERO) / divisor
+        return self
+
+    def __rtruediv__(self, other: ValueMapDict) -> "ValueMap":
+        ret = ValueMap(other)
+        ret /= self
+        return ret

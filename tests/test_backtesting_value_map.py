@@ -73,6 +73,59 @@ def test_mul(lhs, rhs, expected_result):
     assert res == expected_result
 
 
+@pytest.mark.parametrize("lhs, rhs, expected_result", [
+    ({}, {}, {}),
+    (
+        {"BTC": Decimal("-3")},
+        {"BTC": Decimal("2"), "ETH": Decimal("3")},
+        {"BTC": Decimal("-1.5"), "ETH": Decimal("0")},
+    ),
+    (
+        {},
+        {"BTC": Decimal("0"), "ETH": Decimal("3")},
+        {"BTC": Decimal("0"), "ETH": Decimal("0")},
+    ),
+    (
+        {"BTC": Decimal("0")},
+        {"BTC": Decimal("0"), "ETH": Decimal("3")},
+        {"BTC": Decimal("0"), "ETH": Decimal("0")},
+    ),
+
+])
+def test_div(lhs, rhs, expected_result):
+    # div
+    assert (ValueMap(lhs) / rhs) == expected_result
+    # rdiv
+    assert (lhs / ValueMap(rhs)) == expected_result
+    # idiv
+    res = ValueMap(lhs)
+    res /= rhs
+    assert res == expected_result
+
+
+@pytest.mark.parametrize("lhs, rhs", [
+    (
+        {"BTC": Decimal(1)},
+        {}
+    ),
+    (
+        {"ETH": Decimal(1)},
+        {"ETH": Decimal(0)}
+    ),
+])
+def test_zero_div_error(lhs, rhs):
+    # div
+    with pytest.raises(ZeroDivisionError):
+        _ = ValueMap(lhs) / rhs
+    # rdiv
+    with pytest.raises(ZeroDivisionError):
+        _ = lhs / ValueMap(rhs)
+    # idiv
+    with pytest.raises(ZeroDivisionError):
+        res = ValueMap(lhs)
+        res /= rhs
+
+
 def test_prune():
     values = ValueMap({
         "BTC": Decimal(1),
