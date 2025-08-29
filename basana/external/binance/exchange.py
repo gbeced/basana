@@ -73,7 +73,8 @@ class Exchange:
         self._session = session
         self._tb = tb
         self._config_overrides = config_overrides
-        self._pair_info_cache: Dict[Pair, PairInfoEx] = {}
+        self._symbol_info: Dict[str, PairInfoEx] = {}
+        self._symbol_to_pair: Dict[str, Pair] = {}
         self._ws_mgr = websocket_mgr.WebsocketManager(
             dispatcher, self._cli, session=session, config_overrides=config_overrides
         )
@@ -165,26 +166,24 @@ class Exchange:
         self._ws_mgr.subscribe_to_trade_events(pair, event_handler)
 
     async def get_pair_info(self, pair: Pair) -> PairInfoEx:
-        """Returns information about a trading pair.
+        """
+        Returns information about a trading pair.
 
         :param pair: The trading pair.
         """
-        ret = self._pair_info_cache.get(pair)
-        if not ret:
-            exchange_info = await self._cli.get_exchange_info(helpers.pair_to_symbol(pair))
-            symbols = exchange_info["symbols"]
-            assert len(symbols) == 1, "More than 1 symbol found"
-            symbol_info = symbols[0]
-            price_filter = get_filter_from_symbol_info(symbol_info, "PRICE_FILTER")
-            assert price_filter, f"PRICE_FILTER not found for {pair}"
-            lot_size = get_filter_from_symbol_info(symbol_info, "LOT_SIZE")
-            assert lot_size, f"LOT_SIZE not found for {pair}"
-            ret = PairInfoEx(
-                base_precision=get_precision_from_step_size(lot_size["stepSize"]),
-                quote_precision=get_precision_from_step_size(price_filter["tickSize"]),
-                permissions=symbol_info.get("permissions")
-            )
-            self._pair_info_cache[pair] = ret
+
+        return await self._get_pair_info(helpers.pair_to_symbol(pair))
+
+    async def symbol_to_pair(self, symbol: str) -> Pair:
+        """
+        Returns the pair for a given symbol.
+
+        :param symbol: The symbol.
+        """
+        ret = self._symbol_to_pair.get(symbol)
+        if ret is None:
+            await self._get_pair_info(symbol)
+            ret = self._symbol_to_pair[symbol]
         return ret
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Decimal, Decimal]:
@@ -209,6 +208,26 @@ class Exchange:
     def isolated_margin_account(self) -> isolated_margin.Account:
         """Returns the isolated margin account."""
         return isolated_margin.Account(self._cli.isolated_margin_account, self._ws_mgr)
+
+    async def _get_pair_info(self, symbol: str) -> PairInfoEx:
+        ret = self._symbol_info.get(symbol)
+        if ret is None:
+            exchange_info = await self._cli.get_exchange_info(symbol)
+            symbols = exchange_info["symbols"]
+            assert len(symbols) == 1, "More than 1 symbol found"
+            symbol_info = symbols[0]
+            price_filter = get_filter_from_symbol_info(symbol_info, "PRICE_FILTER")
+            assert price_filter, f"PRICE_FILTER not found for {symbol}"
+            lot_size = get_filter_from_symbol_info(symbol_info, "LOT_SIZE")
+            assert lot_size, f"LOT_SIZE not found for {symbol}"
+            ret = PairInfoEx(
+                base_precision=get_precision_from_step_size(lot_size["stepSize"]),
+                quote_precision=get_precision_from_step_size(price_filter["tickSize"]),
+                permissions=symbol_info.get("permissions")
+            )
+            self._symbol_info[symbol] = ret
+            self._symbol_to_pair[symbol_info["symbol"]] = Pair(symbol_info["baseAsset"], symbol_info["quoteAsset"])
+        return ret
 
 
 def get_filter_from_symbol_info(symbol_info: dict, filter_type: str) -> Optional[dict]:
