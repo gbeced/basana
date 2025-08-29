@@ -215,7 +215,7 @@ class Account:
           * Either order_id or client_order_id should be set, but not both.
           * Including trades requires making an extra request to Binance.
         """
-        order_book_symbol = helpers.pair_to_order_book_symbol(pair)
+        order_book_symbol = helpers.pair_to_symbol(pair)
         order_info = await self._cli.query_order(
             order_book_symbol, order_id=None if order_id is None else int(order_id),
             orig_client_order_id=client_order_id
@@ -236,7 +236,7 @@ class Account:
 
         order_book_symbol = None
         if pair:
-            order_book_symbol = helpers.pair_to_order_book_symbol(pair)
+            order_book_symbol = helpers.pair_to_symbol(pair)
         return [
             OpenOrder(open_order) for open_order in await self._cli.get_open_orders(order_book_symbol)
         ]
@@ -257,7 +257,7 @@ class Account:
           * Either order_id or client_order_id should be set, but not both.
         """
         canceled_order = await self._cli.cancel_order(
-            helpers.pair_to_order_book_symbol(pair), order_id=None if order_id is None else int(order_id),
+            helpers.pair_to_symbol(pair), order_id=None if order_id is None else int(order_id),
             orig_client_order_id=client_order_id
         )
         return CanceledOrder(canceled_order)
@@ -329,7 +329,7 @@ class Account:
         """
 
         canceled_order = await self._cli.cancel_oco_order(
-            helpers.pair_to_order_book_symbol(pair),
+            helpers.pair_to_symbol(pair),
             order_list_id=None if order_list_id is None else int(order_list_id),
             client_order_list_id=client_order_list_id
         )

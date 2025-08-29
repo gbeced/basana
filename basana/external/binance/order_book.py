@@ -100,7 +100,7 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
         logger.error(logs.StructuredMessage("Error polling order book", channel=self.pair, error=error))
 
     async def main(self):
-        order_book_symbol = helpers.pair_to_order_book_symbol(self.pair)
+        order_book_symbol = helpers.pair_to_symbol(self.pair)
         while True:
             try:
                 await self._fetch_and_push(order_book_symbol)
@@ -125,7 +125,7 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
 
 def get_channel(pair: Pair, depth: int) -> str:
     assert depth in [5, 10, 20], "Invalid depth"
-    return "{}@depth{}".format(helpers.pair_to_order_book_symbol(pair).lower(), depth)
+    return "{}@depth{}".format(helpers.pair_to_symbol(pair).lower(), depth)
 
 
 OrderBookEventHandler = Callable[[OrderBookEvent], Awaitable[Any]]

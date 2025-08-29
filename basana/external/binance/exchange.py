@@ -171,7 +171,7 @@ class Exchange:
         """
         ret = self._pair_info_cache.get(pair)
         if not ret:
-            exchange_info = await self._cli.get_exchange_info(helpers.pair_to_order_book_symbol(pair))
+            exchange_info = await self._cli.get_exchange_info(helpers.pair_to_symbol(pair))
             symbols = exchange_info["symbols"]
             assert len(symbols) == 1, "More than 1 symbol found"
             symbol_info = symbols[0]
@@ -192,7 +192,7 @@ class Exchange:
 
         :param pair: The trading pair.
         """
-        order_book = await self._cli.get_order_book(helpers.pair_to_order_book_symbol(pair), limit=1)
+        order_book = await self._cli.get_order_book(helpers.pair_to_symbol(pair), limit=1)
         return Decimal(order_book["bids"][0][0]), Decimal(order_book["asks"][0][0])
 
     @property

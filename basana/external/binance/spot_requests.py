@@ -50,7 +50,7 @@ class MarketOrder(ExchangeOrder):
 
     async def create_order(self, spot_account_cli) -> dict:
         return await spot_account_cli.create_order(
-            helpers.pair_to_order_book_symbol(self._pair), helpers.order_operation_to_side(self._operation), "MARKET",
+            helpers.pair_to_symbol(self._pair), helpers.order_operation_to_side(self._operation), "MARKET",
             quantity=self._amount, quote_order_qty=self._quote_amount, new_client_order_id=self._client_order_id,
             **self._kwargs
         )
@@ -67,7 +67,7 @@ class LimitOrder(ExchangeOrder):
 
     async def create_order(self, spot_account_cli) -> dict:
         return await spot_account_cli.create_order(
-            helpers.pair_to_order_book_symbol(self._pair), helpers.order_operation_to_side(self._operation), "LIMIT",
+            helpers.pair_to_symbol(self._pair), helpers.order_operation_to_side(self._operation), "LIMIT",
             quantity=self._amount, price=self._limit_price, time_in_force=self._time_in_force,
             new_client_order_id=self._client_order_id, **self._kwargs
         )
@@ -85,7 +85,7 @@ class StopLimitOrder(ExchangeOrder):
 
     async def create_order(self, spot_account_cli) -> dict:
         return await spot_account_cli.create_order(
-            helpers.pair_to_order_book_symbol(self._pair), helpers.order_operation_to_side(self._operation),
+            helpers.pair_to_symbol(self._pair), helpers.order_operation_to_side(self._operation),
             "STOP_LOSS_LIMIT", quantity=self._amount, stop_price=self._stop_price, price=self._limit_price,
             time_in_force=self._time_in_force, new_client_order_id=self._client_order_id, **self._kwargs
         )
@@ -112,7 +112,7 @@ class OCOOrder:
 
     async def create_order(self, spot_account_cli) -> dict:
         return await spot_account_cli.create_oco(
-            helpers.pair_to_order_book_symbol(self._pair), helpers.order_operation_to_side(self._operation),
+            helpers.pair_to_symbol(self._pair), helpers.order_operation_to_side(self._operation),
             self._amount, self._limit_price, self._stop_price, stop_limit_price=self._stop_limit_price,
             stop_limit_time_in_force=self._stop_limit_time_in_force, list_client_order_id=self._list_client_order_id,
             limit_client_order_id=self._limit_client_order_id, stop_client_order_id=self._stop_client_order_id,
