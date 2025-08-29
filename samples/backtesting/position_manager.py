@@ -254,6 +254,12 @@ class PositionManager:
             amount_filled=order.amount_filled, avg_fill_price=order.fill_price
         ))
 
+        # Update the position info.
+        async with self._pos_mutex[order.pair]:
+            pos_info = self._positions[order.pair]
+            if order.id  == pos_info.order.id and order.amount_filled >= pos_info.order.amount_filled:
+                pos_info.order = order
+
 
 def signed_to_position(signed):
     if signed > 0:
