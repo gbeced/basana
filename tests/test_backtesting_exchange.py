@@ -86,7 +86,6 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
     bar_events = []
 
     async def on_bar(bar_event):
-        nonlocal bar_events
         bar_events.append(bar_event)
         logger.info("%s %s", bar_event.bar.pair, bar_event.bar.close)
 
