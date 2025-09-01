@@ -46,9 +46,10 @@ async def main():
     position_mgr = position_manager.SpotAccountPositionManager(
         exchange, position_amount, pair.quote_symbol, stop_loss_pct, checkpoint_fname
     )
-    # Connect the position manager to the strategy signals and to bar events just for logging.
+    # Connect the position manager to different types of events.
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
     exchange.subscribe_to_bar_events(pair, "1m", position_mgr.on_bar_event)
+    exchange.spot_account.subscribe_to_order_events(position_mgr.on_order_event)
 
     await event_dispatcher.run()
 
