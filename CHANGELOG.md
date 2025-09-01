@@ -1,6 +1,6 @@
 # Changelog
 
-## TBD
+## 1.8
 
 ### Features
 
