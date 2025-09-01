@@ -28,6 +28,7 @@ from basana.core.logs import StructuredMessage
 from basana.external.binance import csv
 import basana as bs
 import basana.backtesting.exchange as backtesting_exchange
+import basana.backtesting.fees as backtesting_fees
 
 from samples.backtesting import position_manager
 from samples.strategies import bbands
@@ -52,6 +53,7 @@ async def main():
     exchange = backtesting_exchange.Exchange(
         event_dispatcher,
         initial_balances={pair.quote_symbol: Decimal(1200)},
+        fee_strategy=backtesting_fees.Percentage(percentage=Decimal("0.1"), min_fee=Decimal("0.01")),
         lending_strategy=lending_strategy,
         immediate_order_processing=True
     )

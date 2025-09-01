@@ -34,7 +34,7 @@ def get_signature(api_secret: str, qs_params: dict = {}, data: dict = {}) -> str
     return hmac.new(api_secret.encode(), msg=total_params.encode("utf-8"), digestmod=hashlib.sha256).hexdigest()
 
 
-def pair_to_order_book_symbol(pair: pair.Pair) -> str:
+def pair_to_symbol(pair: pair.Pair) -> str:
     return "{}{}".format(pair.base_symbol.upper(), pair.quote_symbol.upper())
 
 

@@ -65,7 +65,7 @@ class IsolatedMarginUserDataChannel(websockets.Channel):
 
     @property
     def alias(self) -> str:
-        symbol = helpers.pair_to_order_book_symbol(self._pair)
+        symbol = helpers.pair_to_symbol(self._pair)
         return f"isolated_margin_user_data_{symbol.lower()}"
 
     @property
@@ -74,7 +74,7 @@ class IsolatedMarginUserDataChannel(websockets.Channel):
         return self._listen_key
 
     async def resolve_stream_name(self, api_client: client.APIClient):
-        symbol = helpers.pair_to_order_book_symbol(self._pair)
+        symbol = helpers.pair_to_symbol(self._pair)
         self._listen_key = (await api_client.isolated_margin_account.create_listen_key(symbol))["listenKey"]
 
     def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
@@ -86,7 +86,7 @@ class IsolatedMarginUserDataChannel(websockets.Channel):
 
     async def keep_alive(self, api_client: client.APIClient):
         assert self._listen_key, "resolve_stream_name not called"
-        symbol = helpers.pair_to_order_book_symbol(self._pair)
+        symbol = helpers.pair_to_symbol(self._pair)
         await api_client.isolated_margin_account.keep_alive_listen_key(symbol, self._listen_key)
 
 
@@ -119,7 +119,7 @@ class Account(margin.Account):
         :param pair: The trading pair.
         :param amount: The amount to transfer.
         """
-        return await self.client.transfer_from_spot_account(asset, helpers.pair_to_order_book_symbol(pair), amount)
+        return await self.client.transfer_from_spot_account(asset, helpers.pair_to_symbol(pair), amount)
 
     async def transfer_to_spot_account(self, asset: str, pair: Pair, amount: Decimal) -> dict:
         """Transfer balances from the isolated margin account to the spot account.
@@ -130,7 +130,7 @@ class Account(margin.Account):
         :param pair: The trading pair.
         :param amount: The amount to transfer.
         """
-        return await self.client.transfer_to_spot_account(asset, helpers.pair_to_order_book_symbol(pair), amount)
+        return await self.client.transfer_to_spot_account(asset, helpers.pair_to_symbol(pair), amount)
 
     def subscribe_to_user_data_events(self, pair: Pair, event_handler: UserDataEventHandler):
         """
