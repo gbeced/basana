@@ -87,7 +87,6 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         assert sum(e._balances.holds.values()) == 0
         assert len(e._order_mgr._holds_by_order) == 0
 
-        nonlocal bar_events
         bar_events.append(bar_event)
 
     async def impl():
@@ -188,8 +187,6 @@ def test_order_requests(order_plan, immediate_order_processing, backtesting_disp
         order_events[event.order.id].append(event.order)
 
     async def on_bar(bar_event):
-        nonlocal expected
-
         order_requests = order_plan.get(bar_event.when.date(), [])
         for order_factory, expected_fills, expected_order_events in order_requests:
             created_order = await order_factory(e)
