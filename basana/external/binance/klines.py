@@ -54,4 +54,4 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
 
 
 def get_channel(pair: Pair, interval: str) -> str:
-    return "{}@kline_{}".format(helpers.pair_to_order_book_symbol(pair).lower(), interval)
+    return "{}@kline_{}".format(helpers.pair_to_symbol(pair).lower(), interval)

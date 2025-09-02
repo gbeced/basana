@@ -29,13 +29,34 @@ import basana as bs
 
 
 @dataclasses.dataclass
+class OrderInfo:
+    def update_from_order_info(self, order_info: spot.OrderInfo):
+        assert order_info.id == self.id
+        self.is_open = order_info.is_open
+        self.amount_filled = order_info.amount_filled
+        self.fill_price = order_info.fill_price
+
+    def update_from_order_update(self, order_update: spot.OrderUpdate):
+        assert order_update.id == self.id
+        self.is_open = order_update.is_open
+        self.amount_filled = order_update.amount_filled
+        self.fill_price = order_update.fill_price
+
+    id: str
+    operation: bs.OrderOperation
+    is_open: bool
+    amount_filled: Decimal
+    fill_price: Optional[Decimal]
+
+
+@dataclasses.dataclass
 class PositionInfo:
     pair: bs.Pair
     pair_info: bs.PairInfo
     initial: Decimal
     initial_avg_price: Decimal
     target: Decimal
-    order: spot.OrderInfo
+    order: OrderInfo
 
     def __post_init__(self):
         # Both initial and initial_avg_price should be set to 0, or none of them.
@@ -124,11 +145,12 @@ class SpotAccountPositionManager:
         self._last_check_loss: Optional[datetime.datetime] = None
 
     async def get_position_info(self, pair: bs.Pair) -> Optional[PositionInfo]:
-        pos_info = self._positions.get(pair)
-        if pos_info and pos_info.order_open:
-            async with self._pos_mutex[pair]:
-                pos_info.order = await self._exchange.spot_account.get_order_info(pair, order_id=pos_info.order.id)
-        return copy.deepcopy(pos_info)
+        async with self._pos_mutex[pair]:
+            pos_info = self._positions.get(pair)
+            if pos_info and pos_info.order_open:
+                order_info = await self._exchange.spot_account.get_order_info(pair, order_id=pos_info.order.id)
+                pos_info.order.update_from_order_info(order_info)
+            return copy.deepcopy(pos_info)
 
     async def check_loss(self):
         positions = []
@@ -175,9 +197,10 @@ class SpotAccountPositionManager:
             if current_pos_info and current_pos_info.order_open:
                 logging.info(StructuredMessage("Canceling order", order_ids=current_pos_info.order.id))
                 await self._exchange.spot_account.cancel_order(pair, order_id=current_pos_info.order.id)
-                current_pos_info.order = await self._exchange.spot_account.get_order_info(
+                order_info = await self._exchange.spot_account.get_order_info(
                     pair, order_id=current_pos_info.order.id
                 )
+                current_pos_info.order.update_from_order_info(order_info)
 
             (bid, ask), pair_info = await asyncio.gather(
                 self._exchange.get_bid_ask(pair),
@@ -223,7 +246,10 @@ class SpotAccountPositionManager:
             initial_avg_price = Decimal(0) if current_pos_info is None else current_pos_info.avg_price
             pos_info = PositionInfo(
                 pair=pair, pair_info=pair_info, initial=current, initial_avg_price=initial_avg_price, target=target,
-                order=order
+                order=OrderInfo(
+                    id=order.id, operation=order.operation, is_open=order.is_open,
+                    amount_filled=order.amount_filled, fill_price=order.fill_price,
+                )
             )
             self._positions[pair] = pos_info
 
@@ -248,6 +274,20 @@ class SpotAccountPositionManager:
         if self._last_check_loss is None or self._last_check_loss < bar_event.when:
             self._last_check_loss = bar_event.when
             await self.check_loss()
+
+    async def on_order_event(self, order_event: spot.OrderEvent):
+        order_update = order_event.order_update
+        pair = await self._exchange.symbol_to_pair(order_update.symbol)
+        logging.info(StructuredMessage(
+            "Order updated", id=order_update.id, pair=pair, is_open=order_update.is_open, amount=order_update.amount,
+            amount_filled=order_update.amount_filled, avg_fill_price=order_update.fill_price
+        ))
+
+        # Update the position info.
+        async with self._pos_mutex[pair]:
+            pos_info = self._positions[pair]
+            if order_update.id  == pos_info.order.id and order_update.amount_filled >= pos_info.order.amount_filled:
+                pos_info.order.update_from_order_update(order_update)
 
 
 def signed_to_position(signed):

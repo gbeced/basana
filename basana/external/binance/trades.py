@@ -95,7 +95,7 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
 
 
 def get_channel(pair: Pair) -> str:
-    return "{}@trade".format(helpers.pair_to_order_book_symbol(pair).lower())
+    return "{}@trade".format(helpers.pair_to_symbol(pair).lower())
 
 
 TradeEventHandler = Callable[[TradeEvent], Awaitable[Any]]

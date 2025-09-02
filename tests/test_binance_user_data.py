@@ -225,6 +225,7 @@ def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatcher, b
     assert order_update_event.order_update.amount_filled == Decimal("0.0001")
     assert order_update_event.order_update.quote_amount_filled == Decimal("9.575201")
     assert order_update_event.order_update.fees == {"BTC": Decimal("0.0000001")}
+    assert order_update_event.order_update.fill_price == Decimal("95752.01")
 
     assert has_request(binance_http_api_mock, "POST", user_data_stream_url)
     assert has_request(binance_http_api_mock, "PUT", user_data_stream_url)

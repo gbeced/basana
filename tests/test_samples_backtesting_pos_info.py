@@ -29,8 +29,9 @@ btc_usdt_pair_info = bs.PairInfo(8, 2)
 
 def test_long_partially_filled():
     target = Decimal(10)
+    pair = bs.Pair("BTC", "USDT")
     order = exchange.OrderInfo(
-        id="1234", is_open=True, operation=bs.OrderOperation.BUY, amount=target, amount_filled=Decimal(0),
+        id="1234", pair=pair, is_open=True, operation=bs.OrderOperation.BUY, amount=target, amount_filled=Decimal(0),
         amount_remaining=target, quote_amount_filled=Decimal(0), fees={}
     )
     pos_info = PositionInfo(
@@ -60,8 +61,9 @@ def test_long_partially_filled():
 
 def test_short_completely_filled():
     target = Decimal(-10)
+    pair = bs.Pair("BTC", "USDT")
     order = exchange.OrderInfo(
-        id="1234", is_open=True, operation=bs.OrderOperation.SELL, amount=target, amount_filled=Decimal(0),
+        id="1234", pair=pair, is_open=True, operation=bs.OrderOperation.SELL, amount=target, amount_filled=Decimal(0),
         amount_remaining=abs(target), quote_amount_filled=Decimal(0), fees={}
     )
     pos_info = PositionInfo(
@@ -102,8 +104,9 @@ def test_long_jump(target_position):
     }[operation]
 
     # First order that jumps from one position to the opposite one.
+    pair = bs.Pair("BTC", "USDT")
     order = exchange.OrderInfo(
-        id="1", is_open=True, operation=operation, amount=abs(target * 2), amount_filled=Decimal(0),
+        id="1", pair=pair, is_open=True, operation=operation, amount=abs(target * 2), amount_filled=Decimal(0),
         amount_remaining=abs(target * 2), quote_amount_filled=Decimal(0), fees={}
     )
     pos_info = PositionInfo(
@@ -127,7 +130,7 @@ def test_long_jump(target_position):
     # The last order was canceled and a new one will start at 3/-3.
     pos_info.initial, pos_info.initial_avg_price = pos_info.current, pos_info.avg_price
     pos_info.order = exchange.OrderInfo(
-        id="2", is_open=True, operation=operation, amount=Decimal(7), amount_filled=Decimal(0),
+        id="2", pair=pair, is_open=True, operation=operation, amount=Decimal(7), amount_filled=Decimal(0),
         amount_remaining=Decimal(7), quote_amount_filled=Decimal(0), fees={}
     )
 
@@ -148,7 +151,7 @@ def test_long_jump(target_position):
     pos_info.initial, pos_info.initial_avg_price = pos_info.current, pos_info.avg_price
     pos_info.target = Decimal(7) * sign
     pos_info.order = exchange.OrderInfo(
-        id="3", is_open=True, operation=reverse_operation, amount=Decimal(1), amount_filled=Decimal(0),
+        id="3", pair=pair, is_open=True, operation=reverse_operation, amount=Decimal(1), amount_filled=Decimal(0),
         amount_remaining=Decimal(1), quote_amount_filled=Decimal(0), fees={}
     )
 
@@ -181,7 +184,7 @@ def test_long_jump(target_position):
             (-1, 100, -2, bs.OrderOperation.SELL, 1, 100, 100),
             (-1, 100, -2, bs.OrderOperation.SELL, 1, 200, 150),
             (-2, 1000, -1, bs.OrderOperation.BUY, 1, 5000, 1000),
-            # Regresion
+            # Regression
             (1, 1234, 0, bs.OrderOperation.SELL, 1, 55, 0),
         ]
 )
@@ -195,9 +198,10 @@ def test_avg_price(
     ]
     order_amount = abs(target - initial)
     is_open = order_amount != order_filled_amount
+    pair = bs.Pair("BTC", "USDT")
 
     order = exchange.OrderInfo(
-        id="1", is_open=is_open, operation=order_operation, amount=order_amount,
+        id="1", pair=pair, is_open=is_open, operation=order_operation, amount=order_amount,
         amount_filled=order_filled_amount, amount_remaining=order_amount - order_filled_amount,
         quote_amount_filled=order_filled_amount * order_filled_price, fees={}
     )
@@ -209,8 +213,9 @@ def test_avg_price(
 
 
 def test_pnl_pct():
+    pair = bs.Pair("BTC", "USDT")
     order = exchange.OrderInfo(
-        id="1", is_open=False, operation=bs.OrderOperation.BUY, amount=Decimal(1),
+        id="1", pair=pair, is_open=False, operation=bs.OrderOperation.BUY, amount=Decimal(1),
         amount_filled=Decimal(1), amount_remaining=Decimal(0),
         quote_amount_filled=(Decimal(1000)), fees={}
     )

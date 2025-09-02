@@ -44,15 +44,18 @@ async def main():
     pair_2 = bs.Pair("CVC", quote_symbol)
 
     # We'll be opening short positions so we need to set a lending strategy when initializing the exchange.
-    lending_strategy = lending.MarginLoans(quote_symbol, default_conditions=lending.MarginLoanConditions(
-        interest_symbol=quote_symbol, interest_percentage=Decimal("10"),
-        interest_period=datetime.timedelta(days=365), min_interest=Decimal("0.01"),
-        margin_requirement=Decimal("0.5")
-    ))
+    lending_strategy = lending.MarginLoans(
+        quote_symbol, Decimal("0.5"),
+        default_conditions=lending.MarginLoanConditions(
+            interest_symbol=quote_symbol, interest_percentage=Decimal("10"),
+            interest_period=datetime.timedelta(days=365), min_interest=Decimal("0.01")
+        )
+    )
     exchange = backtesting_exchange.Exchange(
         event_dispatcher,
         initial_balances={quote_symbol: Decimal(1200)},
         lending_strategy=lending_strategy,
+        immediate_order_processing=True
     )
     exchange.set_symbol_precision(pair_1.base_symbol, 8)
     exchange.set_symbol_precision(pair_2.base_symbol, 8)

@@ -66,11 +66,11 @@ This is how all the pieces are put together:
 
 .. literalinclude:: ../samples/backtest_bbands.py
    :language: python
-   :lines: 39-69
+   :lines: 40-74
    :dedent: 4
 
 The full source code for this example can be found `here <https://github.com/gbeced/basana/tree/master/samples/backtest_bbands.py>`_,
-and if you fork the repository, or download and unzip `samples <https://github.com/gbeced/basana/releases/download/1.7/samples.zip>`_,
+and if you fork the repository, or download and unzip `samples <https://github.com/gbeced/basana/releases/download/1.8/samples.zip>`_,
 you can execute the backtest using the following command:
 
 .. code-block:: console
@@ -91,7 +91,7 @@ exchange we'll use `Binance <https://www.binance.com/>`_ crypto currency exchang
 
 .. literalinclude:: ../samples/binance_bbands.py
    :language: python
-   :lines: 31-51
+   :lines: 31-52
    :dedent: 4
 
 .. note::

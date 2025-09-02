@@ -124,11 +124,11 @@ class PositionManager:
         self._last_check_loss: Optional[datetime.datetime] = None
 
     async def get_position_info(self, pair: bs.Pair) -> Optional[PositionInfo]:
-        pos_info = self._positions.get(pair)
-        if pos_info and pos_info.order_open:
-            async with self._pos_mutex[pair]:
+        async with self._pos_mutex[pair]:
+            pos_info = self._positions.get(pair)
+            if pos_info and pos_info.order_open:
                 pos_info.order = await self._exchange.get_order_info(pos_info.order.id)
-        return copy.deepcopy(pos_info)
+            return copy.deepcopy(pos_info)
 
     async def check_loss(self):
         positions = []
@@ -217,13 +217,12 @@ class PositionManager:
                 operation, pair, order_size, auto_borrow=True, auto_repay=True
             )
             logging.info(StructuredMessage("Order created", id=created_order.id))
-            order = await self._exchange.get_order_info(created_order.id)
 
             # 4. Keep track of the position.
             initial_avg_price = Decimal(0) if current_pos_info is None else current_pos_info.avg_price
             pos_info = PositionInfo(
                 pair=pair, pair_info=pair_info, initial=current, initial_avg_price=initial_avg_price, target=target,
-                order=order
+                order=created_order
             )
             self._positions[pair] = pos_info
 
@@ -254,6 +253,12 @@ class PositionManager:
             "Order updated", id=order.id, is_open=order.is_open, amount=order.amount,
             amount_filled=order.amount_filled, avg_fill_price=order.fill_price
         ))
+
+        # Update the position info.
+        async with self._pos_mutex[order.pair]:
+            pos_info = self._positions[order.pair]
+            if order.id  == pos_info.order.id and order.amount_filled >= pos_info.order.amount_filled:
+                pos_info.order = order
 
 
 def signed_to_position(signed):

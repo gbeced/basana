@@ -129,6 +129,14 @@ class OrderUpdate:
             ret[commision_asset] = Decimal(self.json["n"])
         return ret
 
+    @property
+    def fill_price(self) -> Optional[Decimal]:
+        """The fill price."""
+        ret = None
+        if self.amount_filled:
+            ret = self.quote_amount_filled / self.amount_filled
+        return ret
+
 
 class Event(event.Event):
     def __init__(self, when: datetime.datetime, json: dict):

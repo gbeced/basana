@@ -91,3 +91,22 @@ def test_pair_info_explicit_session(binance_http_api_mock, realtime_dispatcher):
             assert "SPOT" in pair_info.permissions
 
     asyncio.run(test_main())
+
+
+def test_symbol_to_pair(binance_http_api_mock, realtime_dispatcher):
+    binance_http_api_mock.get(
+        re.compile(r"http://binance.mock/api/v3/exchangeInfo\\?.*"), status=200,
+        payload=helpers.load_json("binance_btc_usdt_exchange_info.json")
+    )
+
+    async def test_main():
+        async with aiohttp.ClientSession() as session:
+            e = exchange.Exchange(
+                realtime_dispatcher, "api_key", "api_secret", session=session,
+                config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+            )
+
+            p = await e.symbol_to_pair("BTCUSDT")
+            assert p == pair.Pair("BTC", "USDT")
+
+    asyncio.run(test_main())
