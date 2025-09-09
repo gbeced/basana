@@ -139,19 +139,21 @@ class Exchange:
         self._ws_mgr.subscribe_to_bar_events(pair, interval, event_handler)
 
     def subscribe_to_order_book_events(
-            self, pair: Pair, event_handler: OrderBookEventHandler, depth: int = 10
+            self, pair: Pair, event_handler: OrderBookEventHandler, depth: int = 10, interval: int = 1000
     ):
         """
-        Registers an async callable that will be called every 1 second with the top bids/asks of the order book.
+        Registers an async callable that will be called with the top bids/asks of the order book.
 
-        Works as defined in https://binance-docs.github.io/apidocs/spot/en/#partial-book-depth-streams.
+        Works as defined in
+        https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams#partial-book-depth-streams
 
         :param pair: The trading pair.
         :param event_handler: An async callable that receives an OrderBookEvent.
         :param depth: The order book depth. Valid values are: 5, 10, 20.
+        :param interval: The update interval in milliseconds. Valid values are: 1000 (1s), 100 (100ms).
         """
 
-        self._ws_mgr.subscribe_to_order_book_events(pair, event_handler, depth=depth)
+        self._ws_mgr.subscribe_to_order_book_events(pair, event_handler, depth=depth, interval=interval)
 
     def subscribe_to_trade_events(self, pair: Pair, event_handler: TradeEventHandler):
         """

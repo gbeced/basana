@@ -123,9 +123,10 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         ))
 
 
-def get_channel(pair: Pair, depth: int) -> str:
+def get_channel(pair: Pair, depth: int, interval: int) -> str:
     assert depth in [5, 10, 20], "Invalid depth"
-    return "{}@depth{}".format(helpers.pair_to_symbol(pair).lower(), depth)
+    assert interval in [100, 1000], "Invalid interval"
+    return "{}@depth{}@{}ms".format(helpers.pair_to_symbol(pair).lower(), depth, interval)
 
 
 OrderBookEventHandler = Callable[[OrderBookEvent], Awaitable[Any]]

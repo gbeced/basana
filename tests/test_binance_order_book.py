@@ -161,8 +161,8 @@ def test_websocket_ok(realtime_dispatcher):
         await websocket.send(json.dumps({"result": None, "id": message["id"]}))
 
         while websocket.state == websockets.protocol.State.OPEN:
-            await websocket.send(json.dumps({"stream": "btcusdt@depth10", "data": ORDER_BOOK}))
-            await websocket.send(json.dumps({"stream": "btcusdt@depth20", "data": ORDER_BOOK}))
+            await websocket.send(json.dumps({"stream": "btcusdt@depth10@1000ms", "data": ORDER_BOOK}))
+            await websocket.send(json.dumps({"stream": "btcusdt@depth20@1000ms", "data": ORDER_BOOK}))
             await asyncio.sleep(0.1)
 
     async def test_main():

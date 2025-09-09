@@ -42,10 +42,10 @@ class WebsocketManager:
         )
 
     def subscribe_to_order_book_events(
-            self, pair: Pair, event_handler: order_book.OrderBookEventHandler, depth: int = 10
+            self, pair: Pair, event_handler: order_book.OrderBookEventHandler, depth: int = 10, interval: int = 1000
     ):
         self._subscribe_to_ws_channel_events(
-            binance_ws.PublicChannel(order_book.get_channel(pair, depth)),
+            binance_ws.PublicChannel(order_book.get_channel(pair, depth, interval)),
             lambda ws_cli: order_book.WebSocketEventSource(pair, ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
