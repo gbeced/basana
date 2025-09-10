@@ -40,7 +40,7 @@ class Entry:
     volume: Decimal
 
 
-class OrderBook:
+class PartialOrderBook:
     """An order book."""
     def __init__(self, pair: Pair, json: dict):
         #: The trading pair.
@@ -63,16 +63,17 @@ class OrderBook:
         ]
 
 
-class OrderBookEvent(event.Event):
-    """An event for order book updates.
+class PartialOrderBookEvent(event.Event):
+    """
+    An event for partial order book updates.
 
     :param when: The datetime when the event occurred. It must have timezone information set.
     :param order_book: The updated order book.
     """
-    def __init__(self, when: datetime.datetime, order_book: OrderBook):
+    def __init__(self, when: datetime.datetime, order_book: PartialOrderBook):
         super().__init__(when)
         #: The order book.
-        self.order_book: OrderBook = order_book
+        self.order_book: PartialOrderBook = order_book
 
 
 class PollOrderBook(event.FifoQueueEventSource, event.Producer):
@@ -91,9 +92,9 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
 
     async def _fetch_and_push(self, order_book_symbol: str):
         order_book_json = await self._client.get_order_book(order_book_symbol, limit=self._limit)
-        self.push(OrderBookEvent(
+        self.push(PartialOrderBookEvent(
             dt.utc_now(),
-            OrderBook(self.pair, order_book_json)
+            PartialOrderBook(self.pair, order_book_json)
         ))
 
     async def on_error(self, error: Any):
@@ -109,7 +110,7 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
             await asyncio.sleep(self._interval)
 
 
-# Generate OrderBookEvent events from websocket messages.
+# Generate PartialOrderBookEvent events from websocket messages.
 class WebSocketEventSource(core_ws.ChannelEventSource):
     def __init__(self, pair: Pair, producer: event.Producer):
         super().__init__(producer=producer)
@@ -117,9 +118,9 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
 
     async def push_from_message(self, message: dict):
         event = message["data"]
-        self.push(OrderBookEvent(
+        self.push(PartialOrderBookEvent(
             dt.utc_now(),  # The event doesn't include a timestamp.
-            OrderBook(self._pair, event)
+            PartialOrderBook(self._pair, event)
         ))
 
 
@@ -129,4 +130,4 @@ def get_channel(pair: Pair, depth: int, interval: int) -> str:
     return "{}@depth{}@{}ms".format(helpers.pair_to_symbol(pair).lower(), depth, interval)
 
 
-OrderBookEventHandler = Callable[[OrderBookEvent], Awaitable[Any]]
+PartialOrderBookEventHandler = Callable[[PartialOrderBookEvent], Awaitable[Any]]

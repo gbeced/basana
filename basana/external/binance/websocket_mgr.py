@@ -18,7 +18,7 @@ from typing import cast, Callable, Optional
 
 import aiohttp
 
-from . import client, order_book, trades, user_data, websockets as binance_ws, klines
+from . import client, order_book, order_book_diff, trades, user_data, websockets as binance_ws, klines
 from basana.core import bar, dispatcher, websockets as core_ws
 from basana.core.pair import Pair
 
@@ -42,11 +42,21 @@ class WebsocketManager:
         )
 
     def subscribe_to_order_book_events(
-            self, pair: Pair, event_handler: order_book.OrderBookEventHandler, depth: int = 10, interval: int = 1000
+            self, pair: Pair, event_handler: order_book.PartialOrderBookEventHandler, depth: int = 10,
+            interval: int = 1000
     ):
         self._subscribe_to_ws_channel_events(
             binance_ws.PublicChannel(order_book.get_channel(pair, depth, interval)),
             lambda ws_cli: order_book.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler)
+        )
+
+    def subscribe_to_order_book_diff_events(
+            self, pair: Pair, event_handler: order_book_diff.OrderBookDiffEventHandler, interval: int = 1000
+    ):
+        self._subscribe_to_ws_channel_events(
+            binance_ws.PublicChannel(order_book_diff.get_channel(pair, interval)),
+            lambda ws_cli: order_book_diff.WebSocketEventSource(pair, ws_cli),
             cast(dispatcher.EventHandler, event_handler)
         )
 
