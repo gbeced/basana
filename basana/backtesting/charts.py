@@ -14,22 +14,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from datetime import datetime
-from decimal import Decimal
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 import abc
 import collections
 import logging
-
-from basana.backtesting import errors
-from basana.backtesting.exchange import Exchange
-from basana.core import bar, event, helpers
-from basana.core.enums import OrderOperation
-from basana.core.pair import Pair
+from datetime import datetime
+from decimal import Decimal
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
 
 import plotly.graph_objects as go  # type: ignore
 import plotly.subplots  # type: ignore
 
+import basana as bs
+from basana import TradingSignalSource
+from basana.backtesting import errors
+from basana.backtesting.exchange import Exchange
+from basana.core import bar, event, helpers
+from basana.core.enums import OrderOperation
+from basana.core.event_sources.trading_signal import BaseTradingSignal
+from basana.core.pair import Pair
 
 ChartDataPointFn = Callable[[datetime], Optional[Decimal]]
 logger = logging.getLogger(__name__)
@@ -40,6 +42,7 @@ class DataPointFromSequence:
 
     :param seq: The sequence that will be used to get the value.
     """
+
     def __init__(self, seq: Sequence[Any]):
         self._seq = seq
 
@@ -56,6 +59,9 @@ class TimeSeries:
 
     def add_value(self, dt: datetime, value: Decimal):
         self._values[dt] = value
+
+    def get_items(self):
+        return self._values.items()
 
     def get_x_y(self):
         return zip(*sorted(self._values.items())) if self._values else ([], [])
@@ -79,7 +85,7 @@ class PairLineChart(LineChart):
         self._exchange = exchange
         self._ts = TimeSeries()
         self._indicators: Dict[str, Tuple[ChartDataPointFn, TimeSeries]] = {}
-
+        self._signals: Optional[TimeSeries] = None
         exchange.subscribe_to_bar_events(pair, self._on_bar_event)
 
     def get_title(self) -> str:
@@ -106,6 +112,31 @@ class PairLineChart(LineChart):
                 row=row, col=1
             )
 
+        # Add strategy trading signals
+        if self._signals:
+            long_x = [key for key, value in self._signals.get_items() if value == 1]
+            short_x = [key for key, value in self._signals.get_items() if value == -1]
+            neutral_x = [key for key, value in self._signals.get_items() if value == 0]
+            long_y = [value for key, value in self._ts.get_items() if key in long_x]
+            short_y = [value for key, value in self._ts.get_items() if key in short_x]
+            neutral_y = [value for key, value in self._ts.get_items() if key in neutral_x]
+
+            figure.add_trace(
+                go.Scatter(x=long_x, y=long_y, name="LONG", mode="markers",
+                           marker=dict(symbol="line-ne", size=10, color="green", line=dict(width=1, color="green"))),
+                row=row, col=1
+            )
+            figure.add_trace(
+                go.Scatter(x=short_x, y=short_y, name="SHORT", mode="markers",
+                           marker=dict(symbol="line-nw", size=10, color="red", line=dict(width=1, color="red"))),
+                row=row, col=1
+            )
+            figure.add_trace(
+                go.Scatter(x=neutral_x, y=neutral_y, name="NEUTRAL", mode="markers",
+                           marker=dict(symbol="line-ns", size=10, color="black", line=dict(width=1, color="black"))),
+                row=row, col=1
+            )
+
         # Add one trace per indicator.
         for name, (_, ts) in self._indicators.items():
             x, y = ts.get_x_y()
@@ -114,6 +145,10 @@ class PairLineChart(LineChart):
     def add_indicator(self, name: str, get_data_point: ChartDataPointFn):
         assert name not in self._indicators
         self._indicators[name] = (get_data_point, TimeSeries())
+
+    def add_signals(self, strategy: TradingSignalSource):
+        self._signals = TimeSeries()
+        strategy.subscribe_to_trading_signals(self._on_trading_signal_event)
 
     def _get_order_fills(self, op: OrderOperation) -> TimeSeries:
         ret = TimeSeries()
@@ -140,6 +175,22 @@ class PairLineChart(LineChart):
             indicator_value = get_data_point(dt)
             if indicator_value is not None:
                 ts.add_value(dt, indicator_value)
+
+    async def _on_trading_signal_event(self, trading_signal: BaseTradingSignal):
+        """
+        Handle trading signals
+
+        @param trading_signal: TradingSignal instance
+        """
+        pairs = list(trading_signal.get_pairs())
+        try:
+            for pair, target_position in pairs:
+                if pair == self._pair and self._signals is not None:
+                    self._signals.add_value(trading_signal.when, Decimal(1)
+                                            if target_position == bs.Position.LONG else Decimal(-1)
+                                            if target_position == bs.Position.SHORT else Decimal(0))
+        except Exception as e:
+            logging.exception(e)
 
 
 class AccountBalanceLineChart(LineChart):
@@ -236,6 +287,7 @@ class LineCharts:
 
     :param exchange: The backtesting exchange.
     """
+
     def __init__(self, exchange: Exchange):
         self._exchange = exchange
         self._balance_charts: Dict[str, AccountBalanceLineChart] = collections.OrderedDict()
@@ -281,6 +333,15 @@ class LineCharts:
         """
         assert pair in self._pair_charts, f"{pair} was not added"
         self._pair_charts[pair].add_indicator(name, get_data_point)
+
+    def add_pair_signals(self, pair: Pair, strategy: TradingSignalSource):
+        """Adds position signal markers to a pair's chart.
+
+        :param pair: The pair chart to add the markers to.
+        :param strategy: The strategy to get the signals from.
+        """
+        assert pair in self._pair_charts, f"{pair} was not added"
+        self._pair_charts[pair].add_signals(strategy)
 
     def add_custom(self, name: str, line: str, get_data_point: ChartDataPointFn):
         """Adds a custom chart.
