@@ -49,6 +49,11 @@ class PartialOrderBook:
         self.json: dict = json
 
     @property
+    def last_update_id(self) -> int:
+        """The last update id."""
+        return self.json["lastUpdateId"]
+
+    @property
     def bids(self) -> List[Entry]:
         """Returns the top bid entries."""
         return [

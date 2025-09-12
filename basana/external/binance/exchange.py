@@ -220,16 +220,19 @@ class Exchange:
         :param pair: The trading pair.
         """
         order_book = await self.get_order_book(pair, limit=1)
-        return Decimal(order_book["bids"][0][0]), Decimal(order_book["asks"][0][0])
+        return Decimal(order_book.bids[0].price), Decimal(order_book.asks[0].price)
 
-    async def get_order_book(self, pair: Pair, limit: Optional[int] = None) -> dict:
+    async def get_order_book(self, pair: Pair, limit: Optional[int] = None) -> order_book.PartialOrderBook:
         """
         Returns the order book for a given trading pair.
 
         :param pair: The trading pair.
         :param limit: The maximum number of levels to return.
         """
-        return await self._cli.get_order_book(helpers.pair_to_symbol(pair), limit=limit)
+        return order_book.PartialOrderBook(
+            pair,
+            await self._cli.get_order_book(helpers.pair_to_symbol(pair), limit=limit)
+        )
 
     @property
     def spot_account(self) -> spot.Account:
