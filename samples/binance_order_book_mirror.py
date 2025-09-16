@@ -125,9 +125,10 @@ class OrderBookUpdater:
 
     async def switch_state(self, state: UpdaterState, order_book: Optional[OrderBook] = None):
         async with self._switch_mutex:
-            self._state = state
             if order_book:
+                assert order_book.last_update_id >= self.order_book.last_update_id
                 self.order_book = order_book
+            self._state = state
 
     async def _check(self):
         while True:
