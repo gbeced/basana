@@ -66,7 +66,7 @@ class OrderBook:
             prices = self.bids
         else:
             # Asks are sorted ascending order.
-            pos = bisect.bisect_left(self.asks, price, key=lambda x: x[0])
+            pos = bisect.bisect_left(self.asks, (price, 0))
             prices = self.asks
 
         if pos < len(prices) and prices[pos][0] == price:
