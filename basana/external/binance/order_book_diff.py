@@ -102,7 +102,7 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
     async def push_from_message(self, message: dict):
         event = message["data"]
         self.push(OrderBookDiffEvent(
-            dt.utc_now(),  # The event doesn't include a timestamp.
+            dt.utc_now(),
             OrderBookDiff(self._pair, event)
         ))
 
