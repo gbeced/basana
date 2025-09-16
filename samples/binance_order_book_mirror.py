@@ -108,6 +108,7 @@ class OrderBookUpdater:
         self._check_task = None
         self._check_interval = 1
         self._check_depth = check_depth
+        self._switch_mutex = asyncio.Lock()
 
         exchange.subscribe_to_order_book_diff_events(pair, self._on_order_book_diff_event, interval=interval)
 
@@ -122,8 +123,11 @@ class OrderBookUpdater:
         if self._check_interval and self._check_task is None:
             self._check_task = asyncio.create_task(self._check())
 
-    def switch_state(self, state: UpdaterState):
-        self._state = state
+    async def switch_state(self, state: UpdaterState, order_book: Optional[OrderBook] = None):
+        async with self._switch_mutex:
+            self._state = state
+            if order_book:
+                self.order_book = order_book
 
     async def _check(self):
         while True:
@@ -147,7 +151,7 @@ class OrderBookUpdater:
                             local_bids=local_bids, snapshot_bids=snapshot_bids,
                             local_asks=local_asks, snapshot_asks=snapshot_asks
                         ))
-                        self.switch_state(Initializing())
+                        await self.switch_state(Initializing())
             except Exception as e:
                 logging.exception(StructuredMessage("Error checking order book", error=str(e)))
 
@@ -187,9 +191,8 @@ class Initializing(UpdaterState):
             for i in range(i, len(self._buffer)):
                 order_book.update_from_diff(self._buffer[i])
 
-            # Set the new order book and switch to updating state.
-            updater.order_book = order_book
-            updater.switch_state(Updating())
+            # Switch to updating state using the new orderbook.
+            await updater.switch_state(Updating(), order_book=order_book)
 
         except Exception as e:
             logging.exception(StructuredMessage("Error fetching and processing order book", error=str(e)))
@@ -209,7 +212,7 @@ class Updating(UpdaterState):
             updater.order_book.update_from_diff(diff)
         except Exception as e:
             logging.exception(StructuredMessage("Error processing diff", error=str(e)))
-            updater.switch_state(Initializing())
+            await updater.switch_state(Initializing())
 
 
 def bisect_descending(a, x):
