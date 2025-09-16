@@ -100,14 +100,14 @@ class UpdaterState(metaclass=abc.ABCMeta):
 class OrderBookUpdater:
     MAX_DEPTH = 5000
 
-    def __init__(self, pair: bs.Pair, exchange: binance_exchange.Exchange, interval: int = 100):
+    def __init__(self, pair: bs.Pair, exchange: binance_exchange.Exchange, interval: int = 100, check_depth: int = 20):
         self.order_book = OrderBook()
         self._pair = pair
         self._exchange = exchange
         self._state = Initializing()
         self._check_task = None
         self._check_interval = 1
-        self._check_depth = 50
+        self._check_depth = check_depth
 
         exchange.subscribe_to_order_book_diff_events(pair, self._on_order_book_diff_event, interval=interval)
 
@@ -229,7 +229,7 @@ async def main():
     event_dispatcher = bs.realtime_dispatcher()
     exchange = binance_exchange.Exchange(event_dispatcher)
     pair = bs.Pair("BTC", "USDT")
-    _ = OrderBookUpdater(pair, exchange, interval=100)
+    _ = OrderBookUpdater(pair, exchange)
 
     await event_dispatcher.run()
 
