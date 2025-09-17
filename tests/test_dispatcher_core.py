@@ -29,7 +29,7 @@ def test_scheduler_queue():
     assert queue.peek_next_event_dt() is None
     assert queue.peek_last_event_dt() is None
 
-    now = datetime.datetime(2000, 1, 1, tzinfo=datetime.UTC)
+    now = datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc)
     queue.push(now, scheduler_job)
     expected_next = expected_last = now
     assert queue.peek_next_event_dt() == expected_next
