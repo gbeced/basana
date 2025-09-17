@@ -90,11 +90,10 @@ class EventMultiplexer:
     def peek_next_event_dt(self) -> Optional[datetime.datetime]:
         self._prefetch()
 
-        next_dt = None
-        prefetched_events = [evnt for evnt in self._prefetched_events.values() if evnt]
-        if prefetched_events:
-            next_dt = min(map(lambda evnt: evnt.when, prefetched_events))
-        return next_dt
+        return min(
+            [evnt.when for evnt in self._prefetched_events.values() if evnt],
+            default=None
+        )
 
     def pop(self, max_dt: datetime.datetime) -> Tuple[Optional[event.EventSource], Optional[event.Event]]:
         ret_source: Optional[event.EventSource] = None
