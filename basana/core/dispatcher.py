@@ -64,7 +64,7 @@ class SchedulerQueue:
     def peek_last_event_dt(self) -> Optional[datetime.datetime]:
         ret = None
         if self._queue:
-            ret = self._queue[-1].when
+            ret = heapq.nlargest(1, self._queue)[0].when
         return ret
 
     def pop(self) -> Tuple[datetime.datetime, SchedulerJob]:
