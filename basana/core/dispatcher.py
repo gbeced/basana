@@ -48,6 +48,13 @@ class ScheduledJob:
 
 
 class SchedulerQueue:
+    """
+    A priority queue for scheduling jobs to run at specific times.
+
+    Jobs are stored in ascending order by their scheduled execution time.
+    This allows for efficient peek and pop operations of the next scheduled job.
+    """
+
     def __init__(self):
         self._queue = []
 
