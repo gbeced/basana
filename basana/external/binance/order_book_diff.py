@@ -18,14 +18,10 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Awaitable, Callable, List
 import datetime
-import logging
 
 from . import helpers
 from basana.core import dt, event, websockets as core_ws
 from basana.core.pair import Pair
-
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
