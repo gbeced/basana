@@ -49,8 +49,7 @@ class ScheduledJob:
 
 class SchedulerQueue:
     """
-    A priority queue for scheduling jobs to run at specific times.
-
+    A priority queue for scheduler jobs.
     Jobs are stored in ascending order by their scheduled execution time.
     This allows for efficient peek and pop operations of the next scheduled job.
     """
@@ -81,6 +80,9 @@ class SchedulerQueue:
 
 
 class EventMultiplexer:
+    """
+    A multiplexer that manages multiple event sources and provides methods to retrieve events in chronological order.
+    """
     def __init__(self) -> None:
         self._prefetched_events: Dict[event.EventSource, Optional[event.Event]] = {}
 
@@ -130,7 +132,8 @@ class EventMultiplexer:
 
 
 class EventDispatcher(metaclass=abc.ABCMeta):
-    """Responsible for connecting event sources to event handlers and dispatching events in the right order.
+    """
+    Responsible for connecting event sources to event handlers and dispatching events in the right order.
 
     :param max_concurrent: The maximum number of events to process concurrently.
 
