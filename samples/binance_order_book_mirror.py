@@ -100,17 +100,20 @@ class UpdaterState(metaclass=abc.ABCMeta):
 class OrderBookUpdater:
     MAX_DEPTH = 5000
 
-    def __init__(self, pair: bs.Pair, exchange: binance_exchange.Exchange, interval: int = 100, check_depth: int = 20):
+    def __init__(
+            self, pair: bs.Pair, exchange: binance_exchange.Exchange, diff_interval: int = 100, check_interval: int = 1000,
+            check_depth: int = 20
+    ):
         self.order_book = OrderBook()
         self._pair = pair
         self._exchange = exchange
         self._state = Initializing()
         self._check_task = None
-        self._check_interval = 1
+        self._check_interval = check_interval
         self._check_depth = check_depth
         self._switch_mutex = asyncio.Lock()
 
-        exchange.subscribe_to_order_book_diff_events(pair, self._on_order_book_diff_event, interval=interval)
+        exchange.subscribe_to_order_book_diff_events(pair, self._on_order_book_diff_event, interval=diff_interval)
 
     async def _on_order_book_diff_event(self, diff_event: binance_exchange.OrderBookDiffEvent):
         await self._state.on_order_book_diff_event(self, diff_event)
@@ -132,11 +135,11 @@ class OrderBookUpdater:
 
     async def _check(self):
         while True:
-            await asyncio.sleep(self._check_interval)
+            await asyncio.sleep(self._check_interval / 1000)
 
             try:
                 # If we are lucky and retrieve the same version that we have locally, check the top levels.
-                snapshot = await self._exchange.get_order_book(self._pair, self._check_depth)
+                snapshot = await self._exchange.get_order_book(self._pair, limit=self._check_depth)
                 if snapshot.last_update_id == self.order_book.last_update_id:
                     logging.info(StructuredMessage(
                         "Checking order book", last_update_id=snapshot.last_update_id
