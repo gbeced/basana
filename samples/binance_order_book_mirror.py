@@ -212,9 +212,8 @@ class Updating(UpdaterState):
     async def on_order_book_diff_event(
             self, updater: OrderBookUpdater, diff_event: binance_exchange.OrderBookDiffEvent
     ):
-        diff = diff_event.order_book_diff
         try:
-            updater.order_book.update_from_diff(diff)
+            updater.order_book.update_from_diff(diff_event.order_book_diff)
         except Exception as e:
             logging.exception(StructuredMessage("Error processing diff", error=str(e)))
             await updater.switch_state(Initializing())
