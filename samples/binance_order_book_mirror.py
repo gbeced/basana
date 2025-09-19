@@ -106,10 +106,6 @@ class OrderBook:
             # The price level has to be created.
             prices.insert(pos, (price, amount))
 
-    @property
-    def ready(self) -> bool:
-        return bool(self.bids) and bool(self.asks)
-
 
 class UpdaterState(metaclass=abc.ABCMeta):
     @abc.abstractmethod
@@ -139,7 +135,7 @@ class OrderBookUpdater:
 
     async def _on_order_book_diff_event(self, diff_event: binance_exchange.OrderBookDiffEvent):
         await self._state.on_order_book_diff_event(self, diff_event)
-        if self.order_book.ready:
+        if self.order_book.bids and self.order_book.asks:
             logging.info(StructuredMessage(
                 self._pair, bid=self.order_book.bids[0][0], ask=self.order_book.asks[0][0],
                 bids=len(self.order_book.bids), asks=len(self.order_book.asks),

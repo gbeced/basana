@@ -49,11 +49,7 @@ import pytest
 ])
 def test_order_book(updates, expected_bids, expected_asks):
     order_book = OrderBook()
-    assert not order_book.ready
     for price, amount, is_bid in updates:
         order_book.update(Decimal(price), Decimal(amount), is_bid)
     assert order_book.bids == [(Decimal(price), Decimal(amount)) for price, amount in expected_bids]
     assert order_book.asks == [(Decimal(price), Decimal(amount)) for price, amount in expected_asks]
-
-    if len(expected_bids) and len(expected_asks):
-        assert order_book.ready
