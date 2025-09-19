@@ -27,13 +27,27 @@ import basana as bs
 
 
 class OrderBook:
+    """
+    A class representing an exchange order book that maintains sorted lists of bids and asks.
+    It maintains two sorted lists:
+    - asks: List of (price, amount) tuples sorted in ascending order by price
+    - bids: List of (price, amount) tuples sorted in descending order by price
+    The order book can be initialized from exchange data and updated via diffs from a WebSocket stream
+    while maintaining proper synchronization. It ensures price levels are properly maintained by
+    inserting, updating or removing entries based on incoming data.
+    """
     def __init__(self):
         self.asks = []  # list of (price, amount), sorted ascending by price
         self.bids = []  # list of (price, amount), sorted descending by price
         self.last_update_id = 0
 
     @classmethod
-    def from_exchange(cls, obook: binance_exchange.PartialOrderBook):
+    def from_exchange(cls, obook: binance_exchange.PartialOrderBook) -> "OrderBook":
+        """
+        Creates an OrderBook instance from a Binance exchange partial order book.
+
+        :param obook: Partial order book data from Binance exchange.
+        """
         ret = OrderBook()
         ret.asks = sorted([(ask.price, ask.volume) for ask in obook.asks])
         ret.bids = sorted([(bid.price, bid.volume) for bid in obook.bids], reverse=True)
@@ -41,6 +55,14 @@ class OrderBook:
         return ret
 
     def update_from_diff(self, diff: binance_exchange.OrderBookDiff):
+        """
+        Updates the order book based on a diff received from Binance WebSocket stream.
+        This method ensures the order book stays synchronized by only applying diffs that are
+        sequential and within the current price bounds to avoid gaps in the order book.
+
+        :param diff: The OrderBookDiff containing bids and asks updates from Binance.
+        :raises Exception: If the order book snapshot is too old compared to the diff
+        """
         if self.last_update_id - diff.first_update_id < -1:
             raise Exception("Order book snapshot is too old")
 
