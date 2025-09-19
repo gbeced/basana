@@ -101,8 +101,8 @@ class OrderBookUpdater:
     MAX_DEPTH = 5000
 
     def __init__(
-            self, pair: bs.Pair, exchange: binance_exchange.Exchange, diff_interval: int = 100, check_interval: int = 1000,
-            check_depth: int = 20
+            self, pair: bs.Pair, exchange: binance_exchange.Exchange, diff_interval: int = 100,
+            check_interval: int = 1000, check_depth: int = 20
     ):
         self.order_book = OrderBook()
         self._pair = pair
