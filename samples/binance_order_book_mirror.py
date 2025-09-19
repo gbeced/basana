@@ -120,6 +120,7 @@ class OrderBookUpdater:
         if self.order_book.ready:
             logging.info(StructuredMessage(
                 self._pair, bid=self.order_book.bids[0][0], ask=self.order_book.asks[0][0],
+                bids=len(self.order_book.bids), asks=len(self.order_book.asks),
                 last_update_id=self.order_book.last_update_id
             ))
 
