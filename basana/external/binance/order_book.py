@@ -98,7 +98,7 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
     async def _fetch_and_push(self, order_book_symbol: str):
         order_book_json = await self._client.get_order_book(order_book_symbol, limit=self._limit)
         self.push(PartialOrderBookEvent(
-            dt.utc_now(),
+            dt.utc_now(monotonic=True),  # The order book doesn't include a timestamp.
             PartialOrderBook(self.pair, order_book_json)
         ))
 
@@ -124,7 +124,7 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
     async def push_from_message(self, message: dict):
         event = message["data"]
         self.push(PartialOrderBookEvent(
-            dt.utc_now(),  # The event doesn't include a timestamp.
+            dt.utc_now(monotonic=True),  # The event doesn't include a timestamp.
             PartialOrderBook(self._pair, event)
         ))
 

@@ -20,7 +20,7 @@ from typing import Any, Awaitable, Callable, List
 import datetime
 
 from . import helpers
-from basana.core import dt, event, websockets as core_ws
+from basana.core import event, websockets as core_ws
 from basana.core.pair import Pair
 
 
@@ -45,11 +45,6 @@ class OrderBookDiff:
         self.pair: Pair = pair
         #: The JSON representation.
         self.json: dict = json
-
-    @property
-    def datetime(self) -> datetime.datetime:
-        """The update datetime."""
-        return helpers.timestamp_to_datetime(int(self.json["E"]))
 
     @property
     def first_update_id(self) -> int:
@@ -97,9 +92,10 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
 
     async def push_from_message(self, message: dict):
         event = message["data"]
+        diff = OrderBookDiff(self._pair, event)
         self.push(OrderBookDiffEvent(
-            dt.utc_now(),
-            OrderBookDiff(self._pair, event)
+            helpers.timestamp_to_datetime(int(event["E"])),  # Event time
+            diff
         ))
 
 

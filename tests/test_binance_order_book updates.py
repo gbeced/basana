@@ -17,7 +17,6 @@
 from dataclasses import astuple
 from decimal import Decimal
 import asyncio
-import datetime
 import json
 
 import websockets
@@ -60,9 +59,6 @@ def test_websocket_ok(realtime_dispatcher):
         assert order_book_diff.pair == p
         assert order_book_diff.first_update_id == 76043874804
         assert order_book_diff.final_update_id == 76043875762
-        assert order_book_diff.datetime == datetime.datetime(
-            2025, 9, 10, 1, 15, 56, 14000, tzinfo=datetime.timezone.utc
-        )
         assert astuple(order_book_diff.bids[0]) == (Decimal("111179.99000000"), Decimal("17.88084000"))
         assert astuple(order_book_diff.asks[0]) == (Decimal("111178.52000000"), Decimal("0.00000000"))
 

@@ -16,8 +16,14 @@
 
 import calendar
 import datetime
+import time
 
 from dateutil import tz
+
+
+# Capture reference point
+_start_utc = datetime.datetime.now(tz=datetime.timezone.utc)
+_start_monotonic = time.monotonic()
 
 
 def is_naive(dt: datetime.datetime) -> bool:
@@ -25,9 +31,17 @@ def is_naive(dt: datetime.datetime) -> bool:
     return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
 
 
-def utc_now() -> datetime.datetime:
-    """Returns the current datetime in UTC timezone."""
-    return datetime.datetime.now(tz=datetime.timezone.utc)
+def utc_now(monotonic: bool = False) -> datetime.datetime:
+    """
+    Returns the current datetime in UTC timezone.
+
+    :param monotonic: True for monotonic behaviour (ignoring system clock updates).
+    """
+    if monotonic:
+        delta = time.monotonic() - _start_monotonic
+        return _start_utc + datetime.timedelta(seconds=delta)
+    else:
+        return datetime.datetime.now(tz=datetime.timezone.utc)
 
 
 def local_datetime(*args, **kwargs) -> datetime.datetime:
