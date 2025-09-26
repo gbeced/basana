@@ -313,7 +313,7 @@ class RealTimeTradesToBar(bar.RealTimeTradesToBar):
 
 
 class Exchange:
-    """A client for `Bitstamp <https://www.bitstamp.net//>`_ crypto currency exchange.
+    """A client for `Bitstamp <https://www.bitstamp.net/>`_ crypto currency exchange.
 
     :param dispatcher: The event dispatcher.
     :param api_key: An optional api key. If not set only public endpoints can be used.
