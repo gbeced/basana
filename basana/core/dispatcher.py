@@ -162,7 +162,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self.stop_on_handler_exceptions = False
 
     @property
-    def current_event_dt(self) -> Optional[datetime.datetime]:  # pragma: no cover
+    def current_event_dt(self) -> Optional[datetime.datetime]:
         helpers.deprecation_warning("Use now() instead")
         return self.now()
 
