@@ -151,13 +151,14 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._sniffers_pre: List[EventHandler] = []
         self._sniffers_post: List[EventHandler] = []
         self._producers: Set[event.Producer] = set()
-        self._active_tasks: Optional[helpers.TaskGroup] = None
+        # Task group for core tasks like producers and dispatch loop.
+        self._core_tasks: Optional[helpers.TaskGroup] = None
         self._running = False
         self._stopped = False
         self._scheduler_queue = SchedulerQueue()
         self._event_mux = EventMultiplexer()
-        # Used to execute event and scheduler handlers.
-        self._handlers_task_pool = helpers.TaskPool(max_concurrent)
+        # Task group for event and scheduler handlers.
+        self._handler_tasks = helpers.TaskPool(max_concurrent)
         # Set to True for the dispatcher to stop if a handler raises an exception.
         self.stop_on_handler_exceptions = False
 
@@ -179,9 +180,9 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         """Requests the event dispatcher to stop the event processing loop."""
         logger.debug("Stop requested")
         self._stopped = True
-        if self._active_tasks:
-            self._active_tasks.cancel()
-        self._handlers_task_pool.cancel()
+        if self._core_tasks:
+            self._core_tasks.cancel()
+        self._handler_tasks.cancel()
 
     def subscribe(self, source: event.EventSource, event_handler: EventHandler):
         """Registers an async callable that will be called when an event source has new events.
@@ -233,7 +234,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         """
 
         assert not self._running, "Can't run twice."
-        assert self._active_tasks is None
+        assert self._core_tasks is None
 
         # This block has coverage on all platforms except on Windows.
         if platform.system() != "Windows":  # pragma: no cover
@@ -243,11 +244,11 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._running = True
         try:
             # Initialize producers.
-            async with self._task_group() as tg:
+            async with self._core_task_group() as tg:
                 for producer in self._producers:
                     tg.create_task(producer.initialize())
             # Run producers and dispatch loop.
-            async with self._task_group() as tg:
+            async with self._core_task_group() as tg:
                 for producer in self._producers:
                     tg.create_task(producer.main())
                 tg.create_task(self._dispatch_loop())
@@ -255,11 +256,11 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             if not self.stopped:
                 raise
         finally:
-            # Cancel any pending task in the event pool.
-            self._handlers_task_pool.cancel()
-            await self._handlers_task_pool.wait()
+            # Cancel any pending task in the event handlers pool.
+            self._handler_tasks.cancel()
+            await self._handler_tasks.wait()
             # No more cancelation at this point.
-            self._active_tasks = None
+            self._core_tasks = None
             # Finalize producers.
             await gather_no_raise(*[producer.finalize() for producer in self._producers])
 
@@ -271,13 +272,13 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         raise NotImplementedError()
 
     @contextlib.asynccontextmanager
-    async def _task_group(self):
+    async def _core_task_group(self):
         try:
             async with helpers.TaskGroup() as tg:
-                self._active_tasks = tg  # So it can be canceled.
+                self._core_tasks = tg  # So it can be canceled.
                 yield tg
         finally:
-            self._active_tasks = None
+            self._core_tasks = None
 
     async def _dispatch_event(self, event_dispatch: EventDispatch):
         logger.debug(logs.StructuredMessage(
@@ -359,7 +360,7 @@ class BacktestingDispatcher(EventDispatcher):
                 await self._dispatch_scheduled(next_dt)
                 await self._dispatch_events(next_dt)
             else:
-                # Dispatch all pending scheduled before stopping.
+                # No more events. Dispatch all pending scheduled jobs before stopping.
                 if last_scheduled_dt := self._scheduler_queue.peek_last_event_dt():
                     await self._dispatch_scheduled(last_scheduled_dt)
                 self.stop()
@@ -373,9 +374,9 @@ class BacktestingDispatcher(EventDispatcher):
             if self._last_dt is None or next_scheduled_dt > self._last_dt:
                 self._last_dt = next_scheduled_dt
 
-            await self._handlers_task_pool.push(self._execute_scheduled(next_scheduled_dt, job))
+            await self._handler_tasks.push(self._execute_scheduled(next_scheduled_dt, job))
             # Waiting here and not outside of the loop to prevent executing distant scheduled jobs at the same time.
-            await self._handlers_task_pool.wait()
+            await self._handler_tasks.wait()
 
             next_scheduled_dt = self._scheduler_queue.peek_next_event_dt()
 
@@ -383,10 +384,10 @@ class BacktestingDispatcher(EventDispatcher):
         # Pop events, push them into the task pool, and wait those to finish executing.
         self._last_dt = dt
         for source, evnt in self._event_mux.pop_while(dt):
-            await self._handlers_task_pool.push(
+            await self._handler_tasks.push(
                 self._dispatch_event(EventDispatch(event=evnt, handlers=self._event_handlers[source]))
             )
-        await self._handlers_task_pool.wait()
+        await self._handler_tasks.wait()
 
 
 class RealtimeDispatcher(EventDispatcher):
@@ -425,14 +426,14 @@ class RealtimeDispatcher(EventDispatcher):
                 self._push_events(now),
             )
             # Give some time for tasks to execute, and keep on pushing tasks.
-            await self._handlers_task_pool.wait(timeout=self._wait_all_timeout)
-            if self._handlers_task_pool.idle:
+            await self._handler_tasks.wait(timeout=self._wait_all_timeout)
+            if self._handler_tasks.idle:
                 await self._on_idle()
 
     async def _on_idle(self):
         if self._idle_handlers:
             await gather_no_raise(*[
-                self._handlers_task_pool.push(idle_handler()) for idle_handler in self._idle_handlers
+                self._handler_tasks.push(idle_handler()) for idle_handler in self._idle_handlers
             ])
         else:
             # Otherwise we'll monopolize the event loop.
@@ -442,7 +443,7 @@ class RealtimeDispatcher(EventDispatcher):
         while (next_scheduled_dt := self._scheduler_queue.peek_next_event_dt()) and next_scheduled_dt <= dt:
             next_scheduled_dt, job = self._scheduler_queue.pop()
             # Push scheduled job into the task pool for processing.
-            await self._handlers_task_pool.push(self._execute_scheduled(next_scheduled_dt, job))
+            await self._handler_tasks.push(self._execute_scheduled(next_scheduled_dt, job))
 
     async def _push_events(self, dt: datetime.datetime):
         # Pop events and feed the pool.
@@ -458,7 +459,7 @@ class RealtimeDispatcher(EventDispatcher):
             self._prev_event_dt[source] = evnt.when
 
             # Push event into the task pool for processing.
-            await self._handlers_task_pool.push(
+            await self._handler_tasks.push(
                 self._dispatch_event(EventDispatch(
                     event=evnt,
                     handlers=self._event_handlers[source]
