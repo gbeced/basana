@@ -74,7 +74,6 @@ class TaskPool:
         assert size > 0, "Invalid size"
         self._max_size = size
         self._tasks: Set[asyncio.Task] = set()
-        self._done: List[asyncio.Task] = []
 
     @property
     def idle(self) -> int:
@@ -93,14 +92,6 @@ class TaskPool:
         while len(self._tasks) >= self._max_size:
             await self._wait_impl(timeout=None, return_when=asyncio.FIRST_COMPLETED)
         self._tasks.add(asyncio.create_task(coroutine))
-
-    def pop_done(self) -> List[asyncio.Task]:
-        """
-        Returns the tasks that are done running since the last call to pop_done.
-        """
-        ret = self._done
-        self._done = []
-        return ret
 
     def cancel(self):
         """
@@ -124,7 +115,6 @@ class TaskPool:
             done, _ = await asyncio.wait(self._tasks, timeout=timeout, return_when=return_when)
         for task in done:
             self._tasks.remove(task)
-            self._done.append(task)
         return len(done) > 0
 
 

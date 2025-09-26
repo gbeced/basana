@@ -137,10 +137,7 @@ def test_task_pool(pool_size, task_count):
         await pool.wait()
 
         assert pool.idle
-        tasks = pool.pop_done()
-        assert len(tasks) == task_count
         assert task_calls == task_count
-        assert all([task.done() for task in tasks])
 
     asyncio.run(test_main())
 
