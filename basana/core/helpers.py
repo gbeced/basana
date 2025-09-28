@@ -76,11 +76,11 @@ class TaskPool:
         self._tasks: Set[asyncio.Task] = set()
 
     @property
-    def idle(self) -> int:
+    def idle(self) -> bool:
         """
         True if there are no active tasks in the pool, False otherwise.
         """
-        return len(self._tasks) == 0
+        return not any(map(lambda task: not task.done(), self._tasks))
 
     async def push(self, coroutine: Coroutine[Any, Any, Any]):
         """
@@ -107,15 +107,15 @@ class TaskPool:
 
         :param timeout: The maximum number of seconds to wait for tasks to complete. If None, wait indefinitely.
         """
-        return await self._wait_impl(timeout=timeout, return_when=asyncio.ALL_COMPLETED)
+        await self._wait_impl(timeout=timeout, return_when=asyncio.ALL_COMPLETED)
+        return len(self._tasks) == 0
 
-    async def _wait_impl(self, timeout: Optional[Union[int, float]], return_when: str) -> bool:
-        done: List[asyncio.Task] = []
+    async def _wait_impl(self, timeout: Optional[Union[int, float]], return_when: str):
+        done: Set[asyncio.Task] = set()
         if self._tasks:
             done, _ = await asyncio.wait(self._tasks, timeout=timeout, return_when=return_when)
         for task in done:
             self._tasks.remove(task)
-        return len(done) > 0
 
 
 @contextlib.contextmanager
