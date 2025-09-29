@@ -77,8 +77,8 @@ class TaskPool:
         assert max_queue_size is None or max_queue_size > 0, "Invalid max_queue_size"
 
         self._max_tasks = max_tasks
-        self._queue: asyncio.Queue[Coroutine[Any, Any, Any]] = asyncio.Queue(
-            maxsize=max_tasks if max_queue_size is None else max_queue_size
+        self._queue = LazyProxy(
+            lambda: asyncio.Queue(maxsize=max_tasks if max_queue_size is None else max_queue_size)
         )
         self._tasks: Dict[str, asyncio.Task] = {}
         self._queue_timeout = 1

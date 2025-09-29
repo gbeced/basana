@@ -143,7 +143,7 @@ def test_task_pool(pool_size, task_count):
 
 
 def test_task_pool_cancel():
-    some_handler_called = asyncio.Event()
+    some_handler_called = helpers.LazyProxy(asyncio.Event)
 
     async def task():
         some_handler_called.set()
