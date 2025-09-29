@@ -399,8 +399,8 @@ class RealtimeDispatcher(EventDispatcher):
     def __init__(self, max_concurrent: int):
         super().__init__(max_concurrent=max_concurrent)
         self._prev_event_dt: Dict[event.EventSource, datetime.datetime] = {}
-        self.idle_sleep = 0.01
-        self._wait_all_timeout: Optional[float] = 0.01
+        self.idle_sleep = 0
+        self._wait_all_timeout: float = 0   # TODO: Will be removed in a future version.
         self._idle_handlers: List[IdleHandler] = []
 
     def now(self) -> datetime.datetime:
@@ -425,8 +425,10 @@ class RealtimeDispatcher(EventDispatcher):
                 self._push_scheduled(now),
                 self._push_events(now),
             )
-            # Give some time for tasks to execute, and keep on pushing tasks.
-            await self._handler_tasks.wait(timeout=self._wait_all_timeout)
+            # Optionally give some time for handlers to execute before pushing new ones.
+            # This is disabled by default and it will be deprecated.
+            if self._wait_all_timeout:  # pragma: no cover
+                await self._handler_tasks.wait(timeout=self._wait_all_timeout)
             if self._handler_tasks.idle:
                 await self._on_idle()
 
@@ -435,9 +437,9 @@ class RealtimeDispatcher(EventDispatcher):
             await gather_no_raise(*[
                 self._handler_tasks.push(idle_handler()) for idle_handler in self._idle_handlers
             ])
-        else:
-            # Otherwise we'll monopolize the event loop.
-            await asyncio.sleep(self.idle_sleep)
+
+        # Otherwise we may monopolize the event loop.
+        await asyncio.sleep(self.idle_sleep)
 
     async def _push_scheduled(self, dt: datetime.datetime):
         while (next_scheduled_dt := self._scheduler_queue.peek_next_event_dt()) and next_scheduled_dt <= dt:
