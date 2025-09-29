@@ -142,6 +142,57 @@ def test_task_pool(pool_size, task_count):
     asyncio.run(test_main())
 
 
+def test_task_pool_cancel():
+    some_handler_called = asyncio.Event()
+
+    async def task():
+        some_handler_called.set()
+        await asyncio.sleep(60)
+
+    async def test_main():
+        pool_size = 5
+        task_count = 10
+        pool = helpers.TaskPool(pool_size)
+        for _ in range(task_count):
+            await pool.push(task())
+        await some_handler_called.wait()
+
+        assert not pool.idle
+
+        pool.cancel()
+        await pool.wait()
+
+        assert pool.idle
+
+    asyncio.run(asyncio.wait_for(test_main(), 5))
+
+
+def test_task_pool_wait():
+
+    async def task():
+        await asyncio.sleep(0.5)
+
+    async def test_main():
+        pool_size = 10
+        task_count = 5
+        pool = helpers.TaskPool(pool_size)
+        for _ in range(task_count):
+            await pool.push(task())
+        done = await pool.wait(0.05)
+
+        assert not done
+        assert not pool.idle
+
+        done = await pool.wait()
+
+        assert done
+        assert pool.idle
+
+        pool.cancel()
+
+    asyncio.run(asyncio.wait_for(test_main(), 5))
+
+
 @pytest.mark.parametrize("obj, expected_classpath", [
     ("hi", "builtins.str"),
     (3, "builtins.int"),

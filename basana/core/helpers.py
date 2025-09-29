@@ -15,11 +15,12 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Any, Coroutine, List, Optional, Set, Union
+from typing import Any, Coroutine, Dict, List, Optional, Union
 import asyncio
 import contextlib
 import decimal
 import logging
+import uuid
 import warnings
 
 import aiohttp
@@ -68,54 +69,85 @@ class TaskPool:
     """
     A class for managing a pool of asyncio tasks.
 
-    :param size: The maximum size of the task pool.
+    :param size: The maximum number of tasks to be running at the same time.
+    :param max_queue_size: The maximum number of coroutines to be waiting in the queue for execution.
     """
-    def __init__(self, size: int):
-        assert size > 0, "Invalid size"
-        self._max_size = size
-        self._tasks: Set[asyncio.Task] = set()
+    def __init__(self, max_tasks: int, max_queue_size: Optional[int] = None):
+        assert max_tasks > 0, "Invalid max_tasks"
+        assert max_queue_size is None or max_queue_size > 0, "Invalid max_queue_size"
+
+        self._max_tasks = max_tasks
+        self._queue: asyncio.Queue[Coroutine[Any, Any, Any]] = asyncio.Queue(
+            maxsize=max_tasks if max_queue_size is None else max_queue_size
+        )
+        self._tasks: Dict[str, asyncio.Task] = {}
+        self._queue_timeout = 1
+        self._active = 0
 
     @property
     def idle(self) -> bool:
         """
         True if there are no active tasks in the pool, False otherwise.
         """
-        return not any(map(lambda task: not task.done(), self._tasks))
+        return self._active == 0 and self._queue.empty()
 
     async def push(self, coroutine: Coroutine[Any, Any, Any]):
         """
-        Adds a coroutine to the task pool. If the pool is full it will block until there is room for the new task.
+        Adds a coroutine to the queue. It may block if the queue is full.
 
         :param coroutine: The coroutine to be added to the task pool.
         """
-        # Wait for some task to complete if there is no more room.
-        while len(self._tasks) >= self._max_size:
-            await self._wait_impl(timeout=None, return_when=asyncio.FIRST_COMPLETED)
-        self._tasks.add(asyncio.create_task(coroutine))
+
+        await self._queue.put(coroutine)
+
+        # Create a new task if necessary.
+        if len(self._tasks) < self._max_tasks and self._queue.qsize():
+            task_name = uuid.uuid4().hex
+            self._tasks[task_name] = asyncio.create_task(self._task_main(task_name))
 
     def cancel(self):
         """
-        Requests all tasks in the pool to be canceled.
+        Requests all tasks in the pool to be canceled and clears the queue.
         """
-        pending = [task for task in self._tasks if not task.done()]
-        for task in pending:
+        for task in self._tasks.values():
             task.cancel()
+
+        # Empty the queue.
+        while self._queue.qsize():
+            self._queue.get_nowait()
+            self._queue.task_done()
 
     async def wait(self, timeout: Optional[Union[int, float]] = None) -> bool:
         """
-        Waits for all tasks in the pool to complete. Returns True if all tasks are done, False otherwise.
+        Waits for all tasks in the pool to complete.
 
         :param timeout: The maximum number of seconds to wait for tasks to complete. If None, wait indefinitely.
+        :returns: Returns True if all the coroutines in the queue have been processed, False otherwise.
         """
-        await self._wait_impl(timeout=timeout, return_when=asyncio.ALL_COMPLETED)
-        return len(self._tasks) == 0
 
-    async def _wait_impl(self, timeout: Optional[Union[int, float]], return_when: str):
-        done: Set[asyncio.Task] = set()
-        if self._tasks:
-            done, _ = await asyncio.wait(self._tasks, timeout=timeout, return_when=return_when)
-        for task in done:
-            self._tasks.remove(task)
+        ret = False
+        try:
+            await asyncio.wait_for(self._queue.join(), timeout=timeout)
+            ret = True
+        except asyncio.TimeoutError:
+            pass
+        return ret
+
+    async def _task_main(self, task_name: str):
+        try:
+            while True:
+                coro = await asyncio.wait_for(self._queue.get(), timeout=self._queue_timeout)
+                try:
+                    self._active += 1
+                    await coro
+                finally:
+                    self._active -= 1
+                    self._queue.task_done()
+        except asyncio.TimeoutError:
+            pass
+        finally:
+            # Remove ourselves from the task registry once we're done.
+            self._tasks.pop(task_name)
 
 
 @contextlib.contextmanager

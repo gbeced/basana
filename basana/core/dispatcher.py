@@ -158,7 +158,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._scheduler_queue = SchedulerQueue()
         self._event_mux = EventMultiplexer()
         # Task group for event and scheduler handlers.
-        self._handler_tasks = helpers.TaskPool(max_concurrent)
+        self._handler_tasks = helpers.TaskPool(max_concurrent, max_queue_size=max_concurrent * 10)
         # Set to True for the dispatcher to stop if a handler raises an exception.
         self.stop_on_handler_exceptions = False
 
