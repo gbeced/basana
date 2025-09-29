@@ -5,6 +5,7 @@
 ### Features
 
 * Added support for Binance order book diff events via websockets.
+* Performance improvements for realtime dispatcher.
 
 ### Bug fixes
 
