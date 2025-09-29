@@ -67,9 +67,13 @@ class OrderBook:
             raise Exception("Order book snapshot is too old")
 
         if self.last_update_id < diff.final_update_id:
-            for bid in diff.bids:
+            last_bid: Optional[Decimal] = None if not self.bids else self.bids[-1][0]
+            last_ask: Optional[Decimal] = None if not self.asks else self.asks[-1][0]
+
+            # Update only within our current bounds, otherwise there might be gaps.
+            for bid in filter(lambda bid: last_bid is None or bid.price >= last_bid, diff.bids):
                 self.update(price=bid.price, amount=bid.volume, is_bid=True)
-            for ask in diff.asks:
+            for ask in filter(lambda ask: last_ask is None or ask.price <= last_ask, diff.asks):
                 self.update(price=ask.price, amount=ask.volume, is_bid=False)
             self.last_update_id = diff.final_update_id
 
