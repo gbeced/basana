@@ -63,10 +63,11 @@ class OrderBook:
         :param diff: The OrderBookDiff containing bids and asks updates from Binance.
         :raises Exception: If the order book snapshot is too old compared to the diff
         """
-        if self.last_update_id - diff.first_update_id < -1:
-            raise Exception("Order book snapshot is too old")
 
-        if self.last_update_id < diff.final_update_id:
+        update_id_diff = diff.first_update_id - self.last_update_id
+        if update_id_diff > 1:
+            raise Exception("Order book snapshot is too old")
+        elif update_id_diff >= 0:
             last_bid: Optional[Decimal] = None if not self.bids else self.bids[-1][0]
             last_ask: Optional[Decimal] = None if not self.asks else self.asks[-1][0]
 
@@ -118,24 +119,31 @@ class UpdaterState(metaclass=abc.ABCMeta):
     ):
         raise NotImplementedError()
 
+    async def on_enter_state(self, updater: "OrderBookUpdater"):
+        pass
+
+    async def on_exit_state(self, updater: "OrderBookUpdater"):
+        pass
+
 
 class OrderBookUpdater:
-    MAX_DEPTH = 5000
-
     def __init__(
-            self, pair: bs.Pair, exchange: binance_exchange.Exchange, diff_interval: int = 100,
-            check_interval: int = 1000, check_depth: int = 20
+            self, pair: bs.Pair, exchange: binance_exchange.Exchange, max_depth: int = 5000,
+            diff_interval_ms: int = 100, check_interval_ms: int = 1000, check_depth: int = 20
     ):
+        assert diff_interval_ms in (100, 1000)
+        assert max_depth <= 5000
+
         self.order_book = OrderBook()
         self._pair = pair
         self._exchange = exchange
+        self._max_depth = max_depth
         self._state = Initializing()
-        self._check_task = None
-        self._check_interval = check_interval
+        self._check_interval_ms = check_interval_ms
         self._check_depth = check_depth
         self._switch_mutex = asyncio.Lock()
 
-        exchange.subscribe_to_order_book_diff_events(pair, self._on_order_book_diff_event, interval=diff_interval)
+        exchange.subscribe_to_order_book_diff_events(pair, self._on_order_book_diff_event, interval=diff_interval_ms)
 
     async def _on_order_book_diff_event(self, diff_event: binance_exchange.OrderBookDiffEvent):
         await self._state.on_order_book_diff_event(self, diff_event)
@@ -145,42 +153,31 @@ class OrderBookUpdater:
                 bids=len(self.order_book.bids), asks=len(self.order_book.asks),
                 last_update_id=self.order_book.last_update_id
             ))
-
-        if self._check_interval and self._check_task is None:
-            self._check_task = asyncio.create_task(self._check())
+        else:
+            logging.info(StructuredMessage(
+                self._pair, bids=len(self.order_book.bids), asks=len(self.order_book.asks),
+                last_update_id=self.order_book.last_update_id
+            ))
 
     async def switch_state(self, state: UpdaterState, order_book: Optional[OrderBook] = None):
         async with self._switch_mutex:
+            logging.info(StructuredMessage(
+                "Switch state", current=self._state.__class__.__name__, new=state.__class__.__name__
+            ))
+
+            await self._state.on_exit_state(self)
+
             if order_book:
                 assert order_book.last_update_id >= self.order_book.last_update_id
                 self.order_book = order_book
+                logging.info(StructuredMessage(
+                    "New orderbook",
+                    top_bid=self.order_book.bids[0][0], last_bid=self.order_book.bids[-1][0],
+                    top_ask=self.order_book.asks[0][0], last_ask=self.order_book.asks[-1][0],
+                ))
             self._state = state
 
-    async def _check(self):
-        while True:
-            await asyncio.sleep(self._check_interval / 1000)
-
-            try:
-                # If we are lucky and retrieve the same version that we have locally, check the top levels.
-                snapshot = await self._exchange.get_order_book(self._pair, limit=self._check_depth)
-                if snapshot.last_update_id == self.order_book.last_update_id:
-                    logging.info(StructuredMessage(
-                        "Checking order book", last_update_id=snapshot.last_update_id
-                    ))
-
-                    snapshot_bids = [(bid.price, bid.volume) for bid in snapshot.bids]
-                    snapshot_asks = [(ask.price, ask.volume) for ask in snapshot.asks]
-                    local_bids = self.order_book.bids[:self._check_depth]
-                    local_asks = self.order_book.asks[:self._check_depth]
-                    if local_bids != snapshot_bids or local_asks != snapshot_asks:
-                        logging.error(StructuredMessage(
-                            "Order book mismatch", last_update_id=snapshot.last_update_id,
-                            local_bids=local_bids, snapshot_bids=snapshot_bids,
-                            local_asks=local_asks, snapshot_asks=snapshot_asks
-                        ))
-                        await self.switch_state(Initializing())
-            except Exception as e:
-                logging.exception(StructuredMessage("Error checking order book", error=str(e)))
+            await self._state.on_enter_state(self)
 
 
 class Initializing(UpdaterState):
@@ -199,7 +196,7 @@ class Initializing(UpdaterState):
 
     async def _fetch_snapshot(self, updater: OrderBookUpdater):
         try:
-            snapshot = await updater._exchange.get_order_book(updater._pair, OrderBookUpdater.MAX_DEPTH)
+            snapshot = await updater._exchange.get_order_book(updater._pair, updater._max_depth)
 
             # If the lastUpdateId from the snapshot is strictly less than the first_update_id from the first diff in
             # the queue, then re-fetch the snapshot.
@@ -231,14 +228,61 @@ class Initializing(UpdaterState):
 
 
 class Updating(UpdaterState):
+    def __init__(self):
+        self._snapshot: Optional[binance_exchange.PartialOrderBook] = None
+        self._fetch_task: Optional[asyncio.Task] = None
+
+    async def on_enter_state(self, updater: "OrderBookUpdater"):
+        if updater._check_interval_ms:
+            self._fetch_task = asyncio.create_task(self._fetch_snapshot(updater))
+
     async def on_order_book_diff_event(
             self, updater: OrderBookUpdater, diff_event: binance_exchange.OrderBookDiffEvent
     ):
         try:
+            logging.info(StructuredMessage(
+                "Order book diff", first_update_id=diff_event.order_book_diff.first_update_id,
+                final_update_id=diff_event.order_book_diff.final_update_id
+            ))
             updater.order_book.update_from_diff(diff_event.order_book_diff)
+            await self._check_order_book_consistency(updater)
         except Exception as e:
             logging.exception(StructuredMessage("Error processing diff", error=str(e)))
             await updater.switch_state(Initializing())
+
+    async def on_exit_state(self, updater: "OrderBookUpdater"):
+        if self._fetch_task:
+            self._fetch_task.cancel()
+
+    async def _fetch_snapshot(self, updater: OrderBookUpdater):
+        while True:
+            try:
+                await asyncio.sleep(updater._check_interval_ms / 1000)
+                snapshot = await updater._exchange.get_order_book(updater._pair, limit=updater._check_depth)
+                self._snapshot = snapshot
+                logging.info(StructuredMessage("Fetched order book", last_update_id=self._snapshot.last_update_id))
+                await self._check_order_book_consistency(updater)
+            except Exception as e:
+                logging.exception(StructuredMessage("Error fetching order book", error=str(e)))
+
+    async def _check_order_book_consistency(self, updater: OrderBookUpdater):
+        if self._snapshot is None:
+            return
+
+        if self._snapshot.last_update_id == updater.order_book.last_update_id:
+            logging.info(StructuredMessage("Checking order book", last_update_id=self._snapshot.last_update_id))
+
+            snapshot_bids = [(bid.price, bid.volume) for bid in self._snapshot.bids]
+            snapshot_asks = [(ask.price, ask.volume) for ask in self._snapshot.asks]
+            local_bids = updater.order_book.bids[:updater._check_depth]
+            local_asks = updater.order_book.asks[:updater._check_depth]
+            if local_bids != snapshot_bids or local_asks != snapshot_asks:
+                logging.error(StructuredMessage(
+                    "Order book mismatch", last_update_id=self._snapshot.last_update_id,
+                    local_bids=local_bids, snapshot_bids=snapshot_bids,
+                    local_asks=local_asks, snapshot_asks=snapshot_asks
+                ))
+                await updater.switch_state(Initializing())
 
 
 def bisect_descending(a, x):
