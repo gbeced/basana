@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import List, Optional
+from typing import List, Optional, Tuple
 import abc
 import asyncio
 import bisect
@@ -29,17 +29,18 @@ import basana as bs
 class OrderBook:
     """
     A class representing an exchange order book that maintains sorted lists of bids and asks.
-    It maintains two sorted lists:
-    - asks: List of (price, amount) tuples sorted in ascending order by price
-    - bids: List of (price, amount) tuples sorted in descending order by price
     The order book can be initialized from exchange data and updated via diffs from a WebSocket stream
     while maintaining proper synchronization. It ensures price levels are properly maintained by
     inserting, updating or removing entries based on incoming data.
     """
-    def __init__(self):
-        self.asks = []  # list of (price, amount), sorted ascending by price
-        self.bids = []  # list of (price, amount), sorted descending by price
+    def __init__(
+            self, bids: List[Tuple[Decimal, Decimal]] = [], asks: List[Tuple[Decimal, Decimal]] = []
+    ):
+        self.bids = sorted(bids, reverse=True)
+        self.asks = sorted(asks)
         self.last_update_id = 0
+        self._last_bid: Optional[Decimal] = self.bids[-1][0] if self.bids else None
+        self._last_ask: Optional[Decimal] = self.asks[-1][0] if self.asks else None
 
     @classmethod
     def from_exchange(cls, obook: binance_exchange.PartialOrderBook) -> "OrderBook":
@@ -48,9 +49,10 @@ class OrderBook:
 
         :param obook: Partial order book data from Binance exchange.
         """
-        ret = OrderBook()
-        ret.asks = sorted([(ask.price, ask.volume) for ask in obook.asks])
-        ret.bids = sorted([(bid.price, bid.volume) for bid in obook.bids], reverse=True)
+        ret = OrderBook(
+            bids=[(bid.price, bid.volume) for bid in obook.bids],
+            asks=[(ask.price, ask.volume) for ask in obook.asks]
+        )
         ret.last_update_id = obook.last_update_id
         return ret
 
@@ -68,13 +70,10 @@ class OrderBook:
         if update_id_diff > 1:
             raise Exception("Order book snapshot is too old")
         elif update_id_diff >= 0:
-            last_bid: Optional[Decimal] = None if not self.bids else self.bids[-1][0]
-            last_ask: Optional[Decimal] = None if not self.asks else self.asks[-1][0]
-
             # Update only within our current bounds, otherwise there might be gaps.
-            for bid in filter(lambda bid: last_bid is None or bid.price >= last_bid, diff.bids):
+            for bid in filter(lambda bid: self._last_bid is not None and bid.price >= self._last_bid, diff.bids):
                 self.update(price=bid.price, amount=bid.volume, is_bid=True)
-            for ask in filter(lambda ask: last_ask is None or ask.price <= last_ask, diff.asks):
+            for ask in filter(lambda ask: self._last_ask is not None and ask.price <= self._last_ask, diff.asks):
                 self.update(price=ask.price, amount=ask.volume, is_bid=False)
             self.last_update_id = diff.final_update_id
 
