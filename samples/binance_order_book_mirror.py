@@ -125,14 +125,33 @@ class UpdaterState(metaclass=abc.ABCMeta):
     async def on_exit_state(self, updater: "OrderBookUpdater"):
         pass
 
+    async def on_sync_required(self, updater: "OrderBookUpdater"):
+        pass
+
 
 class OrderBookUpdater:
+    """
+    An order book updater that maintains a local copy of Binance order book by processing
+    diffs received from a WebSocket stream and periodically checking consistency against
+    snapshots fetched via REST API. It handles initialization, updating, and state transitions to ensure
+    the local order book remains accurate and synchronized with the exchange.
+
+    :param pair: The trading pair for the order book.
+    :param exchange: The Binance exchange instance to interact with.
+    :param max_depth: The maximum depth of the order book to maintain (5000 is the maximum depth supported).
+    :param diff_interval_ms: The interval in milliseconds for receiving order book diffs (100 or 1000 ms).
+    :param check_interval_ms: The interval in milliseconds for checking order book consistency via snapshots.
+    :param check_depth: The depth of the order book to check for consistency.
+    :param re_sync_threshold: The threshold (as a fraction of max_depth) below which a re-sync is triggered.
+    """
     def __init__(
             self, pair: bs.Pair, exchange: binance_exchange.Exchange, max_depth: int = 5000,
-            diff_interval_ms: int = 100, check_interval_ms: int = 1000, check_depth: int = 20
+            diff_interval_ms: int = 100, check_interval_ms: int = 1000, check_depth: int = 20,
+            re_sync_threshold: float = 0.2
     ):
         assert diff_interval_ms in (100, 1000)
         assert max_depth <= 5000
+        assert re_sync_threshold > 0 and re_sync_threshold < 1
 
         self.order_book = OrderBook()
         self._pair = pair
@@ -142,22 +161,31 @@ class OrderBookUpdater:
         self._check_interval_ms = check_interval_ms
         self._check_depth = check_depth
         self._switch_mutex = asyncio.Lock()
+        self._re_sync_threshold = round(max_depth * re_sync_threshold)
 
         exchange.subscribe_to_order_book_diff_events(pair, self._on_order_book_diff_event, interval=diff_interval_ms)
 
     async def _on_order_book_diff_event(self, diff_event: binance_exchange.OrderBookDiffEvent):
+        logging.info(StructuredMessage(
+            "Order book diff", first_update_id=diff_event.order_book_diff.first_update_id,
+            final_update_id=diff_event.order_book_diff.final_update_id
+        ))
+
         await self._state.on_order_book_diff_event(self, diff_event)
-        if self.order_book.bids and self.order_book.asks:
-            logging.info(StructuredMessage(
-                self._pair, bid=self.order_book.bids[0][0], ask=self.order_book.asks[0][0],
-                bids=len(self.order_book.bids), asks=len(self.order_book.asks),
-                last_update_id=self.order_book.last_update_id
-            ))
-        else:
-            logging.info(StructuredMessage(
-                self._pair, bids=len(self.order_book.bids), asks=len(self.order_book.asks),
-                last_update_id=self.order_book.last_update_id
-            ))
+
+        msg_kwargs = dict(
+            bids=len(self.order_book.bids),
+            asks=len(self.order_book.asks),
+            last_update_id=self.order_book.last_update_id
+        )
+        if self.order_book.bids:
+            msg_kwargs["bid"] = self.order_book.bids[0][0]
+        if self.order_book.asks:
+            msg_kwargs["ask"] = self.order_book.asks[0][0]
+        logging.info(StructuredMessage(self._pair, **msg_kwargs))
+
+        if len(self.order_book.bids) <= self._re_sync_threshold or len(self.order_book.asks) <= self._re_sync_threshold:
+            await self._state.on_sync_required(self)
 
     async def switch_state(self, state: UpdaterState, order_book: Optional[OrderBook] = None):
         async with self._switch_mutex:
@@ -171,7 +199,7 @@ class OrderBookUpdater:
                 assert order_book.last_update_id >= self.order_book.last_update_id
                 self.order_book = order_book
                 logging.info(StructuredMessage(
-                    "New orderbook",
+                    "New orderbook set", last_update_id=self.order_book.last_update_id,
                     top_bid=self.order_book.bids[0][0], last_bid=self.order_book.bids[-1][0],
                     top_ask=self.order_book.asks[0][0], last_ask=self.order_book.asks[-1][0],
                 ))
@@ -240,10 +268,6 @@ class Updating(UpdaterState):
             self, updater: OrderBookUpdater, diff_event: binance_exchange.OrderBookDiffEvent
     ):
         try:
-            logging.info(StructuredMessage(
-                "Order book diff", first_update_id=diff_event.order_book_diff.first_update_id,
-                final_update_id=diff_event.order_book_diff.final_update_id
-            ))
             updater.order_book.update_from_diff(diff_event.order_book_diff)
             await self._check_order_book_consistency(updater)
         except Exception as e:
@@ -253,6 +277,10 @@ class Updating(UpdaterState):
     async def on_exit_state(self, updater: "OrderBookUpdater"):
         if self._fetch_task:
             self._fetch_task.cancel()
+
+    async def on_sync_required(self, updater: "OrderBookUpdater"):
+        logging.warning("Sync required")
+        await updater.switch_state(Initializing())
 
     async def _fetch_snapshot(self, updater: OrderBookUpdater):
         while True:
