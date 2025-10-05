@@ -21,7 +21,7 @@
 The examples use [TALIpp](https://github.com/nardew/talipp) for the technical indicators, pandas and statsmodels.
 
 ```
-$ pip install basana[charts] talipp pandas statsmodels
+$ pip install basana[charts] talipp pandas statsmodels textual
 ```
 
 ### Backtest a pairs trading strategy
