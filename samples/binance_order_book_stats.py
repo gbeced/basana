@@ -41,6 +41,8 @@ class WriteToLogWidget(logging.Handler):
     def emit(self, record):
         msg = self.format(record)
         self._log.write_line(msg)
+        # Force refresh because there is an update bug when using max_lines.
+        self._log.refresh()
 
 
 class OrderBookStatsApp(App):
@@ -69,7 +71,7 @@ class OrderBookStatsApp(App):
         imbalance_and_assimetry_stats = widgets.DataTable(
             id="imbalance_and_assimetry", show_cursor=False, show_header=False
         )
-        logs = widgets.Log(id="logs", highlight=True)
+        logs = widgets.Log(id="logs", highlight=True, max_lines=100)
 
         stats = containers.Vertical(
             widgets.Collapsible(basic_stats, title="Basic", collapsed=False),
