@@ -19,6 +19,7 @@ import asyncio
 import logging
 
 from rich.text import Text
+from textual import binding
 from textual import containers
 from textual import widgets
 from textual.app import App
@@ -48,6 +49,10 @@ class OrderBookStatsApp(App):
         width: 80;
     }
     """
+
+    BINDINGS = [
+        binding.Binding(key="q", action="quit", description="Quit the app"),
+    ]
 
     def __init__(self, dispatcher: bs.EventDispatcher, mirror: OrderBookUpdater):
         super().__init__()
