@@ -58,7 +58,7 @@ class OrderBookStatsApp(App):
         self._cum_depth_pct = Decimal("0.1")
 
     def compose(self):
-        obook = widgets.DataTable(id="obook", show_cursor=True, cursor_type="row", zebra_stripes=True)
+        obook = widgets.DataTable(id="obook", show_cursor=False, zebra_stripes=True)
         basic_stats = widgets.DataTable(id="basic_stats", show_cursor=False, show_header=False)
         depth_and_volume_stats = widgets.DataTable(id="depth_and_volume_stats", show_cursor=False)
         imbalance_and_assimetry_stats = widgets.DataTable(
@@ -89,10 +89,10 @@ class OrderBookStatsApp(App):
         # Init tables.
         table_columns = {
             "#obook": [
-                (Text("Size", style="green"), "bid_size"),
-                (Text("Bid", style="green"), "bid_price"),
-                (Text("Ask", style="red"), "ask_price"),
-                (Text("Size", style="red"), "ask_size"),
+                (obook_text("Size", "bid"), "bid_size"),
+                (obook_text("Bid", "bid"), "bid_price"),
+                (obook_text("Ask", "ask"), "ask_price"),
+                (obook_text("Size", "ask"), "ask_size"),
             ],
             "#basic_stats": ["description", "value"],
             "#depth_and_volume_stats": ["", "bid", "ask"],
@@ -154,10 +154,10 @@ class OrderBookStatsApp(App):
         asks = self._mirror.order_book.asks[:table_max]
 
         def build_row(row: int):
-            bid_size = Text(str(bids[row][1]), style="green") if row < len(bids) else ""
-            bid_price = Text(str(bids[row][0]), style="green") if row < len(bids) else ""
-            ask_price = Text(str(asks[row][0]), style="red") if row < len(asks) else ""
-            ask_size = Text(str(asks[row][1]), style="red") if row < len(asks) else ""
+            bid_size = obook_text(str(bids[row][1]), "bid") if row < len(bids) else ""
+            bid_price = obook_text(str(bids[row][0]), "bid") if row < len(bids) else ""
+            ask_price = obook_text(str(asks[row][0]), "ask") if row < len(asks) else ""
+            ask_size = obook_text(str(asks[row][1]), "ask") if row < len(asks) else ""
             return (bid_size, bid_price, ask_price, ask_size)
 
         current_rows = len(table.rows)
@@ -223,6 +223,10 @@ class OrderBookStatsApp(App):
         for row in rows:
             desc, *keys = row
             table.add_row(desc, *[values[key] for key in keys])
+
+
+def obook_text(value: str, side: str) -> Text:
+    return Text(value, style="green" if side == "bid" else "red")
 
 
 def cumulative_depth_at_distance(levels: list, mid: Decimal, threshold_pct: Decimal):
