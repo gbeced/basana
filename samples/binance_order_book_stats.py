@@ -48,7 +48,8 @@ class WriteToLogWidget(logging.Handler):
 class OrderBookStatsApp(App):
     CSS = """
     #obook {
-        width: 80;
+        width: auto;
+        min-width: 40;
     }
     """
 
