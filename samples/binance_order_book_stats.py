@@ -116,6 +116,10 @@ class OrderBookStatsApp(App):
         if self._dispatcher_task is None:
             self._dispatcher_task = asyncio.create_task(self._dispatcher.run())
 
+    def action_quit(self):
+        self._dispatcher.stop()
+        self.exit()
+
     def _generate_stats(self):
         stats = {}
 
@@ -147,14 +151,14 @@ class OrderBookStatsApp(App):
         return stats
 
     def _update_widgets(self):
-        self.update_obook()
+        self._update_obook()
 
         stats = self._generate_stats()
-        self.update_basic_stats(stats)
-        self.update_depth_and_volume_stats(stats)
-        self.update_imbalance_and_assimetry(stats)
+        self._update_basic_stats(stats)
+        self._update_depth_and_volume_stats(stats)
+        self._update_imbalance_and_assimetry(stats)
 
-    def update_obook(self):
+    def _update_obook(self):
         table_max = 200  # Limit number of rows to display avoid performance issues.
         table = self.query_one("#obook", expect_type=widgets.DataTable)
         bids = self._mirror.order_book.bids[:table_max]
@@ -187,7 +191,7 @@ class OrderBookStatsApp(App):
             while (len(table.rows) > final_rows):
                 table.remove_row(str(len(table.rows) - 1))
 
-    def update_basic_stats(self, stats: dict):
+    def _update_basic_stats(self, stats: dict):
         rows = [
             ["Mid Price", "mid_price"],
             ["Bid-Ask Spread", "spread"],
@@ -197,7 +201,7 @@ class OrderBookStatsApp(App):
         values["mid_price"] = format_stat(stats, "mid_price", "{:.8f}")
         self._update_table("#basic_stats", rows, values)
 
-    def update_depth_and_volume_stats(self, stats: dict):
+    def _update_depth_and_volume_stats(self, stats: dict):
         rows = [
             [f"Top {self._top_n} Depth", "top_bids_depth", "top_asks_depth"],
             [f"Top {self._top_n} VWAP", "top_bids_vwap", "top_asks_vwap"],
@@ -212,17 +216,13 @@ class OrderBookStatsApp(App):
         values["top_asks_vwap"] = format_stat(stats, "top_asks_vwap", "{:.8f}")
         self._update_table("#depth_and_volume_stats", rows, values)
 
-    def update_imbalance_and_assimetry(self, stats: dict):
+    def _update_imbalance_and_assimetry(self, stats: dict):
         rows = [
             [f"Top {self._top_n} Imbalance", "imbalance"],
         ]
         values = {}
         values["imbalance"] = format_stat(stats, "imbalance", "{:.8f}")
         self._update_table("#imbalance_and_assimetry", rows, values)
-
-    def action_quit(self):
-        self._dispatcher.stop()
-        self.exit()
 
     def _update_table(self, table_id: str, rows: list, values: dict):
         table = self.query_one(table_id, expect_type=widgets.DataTable)
