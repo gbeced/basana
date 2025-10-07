@@ -399,7 +399,7 @@ class RealtimeDispatcher(EventDispatcher):
     def __init__(self, max_concurrent: int):
         super().__init__(max_concurrent=max_concurrent)
         self._prev_event_dt: Dict[event.EventSource, datetime.datetime] = {}
-        self.idle_sleep = 0
+        self.idle_sleep: float = 0.001
         self._wait_all_timeout: float = 0   # TODO: Will be removed in a future version.
         self._idle_handlers: List[IdleHandler] = []
 
