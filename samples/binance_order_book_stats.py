@@ -196,10 +196,14 @@ class OrderBookStatsApp(App):
         rows = [
             ["Mid Price", "mid_price"],
             ["Bid-Ask Spread", "spread"],
+            ["Lag", "lag"],
         ]
         values = {}
         values["spread"] = format_stat(stats, "spread", "{:.8f}")
         values["mid_price"] = format_stat(stats, "mid_price", "{:.8f}")
+        values["lag"] = "N/A" if self._mirror.order_book.last_updated is None else \
+            f"{(bs.utc_now() - self._mirror.order_book.last_updated).total_seconds():.3f} s"
+
         self._update_table("#basic_stats", rows, values)
 
     def _update_depth_and_volume_stats(self, stats: dict):
