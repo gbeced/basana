@@ -19,6 +19,7 @@ from typing import List, Optional, Tuple
 import abc
 import asyncio
 import bisect
+import datetime
 import logging
 
 from basana.core.logs import StructuredMessage
@@ -39,6 +40,7 @@ class OrderBook:
         self.bids = sorted(bids, reverse=True)
         self.asks = sorted(asks)
         self.last_update_id = 0
+        self.last_updated: Optional[datetime.datetime] = None
         self._last_bid: Optional[Decimal] = self.bids[-1][0] if self.bids else None
         self._last_ask: Optional[Decimal] = self.asks[-1][0] if self.asks else None
 
@@ -56,7 +58,7 @@ class OrderBook:
         ret.last_update_id = obook.last_update_id
         return ret
 
-    def update_from_diff(self, diff: binance_exchange.OrderBookDiff):
+    def update_from_diff(self, diff_event: binance_exchange.OrderBookDiffEvent):
         """
         Updates the order book based on a diff received from Binance WebSocket stream.
         This method ensures the order book stays synchronized by only applying diffs that are
@@ -66,6 +68,7 @@ class OrderBook:
         :raises Exception: If the order book snapshot is too old compared to the diff
         """
 
+        diff = diff_event.order_book_diff
         update_id_diff = diff.first_update_id - self.last_update_id
         if update_id_diff > 1:
             raise Exception("Order book snapshot is too old")
@@ -76,6 +79,7 @@ class OrderBook:
             for ask in filter(lambda ask: self._last_ask is not None and ask.price <= self._last_ask, diff.asks):
                 self.update(price=ask.price, amount=ask.volume, is_bid=False)
             self.last_update_id = diff.final_update_id
+            self.last_updated = diff_event.when
 
     def update(self, price: Decimal, amount: Decimal, is_bid: bool):
         """
@@ -209,14 +213,14 @@ class OrderBookUpdater:
 
 class Initializing(UpdaterState):
     def __init__(self):
-        self._buffer: List[binance_exchange.OrderBookDiff] = []
+        self._buffer: List[binance_exchange.OrderBookDiffEvent] = []
         self._fetch_task: Optional[asyncio.Task] = None
 
     async def on_order_book_diff_event(
             self, updater: OrderBookUpdater, diff_event: binance_exchange.OrderBookDiffEvent
     ):
         # Buffer diffs to be processed once the snapshot is fetched.
-        self._buffer.append(diff_event.order_book_diff)
+        self._buffer.append(diff_event)
         # Fetch the snapshot if not doing so already.
         if self._fetch_task is None:
             self._fetch_task = asyncio.create_task(self._fetch_snapshot(updater))
@@ -227,12 +231,12 @@ class Initializing(UpdaterState):
 
             # If the lastUpdateId from the snapshot is strictly less than the first_update_id from the first diff in
             # the queue, then re-fetch the snapshot.
-            if snapshot.last_update_id < self._buffer[0].first_update_id:
+            if snapshot.last_update_id < self._buffer[0].order_book_diff.first_update_id:
                 raise Exception("Order book snapshot is too old")
 
             # Discard any diff where final_update_id is <= last_update_id of the snapshot.
             for i in range(0, len(self._buffer)):
-                if self._buffer[i].final_update_id > snapshot.last_update_id:
+                if self._buffer[i].order_book_diff.final_update_id > snapshot.last_update_id:
                     break
             else:
                 i += 1  # No diffs to apply.
@@ -267,7 +271,7 @@ class Updating(UpdaterState):
             self, updater: OrderBookUpdater, diff_event: binance_exchange.OrderBookDiffEvent
     ):
         try:
-            updater.order_book.update_from_diff(diff_event.order_book_diff)
+            updater.order_book.update_from_diff(diff_event)
             await self._check_order_book_consistency(updater)
         except Exception as e:
             logging.exception(StructuredMessage("Error processing diff", error=str(e)))
