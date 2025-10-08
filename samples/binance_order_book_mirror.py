@@ -297,23 +297,22 @@ class Updating(UpdaterState):
                 logging.exception(StructuredMessage("Error fetching order book", error=str(e)))
 
     async def _check_order_book_consistency(self, updater: OrderBookUpdater):
-        if self._snapshot is None:
+        if self._snapshot is None or self._snapshot.last_update_id != updater.order_book.last_update_id:
             return
 
-        if self._snapshot.last_update_id == updater.order_book.last_update_id:
-            logging.info(StructuredMessage("Checking order book", last_update_id=self._snapshot.last_update_id))
+        logging.info(StructuredMessage("Checking order book", last_update_id=self._snapshot.last_update_id))
 
-            snapshot_bids = [(bid.price, bid.volume) for bid in self._snapshot.bids]
-            snapshot_asks = [(ask.price, ask.volume) for ask in self._snapshot.asks]
-            local_bids = updater.order_book.bids[:updater._check_depth]
-            local_asks = updater.order_book.asks[:updater._check_depth]
-            if local_bids != snapshot_bids or local_asks != snapshot_asks:
-                logging.error(StructuredMessage(
-                    "Order book mismatch", last_update_id=self._snapshot.last_update_id,
-                    local_bids=local_bids, snapshot_bids=snapshot_bids,
-                    local_asks=local_asks, snapshot_asks=snapshot_asks
-                ))
-                await updater.switch_state(Initializing())
+        snapshot_bids = [(bid.price, bid.volume) for bid in self._snapshot.bids]
+        snapshot_asks = [(ask.price, ask.volume) for ask in self._snapshot.asks]
+        local_bids = updater.order_book.bids[:updater._check_depth]
+        local_asks = updater.order_book.asks[:updater._check_depth]
+        if local_bids != snapshot_bids or local_asks != snapshot_asks:
+            logging.error(StructuredMessage(
+                "Order book mismatch", last_update_id=self._snapshot.last_update_id,
+                local_bids=local_bids, snapshot_bids=snapshot_bids,
+                local_asks=local_asks, snapshot_asks=snapshot_asks
+            ))
+            await updater.switch_state(Initializing())
 
 
 def bisect_descending(a, x):
