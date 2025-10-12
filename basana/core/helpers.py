@@ -150,6 +150,9 @@ class TaskPool:
                 try:
                     self._active += 1
                     await coro
+                except Exception:
+                    # We don't want single task failures to take down the whole pool.
+                    pass
                 finally:
                     self._active -= 1
                     self._queue.task_done()
