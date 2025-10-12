@@ -87,7 +87,8 @@ class TaskPool:
     @property
     def idle(self) -> bool:
         """
-        True if there are no active tasks in the pool, False otherwise.
+        True if there are no coroutines being executed and there are no coroutines waiting in the queue,
+        False otherwise.
         """
         return self._active == 0 and self._queue.empty()
 
