@@ -102,7 +102,8 @@ class TaskPool:
         await self._queue.put(coroutine)
 
         # Create a new task if necessary.
-        if len(self._tasks) < self._max_tasks and self._queue.qsize():
+        idle_tasks = len(self._tasks) - self._active
+        if idle_tasks == 0 and len(self._tasks) < self._max_tasks:
             task_name = uuid.uuid4().hex
             task = asyncio.create_task(self._task_main(task_name))
             # We check before registering the task because if eager tasks are enabled (Python >= 3.12) the task may
