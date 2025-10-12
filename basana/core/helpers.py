@@ -103,7 +103,11 @@ class TaskPool:
         # Create a new task if necessary.
         if len(self._tasks) < self._max_tasks and self._queue.qsize():
             task_name = uuid.uuid4().hex
-            self._tasks[task_name] = asyncio.create_task(self._task_main(task_name))
+            task = asyncio.create_task(self._task_main(task_name))
+            # We check before registering the task because if eager tasks are enabled (Python >= 3.12) the task may
+            # have already ran by the time we got here.
+            if not task.done() and task_name not in self._tasks:
+                self._tasks[task_name] = task
 
     def cancel(self):
         """
@@ -134,6 +138,12 @@ class TaskPool:
         return ret
 
     async def _task_main(self, task_name: str):
+        current_task = asyncio.current_task()
+        # Register ourselves in the task registry if not already there. This happens with eager tasks (Python >= 3.12).
+        if current_task not in self._tasks:
+            assert current_task is not None
+            self._tasks[task_name] = current_task
+
         try:
             while True:
                 coro = await asyncio.wait_for(self._queue.get(), timeout=self._queue_timeout)
