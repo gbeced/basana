@@ -429,8 +429,12 @@ class RealtimeDispatcher(EventDispatcher):
             # This is disabled by default and it will be deprecated.
             if self._wait_all_timeout:  # pragma: no cover
                 await self._handler_tasks.wait(timeout=self._wait_all_timeout)
+
             if self._handler_tasks.idle:
                 await self._on_idle()
+            else:
+                # Yield to the event loop to allow other tasks to run.
+                await asyncio.sleep(0)
 
     async def _on_idle(self):
         if self._idle_handlers:
@@ -438,7 +442,7 @@ class RealtimeDispatcher(EventDispatcher):
                 self._handler_tasks.push(idle_handler()) for idle_handler in self._idle_handlers
             ])
 
-        # Otherwise we may monopolize the event loop.
+        # Avoid trashing the CPU if there's nothing to do.
         await asyncio.sleep(self.idle_sleep)
 
     async def _push_scheduled(self, dt: datetime.datetime):
