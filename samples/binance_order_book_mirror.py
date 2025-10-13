@@ -185,6 +185,9 @@ class OrderBookUpdater:
             msg_kwargs["bid"] = self.order_book.bids[0][0]
         if self.order_book.asks:
             msg_kwargs["ask"] = self.order_book.asks[0][0]
+        if self.order_book.last_updated is not None:
+            msg_kwargs["lag"] = (bs.utc_now() - self.order_book.last_updated).total_seconds()
+
         logging.info(StructuredMessage(self._pair, **msg_kwargs))
 
         if len(self.order_book.bids) <= self._re_sync_threshold or len(self.order_book.asks) <= self._re_sync_threshold:
