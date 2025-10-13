@@ -81,7 +81,7 @@ class TaskPool:
             lambda: asyncio.Queue(maxsize=max_tasks if max_queue_size is None else max_queue_size)
         )
         self._tasks: Dict[str, asyncio.Task] = {}
-        self._queue_timeout = 1
+        self._queue_timeout = 1.0
         self._active = 0
 
     @property

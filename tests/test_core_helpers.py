@@ -209,6 +209,28 @@ def test_task_pool_with_failing_tasks():
     asyncio.run(asyncio.wait_for(test_main(), 1))
 
 
+def test_task_pool_task_auto_quit():
+
+    async def task():
+        pass
+
+    async def test_main():
+        pool = helpers.TaskPool(5)
+        pool._queue_timeout = 0.01
+        await pool.push(task())
+        assert len(pool._tasks) == 1
+
+        done = await pool.wait()
+        assert done
+        assert pool.idle
+        assert len(pool._tasks) == 1
+
+        await asyncio.sleep(0.01)
+        assert len(pool._tasks) == 0
+
+    asyncio.run(asyncio.wait_for(test_main(), 1))
+
+
 if sys.version_info >= (3, 12):
     @pytest.mark.parametrize("task_factory", [
         None,
