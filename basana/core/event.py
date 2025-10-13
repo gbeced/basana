@@ -17,6 +17,7 @@
 from typing import List, Optional
 import abc
 import datetime
+from collections import deque
 
 from . import dt
 
@@ -100,8 +101,7 @@ class FifoQueueEventSource(EventSource):
     """
     def __init__(self, producer: Optional[Producer] = None, events: List[Event] = []):
         super().__init__(producer)
-        self._queue: List[Event] = []
-        self._queue.extend(events)
+        self._queue = deque(events)
 
     def push(self, event: Event):
         """Adds an event to the end of the queue."""
@@ -111,5 +111,5 @@ class FifoQueueEventSource(EventSource):
         """Removes and returns the next event in the queue."""
         ret = None
         if self._queue:
-            ret = self._queue.pop(0)
+            ret = self._queue.popleft()
         return ret
