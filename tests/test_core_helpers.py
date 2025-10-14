@@ -151,9 +151,9 @@ def test_task_pool_cancel():
         await asyncio.sleep(60)
 
     async def test_main():
-        pool_size = 5
-        task_count = 10
-        pool = helpers.TaskPool(pool_size)
+        pool_size = 2
+        task_count = 3
+        pool = helpers.TaskPool(pool_size, max_queue_size=pool_size)
         for _ in range(task_count):
             await pool.push(task())
         await some_handler_called.wait()
@@ -225,7 +225,7 @@ def test_task_pool_task_auto_quit():
         assert pool.idle
         assert len(pool._tasks) == 1
 
-        await asyncio.sleep(0.01)
+        await asyncio.sleep(pool._queue_timeout * 2)
         assert len(pool._tasks) == 0
 
     asyncio.run(asyncio.wait_for(test_main(), 1))

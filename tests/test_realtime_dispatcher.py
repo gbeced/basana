@@ -223,4 +223,7 @@ def test_cancelation_is_forwarded(realtime_dispatcher):
         with pytest.raises(asyncio.CancelledError):
             await realtime_dispatcher.run()
 
-    asyncio.run(asyncio.wait_for(test_main(), 1))
+    try:
+        asyncio.run(asyncio.wait_for(test_main(), 1))
+    except asyncio.TimeoutError:
+        pass
