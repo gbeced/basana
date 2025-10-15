@@ -32,6 +32,7 @@ types-python-dateutil = "^2.9"
 websockets = "^13"
 pandas = "^2.2"
 statsmodels = "^0.14"
+textual = "^6.3.0"
 
 [tool.poetry.group.docs.dependencies]
 sphinx = {version = "^8.1", markers = "python_version >= '3.10'"}
