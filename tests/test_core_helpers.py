@@ -196,12 +196,12 @@ def test_task_pool_wait():
 
 def test_task_pool_with_failing_tasks():
     async def test_main():
-        pool_size = 5
+        pool_size = 1
         task_count = 10
-        pool = helpers.TaskPool(pool_size)
+        pool = helpers.TaskPool(pool_size, max_queue_size=task_count)
         for _ in range(task_count):
             await pool.push(lambda: fail("some error", 0.01))
-        done = await pool.wait(0.1)
+        done = await pool.wait(0.15)
 
         assert done
         assert pool.idle
