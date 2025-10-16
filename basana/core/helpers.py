@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Any, Coroutine, Dict, List, Optional, Union
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
 import asyncio
 import contextlib
 import decimal
@@ -70,7 +70,7 @@ class TaskPool:
     A class for managing a pool of asyncio tasks.
 
     :param size: The maximum number of tasks to be running at the same time.
-    :param max_queue_size: The maximum number of coroutines to be waiting in the queue for execution.
+    :param max_queue_size: The maximum number of coroutine functions to be waiting in the queue for execution.
     """
     def __init__(self, max_tasks: int, max_queue_size: Optional[int] = None):
         assert max_tasks > 0, "Invalid max_tasks"
@@ -92,14 +92,14 @@ class TaskPool:
         """
         return self._active == 0 and self._queue.empty()
 
-    async def push(self, coroutine: Coroutine[Any, Any, Any]):
+    async def push(self, coroutine_func: Callable[[], Awaitable[Any]]):
         """
-        Adds a coroutine to the queue. It may block if the queue is full.
+        Adds a coroutine function to the queue. It may block if the queue is full.
 
-        :param coroutine: The coroutine to be added to the task pool.
+        :param coroutine_func: The coroutine function to be added to the task pool.
         """
 
-        await self._queue.put(coroutine)
+        await self._queue.put(coroutine_func)
 
         # Create a new task if necessary.
         idle_tasks = len(self._tasks) - self._active
@@ -148,12 +148,12 @@ class TaskPool:
 
         try:
             while True:
-                coro = await asyncio.wait_for(self._queue.get(), timeout=self._queue_timeout)
+                coro_func = await asyncio.wait_for(self._queue.get(), timeout=self._queue_timeout)
                 try:
                     self._active += 1
-                    await coro
+                    await coro_func()
                 except Exception:
-                    # We don't want single task failures to take down the whole pool.
+                    # Individual coroutine failures should not take down a worker
                     pass
                 finally:
                     self._active -= 1

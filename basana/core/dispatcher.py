@@ -21,6 +21,7 @@ import asyncio
 import contextlib
 import dataclasses
 import datetime
+import functools
 import heapq
 import logging
 import platform
@@ -374,7 +375,7 @@ class BacktestingDispatcher(EventDispatcher):
             if self._last_dt is None or next_scheduled_dt > self._last_dt:
                 self._last_dt = next_scheduled_dt
 
-            await self._handler_tasks.push(self._execute_scheduled(next_scheduled_dt, job))
+            await self._handler_tasks.push(functools.partial(self._execute_scheduled, next_scheduled_dt, job))
             # Waiting here and not outside of the loop to prevent executing distant scheduled jobs at the same time.
             await self._handler_tasks.wait()
 
@@ -385,7 +386,9 @@ class BacktestingDispatcher(EventDispatcher):
         self._last_dt = dt
         for source, evnt in self._event_mux.pop_while(dt):
             await self._handler_tasks.push(
-                self._dispatch_event(EventDispatch(event=evnt, handlers=self._event_handlers[source]))
+                functools.partial(
+                    self._dispatch_event, EventDispatch(event=evnt, handlers=self._event_handlers[source])
+                )
             )
         await self._handler_tasks.wait()
 
@@ -439,7 +442,7 @@ class RealtimeDispatcher(EventDispatcher):
     async def _on_idle(self):
         if self._idle_handlers:
             await gather_no_raise(*[
-                self._handler_tasks.push(idle_handler()) for idle_handler in self._idle_handlers
+                self._handler_tasks.push(idle_handler) for idle_handler in self._idle_handlers
             ])
 
         # Avoid trashing the CPU if there's nothing to do.
@@ -449,7 +452,7 @@ class RealtimeDispatcher(EventDispatcher):
         while (next_scheduled_dt := self._scheduler_queue.peek_next_event_dt()) and next_scheduled_dt <= dt:
             next_scheduled_dt, job = self._scheduler_queue.pop()
             # Push scheduled job into the task pool for processing.
-            await self._handler_tasks.push(self._execute_scheduled(next_scheduled_dt, job))
+            await self._handler_tasks.push(functools.partial(self._execute_scheduled, next_scheduled_dt, job))
 
     async def _push_events(self, dt: datetime.datetime):
         # Pop events and feed the pool.
@@ -466,7 +469,7 @@ class RealtimeDispatcher(EventDispatcher):
 
             # Push event into the task pool for processing.
             await self._handler_tasks.push(
-                self._dispatch_event(EventDispatch(
+                functools.partial(self._dispatch_event, EventDispatch(
                     event=evnt,
                     handlers=self._event_handlers[source]
                 ))

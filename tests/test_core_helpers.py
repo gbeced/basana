@@ -134,7 +134,7 @@ def test_task_pool(pool_size, task_count):
     async def test_main():
         pool = helpers.TaskPool(pool_size)
         for _ in range(task_count):
-            await pool.push(task())
+            await pool.push(task)
         await pool.wait()
 
         assert pool.idle
@@ -155,7 +155,7 @@ def test_task_pool_cancel():
         task_count = 3
         pool = helpers.TaskPool(pool_size, max_queue_size=pool_size)
         for _ in range(task_count):
-            await pool.push(task())
+            await pool.push(task)
         await some_handler_called.wait()
 
         assert not pool.idle
@@ -178,7 +178,7 @@ def test_task_pool_wait():
         task_count = 5
         pool = helpers.TaskPool(pool_size)
         for _ in range(task_count):
-            await pool.push(task())
+            await pool.push(task)
         done = await pool.wait(0.05)
 
         assert not done
@@ -200,7 +200,7 @@ def test_task_pool_with_failing_tasks():
         task_count = 10
         pool = helpers.TaskPool(pool_size)
         for _ in range(task_count):
-            await pool.push(fail("some error", 0.01))
+            await pool.push(lambda: fail("some error", 0.01))
         done = await pool.wait(0.1)
 
         assert done
@@ -217,7 +217,7 @@ def test_task_pool_task_auto_quit():
     async def test_main():
         pool = helpers.TaskPool(5)
         pool._queue_timeout = 0.01
-        await pool.push(task())
+        await pool.push(task)
         assert len(pool._tasks) == 1
 
         done = await pool.wait()
@@ -248,7 +248,7 @@ if sys.version_info >= (3, 12):
             if task_factory:
                 asyncio.get_running_loop().set_task_factory(task_factory)
 
-            await pool.push(task())
+            await pool.push(task)
             done = await pool.wait(0.01)
 
             assert done
