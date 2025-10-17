@@ -168,7 +168,7 @@ class Exchange:
             self, pair: Pair, event_handler: OrderBookDiffEventHandler, interval: int = 1000
     ):
         """
-        Registers an async callable that will be called with depth updates, used to locally manage an order book.
+        Registers an async callable that will be called with depth updates.
 
         Works as defined in
         https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams#diff-depth-stream
