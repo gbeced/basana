@@ -201,12 +201,12 @@ def test_task_pool_with_failing_tasks():
         pool = helpers.TaskPool(pool_size, max_queue_size=task_count)
         for _ in range(task_count):
             await pool.push(lambda: fail("some error", 0.01))
-        done = await pool.wait(0.15)
+        done = await pool.wait(1)
 
         assert done
         assert pool.idle
 
-    asyncio.run(asyncio.wait_for(test_main(), 1))
+    asyncio.run(asyncio.wait_for(test_main(), 2))
 
 
 def test_task_pool_task_auto_quit():

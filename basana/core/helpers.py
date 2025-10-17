@@ -140,11 +140,6 @@ class TaskPool:
         return ret
 
     async def _task_main(self, task_name: str):
-        # logger.debug(logs.StructuredMessage(
-        #     "Task is starting",
-        #     total_tasks=len(self._tasks), active_tasks=self._active, queue_size=self._queue.qsize()
-        # ))
-
         current_task = asyncio.current_task()
         # Register ourselves in the task registry if not already there. This happens with eager tasks (Python >= 3.12).
         if current_task not in self._tasks:
@@ -158,16 +153,10 @@ class TaskPool:
                 try:
                     coro_func = await asyncio.wait_for(self._queue.get(), timeout=self._queue_timeout)
                 except asyncio.TimeoutError:
-                    # logger.debug(logs.StructuredMessage(
-                    #     "Task pop timed out",
-                    #     total_tasks=len(self._tasks), active_tasks=self._active, queue_size=self._queue.qsize()
-                    # ))
-
                     # This double check was introduced to workaround a race condition that was causing the above pop
                     # to timeout even though there were items in the queue:
                     # 2025-10-16 15:08:30 - DEBUG - basana.core.helpers - Task pop timed out {"total_tasks": 1, "active_tasks": 0, "queue_size": 2}  # noqa: E501
                     # 2025-10-16 15:08:30 - DEBUG - basana.core.helpers - Task is about to exit {"total_tasks": 0, "active_tasks": 0, "queue_size": 2}  # noqa: E501
-
                     eof = self._queue.empty()
                     continue
 
@@ -183,10 +172,6 @@ class TaskPool:
         finally:
             # Remove ourselves from the task registry once we're done.
             self._tasks.pop(task_name)
-            # logger.debug(logs.StructuredMessage(
-            #     "Task is about to exit",
-            #     total_tasks=len(self._tasks), active_tasks=self._active, queue_size=self._queue.qsize()
-            # ))
 
 
 @contextlib.contextmanager
