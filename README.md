@@ -18,30 +18,48 @@
 
 ### Installation
 
-The examples use [TALIpp](https://github.com/nardew/talipp) for the technical indicators, pandas and statsmodels.
+```
+$ pip install basana[charts]
+```
+
+The examples use [TALIpp](https://github.com/nardew/talipp) for the technical indicators, pandas, statsmodels and also [Textual](https://textual.textualize.io/) if you want to run the Binance order book mirror.
 
 ```
-$ pip install basana[charts] talipp pandas statsmodels textual
+$ pip install talipp pandas statsmodels textual
 ```
+
+Download and unzip [samples](https://github.com/gbeced/basana/releases/download/1.8/samples.zip) or clone the [GitHub](https://github.com/gbeced/basana/) repository.
 
 ### Backtest a pairs trading strategy
 
-1. Download and unzip [samples](https://github.com/gbeced/basana/releases/download/1.8/samples.zip).
-
-2. Download historical data for backtesting
+1. Download historical data for backtesting
 
 	```
 	$ python -m basana.external.binance.tools.download_bars -c BCH/USDT -p 1h -s 2021-12-01 -e 2021-12-26 -o binance_bchusdt_hourly.csv
 	$ python -m basana.external.binance.tools.download_bars -c CVC/USDT -p 1h -s 2021-12-01 -e 2021-12-26 -o binance_cvcusdt_hourly.csv
 	```
 
-3. Run the backtest
+2. Run the backtest
 
 	```
 	$ python -m samples.backtest_pairs_trading
 	```
 
 ![./docs/_static/readme_pairs_trading.png](./docs/_static/readme_pairs_trading.png)
+
+### Binance Order Book mirror
+
+The following example demonstrates how to maintain a synchronized local copy of a Binance order book using Basana's event-driven architecture. It initializes the order book from a REST API snapshot, then continuously updates it with real-time diffs from a WebSocket stream while periodically verifying consistency against fresh snapshots to handle potential synchronization issues.
+
+![./docs/_static/order_book_mirror.png](./docs/_static/order_book_mirror.png)
+
+Use the following command to run the example:
+
+```
+$ python -m samples.binance_order_book_mirror
+```
+
+The mirroring code can be found [here](./samples/binance/order_book_mirror.py).
 
 The Basana repository comes with a number of [examples](./samples) you can experiment with or use as a template for your own projects:
 
