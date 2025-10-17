@@ -25,7 +25,7 @@ from textual import widgets
 from textual.app import App
 
 from basana.external.binance import exchange as binance_exchange
-from binance_order_book_mirror import OrderBookUpdater
+from samples.binance.order_book_mirror import OrderBookUpdater
 import basana as bs
 
 
@@ -93,6 +93,11 @@ class OrderBookStatsApp(App):
         root_logger = logging.getLogger()
         root_logger.addHandler(handler)
         root_logger.setLevel(logging.INFO)
+
+        # file_handler = logging.FileHandler("stats.log", mode="w")
+        # file_handler.setFormatter(logging.Formatter("[%(asctime)s %(levelname)s] %(message)s"))
+        # file_handler.setLevel(logging.INFO)  # Set the minimum level for this handler
+        # root_logger.addHandler(file_handler)
 
         # Init tables.
         table_columns = {

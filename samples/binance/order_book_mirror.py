@@ -27,6 +27,9 @@ from basana.external.binance import exchange as binance_exchange
 import basana as bs
 
 
+logger = logging.getLogger(__name__)
+
+
 class OrderBook:
     """
     A class representing an exchange order book that maintains sorted lists of bids and asks.
@@ -169,7 +172,7 @@ class OrderBookUpdater:
         exchange.subscribe_to_order_book_diff_events(pair, self._on_order_book_diff_event, interval=diff_interval_ms)
 
     async def _on_order_book_diff_event(self, diff_event: binance_exchange.OrderBookDiffEvent):
-        logging.info(StructuredMessage(
+        logger.info(StructuredMessage(
             "Order book diff", first_update_id=diff_event.order_book_diff.first_update_id,
             final_update_id=diff_event.order_book_diff.final_update_id
         ))
@@ -188,14 +191,14 @@ class OrderBookUpdater:
         if self.order_book.last_updated is not None:
             msg_kwargs["lag"] = (bs.utc_now() - self.order_book.last_updated).total_seconds()
 
-        logging.info(StructuredMessage(self._pair, **msg_kwargs))
+        logger.info(StructuredMessage(self._pair, **msg_kwargs))
 
         if len(self.order_book.bids) <= self._re_sync_threshold or len(self.order_book.asks) <= self._re_sync_threshold:
             await self._state.on_sync_required(self)
 
     async def switch_state(self, state: UpdaterState, order_book: Optional[OrderBook] = None):
         async with self._switch_mutex:
-            logging.info(StructuredMessage(
+            logger.info(StructuredMessage(
                 "Switch state", current=self._state.__class__.__name__, new=state.__class__.__name__
             ))
 
@@ -204,7 +207,7 @@ class OrderBookUpdater:
             if order_book:
                 assert order_book.last_update_id >= self.order_book.last_update_id
                 self.order_book = order_book
-                logging.info(StructuredMessage(
+                logger.info(StructuredMessage(
                     "New orderbook set", last_update_id=self.order_book.last_update_id,
                     top_bid=self.order_book.bids[0][0], last_bid=self.order_book.bids[-1][0],
                     top_ask=self.order_book.asks[0][0], last_ask=self.order_book.asks[-1][0],
@@ -253,7 +256,7 @@ class Initializing(UpdaterState):
             await updater.switch_state(Updating(), order_book=order_book)
 
         except Exception as e:
-            logging.exception(StructuredMessage("Error fetching and processing order book", error=str(e)))
+            logger.exception(StructuredMessage("Error fetching and processing order book", error=str(e)))
             if len(self._buffer):
                 self._fetch_task = asyncio.create_task(self._fetch_snapshot(updater))
             else:
@@ -277,7 +280,7 @@ class Updating(UpdaterState):
             updater.order_book.update_from_diff(diff_event)
             await self._check_order_book_consistency(updater)
         except Exception as e:
-            logging.exception(StructuredMessage("Error processing diff", error=str(e)))
+            logger.exception(StructuredMessage("Error processing diff", error=str(e)))
             await updater.switch_state(Initializing())
 
     async def on_exit_state(self, updater: "OrderBookUpdater"):
@@ -285,7 +288,7 @@ class Updating(UpdaterState):
             self._fetch_task.cancel()
 
     async def on_sync_required(self, updater: "OrderBookUpdater"):
-        logging.warning("Sync required")
+        logger.warning("Sync required")
         await updater.switch_state(Initializing())
 
     async def _fetch_snapshot(self, updater: OrderBookUpdater):
@@ -294,23 +297,23 @@ class Updating(UpdaterState):
                 await asyncio.sleep(updater._check_interval_ms / 1000)
                 snapshot = await updater._exchange.get_order_book(updater._pair, limit=updater._check_depth)
                 self._snapshot = snapshot
-                logging.info(StructuredMessage("Fetched order book", last_update_id=self._snapshot.last_update_id))
+                logger.info(StructuredMessage("Fetched order book", last_update_id=self._snapshot.last_update_id))
                 await self._check_order_book_consistency(updater)
             except Exception as e:
-                logging.exception(StructuredMessage("Error fetching order book", error=str(e)))
+                logger.exception(StructuredMessage("Error fetching order book", error=str(e)))
 
     async def _check_order_book_consistency(self, updater: OrderBookUpdater):
         if self._snapshot is None or self._snapshot.last_update_id != updater.order_book.last_update_id:
             return
 
-        logging.info(StructuredMessage("Checking order book", last_update_id=self._snapshot.last_update_id))
+        logger.info(StructuredMessage("Checking order book", last_update_id=self._snapshot.last_update_id))
 
         snapshot_bids = [(bid.price, bid.volume) for bid in self._snapshot.bids]
         snapshot_asks = [(ask.price, ask.volume) for ask in self._snapshot.asks]
         local_bids = updater.order_book.bids[:updater._check_depth]
         local_asks = updater.order_book.asks[:updater._check_depth]
         if local_bids != snapshot_bids or local_asks != snapshot_asks:
-            logging.error(StructuredMessage(
+            logger.error(StructuredMessage(
                 "Order book mismatch", last_update_id=self._snapshot.last_update_id,
                 local_bids=local_bids, snapshot_bids=snapshot_bids,
                 local_asks=local_asks, snapshot_asks=snapshot_asks
@@ -328,17 +331,3 @@ def bisect_descending(a, x):
         else:
             hi = mid
     return lo
-
-
-async def main():
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
-    event_dispatcher = bs.realtime_dispatcher()
-    exchange = binance_exchange.Exchange(event_dispatcher)
-    pair = bs.Pair("BTC", "USDT")
-    _ = OrderBookUpdater(pair, exchange)
-
-    await event_dispatcher.run()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

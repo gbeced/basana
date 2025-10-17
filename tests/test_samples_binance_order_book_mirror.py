@@ -16,7 +16,7 @@
 
 from decimal import Decimal
 
-from samples.binance_order_book_mirror import OrderBook
+from samples.binance.order_book_mirror import OrderBook
 import pytest
 
 
