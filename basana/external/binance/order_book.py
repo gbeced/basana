@@ -40,13 +40,18 @@ class Entry:
     volume: Decimal
 
 
-class OrderBook:
+class PartialOrderBook:
     """An order book."""
     def __init__(self, pair: Pair, json: dict):
         #: The trading pair.
         self.pair: Pair = pair
         #: The JSON representation.
         self.json: dict = json
+
+    @property
+    def last_update_id(self) -> int:
+        """The last update id."""
+        return self.json["lastUpdateId"]
 
     @property
     def bids(self) -> List[Entry]:
@@ -63,16 +68,17 @@ class OrderBook:
         ]
 
 
-class OrderBookEvent(event.Event):
-    """An event for order book updates.
+class PartialOrderBookEvent(event.Event):
+    """
+    An event for partial order book updates.
 
     :param when: The datetime when the event occurred. It must have timezone information set.
     :param order_book: The updated order book.
     """
-    def __init__(self, when: datetime.datetime, order_book: OrderBook):
+    def __init__(self, when: datetime.datetime, order_book: PartialOrderBook):
         super().__init__(when)
         #: The order book.
-        self.order_book: OrderBook = order_book
+        self.order_book: PartialOrderBook = order_book
 
 
 class PollOrderBook(event.FifoQueueEventSource, event.Producer):
@@ -91,9 +97,9 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
 
     async def _fetch_and_push(self, order_book_symbol: str):
         order_book_json = await self._client.get_order_book(order_book_symbol, limit=self._limit)
-        self.push(OrderBookEvent(
-            dt.utc_now(),
-            OrderBook(self.pair, order_book_json)
+        self.push(PartialOrderBookEvent(
+            dt.utc_now(monotonic=True),  # The order book doesn't include a timestamp.
+            PartialOrderBook(self.pair, order_book_json)
         ))
 
     async def on_error(self, error: Any):
@@ -109,7 +115,7 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
             await asyncio.sleep(self._interval)
 
 
-# Generate OrderBookEvent events from websocket messages.
+# Generate PartialOrderBookEvent events from websocket messages.
 class WebSocketEventSource(core_ws.ChannelEventSource):
     def __init__(self, pair: Pair, producer: event.Producer):
         super().__init__(producer=producer)
@@ -117,15 +123,16 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
 
     async def push_from_message(self, message: dict):
         event = message["data"]
-        self.push(OrderBookEvent(
-            dt.utc_now(),  # The event doesn't include a timestamp.
-            OrderBook(self._pair, event)
+        self.push(PartialOrderBookEvent(
+            dt.utc_now(monotonic=True),  # The event doesn't include a timestamp.
+            PartialOrderBook(self._pair, event)
         ))
 
 
-def get_channel(pair: Pair, depth: int) -> str:
+def get_channel(pair: Pair, depth: int, interval: int) -> str:
     assert depth in [5, 10, 20], "Invalid depth"
-    return "{}@depth{}".format(helpers.pair_to_symbol(pair).lower(), depth)
+    assert interval in [100, 1000], "Invalid interval"
+    return "{}@depth{}@{}ms".format(helpers.pair_to_symbol(pair).lower(), depth, interval)
 
 
-OrderBookEventHandler = Callable[[OrderBookEvent], Awaitable[Any]]
+PartialOrderBookEventHandler = Callable[[PartialOrderBookEvent], Awaitable[Any]]

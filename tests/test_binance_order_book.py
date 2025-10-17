@@ -161,8 +161,8 @@ def test_websocket_ok(realtime_dispatcher):
         await websocket.send(json.dumps({"result": None, "id": message["id"]}))
 
         while websocket.state == websockets.protocol.State.OPEN:
-            await websocket.send(json.dumps({"stream": "btcusdt@depth10", "data": ORDER_BOOK}))
-            await websocket.send(json.dumps({"stream": "btcusdt@depth20", "data": ORDER_BOOK}))
+            await websocket.send(json.dumps({"stream": "btcusdt@depth10@1000ms", "data": ORDER_BOOK}))
+            await websocket.send(json.dumps({"stream": "btcusdt@depth20@1000ms", "data": ORDER_BOOK}))
             await asyncio.sleep(0.1)
 
     async def test_main():
@@ -181,6 +181,7 @@ def test_websocket_ok(realtime_dispatcher):
             assert obook.bids[1].volume == Decimal("0.00073")
             assert obook.asks[0].price == Decimal("16758.13")
             assert obook.asks[1].volume == Decimal("0.04963")
+            assert obook.last_update_id == 27229732069
 
     asyncio.run(asyncio.wait_for(test_main(), 5))
 

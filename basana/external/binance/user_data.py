@@ -171,7 +171,10 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         event_cls = {
             "executionReport": OrderEvent,
         }.get(json["e"], Event)
-        event = event_cls(helpers.timestamp_to_datetime(int(json["E"])), json)
+        event = event_cls(
+            helpers.timestamp_to_datetime(int(json["E"])),  # Event time
+            json
+        )
         self.push(event)
 
 

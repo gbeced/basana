@@ -12,21 +12,21 @@ Basana requires Python 3.9 or above and to install the package you can use the f
 
 .. code-block:: console
 
-   (.venv) $ pip install basana[charts]
+   $ pip install basana[charts]
 
 The `examples at GitHub <https://github.com/gbeced/basana/tree/master/samples>`_ take advantage of TALIpp, Pandas and statsmodels.
 These can be installed using the following command:
 
 .. code-block:: console
 
-   (.venv) $ pip install talipp pandas statsmodels
+   $ pip install talipp pandas statsmodels
 
 .. _quickstart_backtesting:
 
 Backtesting
 -----------
 
-All the examples that follow are structured like this:
+Most of the examples that follow are structured like this:
 
 * A trading **strategy** that implements the set of rules that define **when** to enter or exit a position based on market conditions.
   Strategies generate events, called trading signals, to notify a switch in position for one or more trading pairs.
@@ -48,7 +48,7 @@ The first thing we'll need in order to execute the backtest is historical data. 
 
 .. code-block:: console
 
-    (.venv) $ python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2021-01-01 -e 2021-12-31 -o binance_btcusdt_day.csv
+    $ python -m basana.external.binance.tools.download_bars -c BTC/USDT -p 1d -s 2021-01-01 -e 2021-12-31 -o binance_btcusdt_day.csv
 
 There are two types of events taking place in this example:
 
@@ -70,12 +70,12 @@ This is how all the pieces are put together:
    :dedent: 4
 
 The full source code for this example can be found `here <https://github.com/gbeced/basana/tree/master/samples/backtest_bbands.py>`_,
-and if you fork the repository, or download and unzip `samples <https://github.com/gbeced/basana/releases/download/1.8/samples.zip>`_,
+and if you fork the repository, or download and unzip `samples <https://github.com/gbeced/basana/releases/download/1.9/samples.zip>`_,
 you can execute the backtest using the following command:
 
 .. code-block:: console
 
-    (.venv) $ python -m samples.backtest_bbands
+    $ python -m samples.backtest_bbands
 
 A chart similar to this one should open in a browser:
 
@@ -103,7 +103,7 @@ You can start live trading using the following command:
 
 .. code-block:: console
 
-    (.venv) $ python -m samples.binance_bbands
+    $ python -m samples.binance_bbands
 
 Next steps
 ----------

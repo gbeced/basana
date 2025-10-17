@@ -89,7 +89,7 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
     async def push_from_message(self, message: dict):
         event = message["data"]
         self.push(TradeEvent(
-            helpers.timestamp_to_datetime(int(event["E"])),
+            helpers.timestamp_to_datetime(int(event["E"])),  # Event time
             Trade(self._pair, event)
         ))
 
