@@ -1,5 +1,16 @@
 # Changelog
 
+## TBD
+
+### Features
+
+* Added support for Binance order book diff events via websockets.
+* Performance improvements for realtime dispatcher.
+
+### Bug fixes
+
+* `SchedulerQueue.peek_last_event_dt` was not returning the last event's datetime.
+
 ## 1.8
 
 ### Features

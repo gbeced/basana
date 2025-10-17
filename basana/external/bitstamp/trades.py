@@ -18,7 +18,7 @@ from decimal import Decimal
 import datetime
 
 from . import helpers
-from basana.core import dt, event, websockets as core_ws
+from basana.core import event, websockets as core_ws
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
@@ -86,7 +86,8 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         self._pair: Pair = pair
 
     async def push_from_message(self, message: dict):
-        self.push(TradeEvent(dt.utc_now(), Trade(self._pair, message["data"])))
+        trade = Trade(self._pair, message["data"])
+        self.push(TradeEvent(trade.datetime, trade))
 
 
 def get_public_channel(pair: Pair) -> str:

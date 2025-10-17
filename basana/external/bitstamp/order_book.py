@@ -24,7 +24,7 @@ import logging
 import aiohttp
 
 from . import client, helpers
-from basana.core import dt, event, logs, token_bucket, websockets as core_ws
+from basana.core import event, logs, token_bucket, websockets as core_ws
 from basana.core.pair import Pair
 
 
@@ -96,7 +96,8 @@ class PollOrderBook(event.FifoQueueEventSource, event.Producer):
 
     async def _fetch_and_push(self, currency_pair: str):
         order_book_json = await self._client.get_order_book(currency_pair, group=self._group)
-        self.push(OrderBookEvent(dt.utc_now(), OrderBook(self.pair, order_book_json)))
+        order_book = OrderBook(self.pair, order_book_json)
+        self.push(OrderBookEvent(order_book.datetime, order_book))
 
     async def main(self):
         currency_pair = helpers.pair_to_currency_pair(self.pair)
@@ -118,7 +119,8 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         self._pair = pair
 
     async def push_from_message(self, message: dict):
-        self.push(OrderBookEvent(dt.utc_now(), OrderBook(self._pair, message["data"])))
+        order_book = OrderBook(self._pair, message["data"])
+        self.push(OrderBookEvent(order_book.datetime, order_book))
 
 
 def get_channel(pair: Pair) -> str:

@@ -20,18 +20,27 @@ import dataclasses
 
 import aiohttp
 
-from . import client, helpers, order_book, trades, spot, cross_margin, isolated_margin, websocket_mgr
+from . import client, helpers, order_book, order_book_diff, trades, spot, cross_margin, isolated_margin, \
+    websocket_mgr
 from basana.core import bar, dispatcher, enums, token_bucket
 from basana.core.pair import Pair, PairInfo
 
 
 BarEventHandler = bar.BarEventHandler
 Error = client.Error
-OrderBookEvent = order_book.OrderBookEvent
-OrderBookEventHandler = order_book.OrderBookEventHandler
+OrderBookDiff = order_book_diff.OrderBookDiff
+OrderBookDiffEvent = order_book_diff.OrderBookDiffEvent
+OrderBookDiffEventHandler = order_book_diff.OrderBookDiffEventHandler
 OrderOperation = enums.OrderOperation
+PartialOrderBook = order_book.PartialOrderBook
+PartialOrderBookEvent = order_book.PartialOrderBookEvent
+PartialOrderBookEventHandler = order_book.PartialOrderBookEventHandler
 TradeEvent = trades.TradeEvent
 TradeEventHandler = trades.TradeEventHandler
+
+# For backwards compatibility.
+OrderBookEvent = order_book.PartialOrderBookEvent
+OrderBookEventHandler = order_book.PartialOrderBookEventHandler
 
 
 @dataclasses.dataclass(frozen=True)
@@ -139,19 +148,37 @@ class Exchange:
         self._ws_mgr.subscribe_to_bar_events(pair, interval, event_handler)
 
     def subscribe_to_order_book_events(
-            self, pair: Pair, event_handler: OrderBookEventHandler, depth: int = 10
+            self, pair: Pair, event_handler: PartialOrderBookEventHandler, depth: int = 10, interval: int = 1000
     ):
         """
-        Registers an async callable that will be called every 1 second with the top bids/asks of the order book.
+        Registers an async callable that will be called with the top bids/asks of the order book.
 
-        Works as defined in https://binance-docs.github.io/apidocs/spot/en/#partial-book-depth-streams.
+        Works as defined in
+        https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams#partial-book-depth-streams
 
         :param pair: The trading pair.
-        :param event_handler: An async callable that receives an OrderBookEvent.
+        :param event_handler: An async callable that receives a PartialOrderBookEvent.
         :param depth: The order book depth. Valid values are: 5, 10, 20.
+        :param interval: The update interval in milliseconds. Valid values are: 1000 (1s), 100 (100ms).
         """
 
-        self._ws_mgr.subscribe_to_order_book_events(pair, event_handler, depth=depth)
+        self._ws_mgr.subscribe_to_order_book_events(pair, event_handler, depth=depth, interval=interval)
+
+    def subscribe_to_order_book_diff_events(
+            self, pair: Pair, event_handler: OrderBookDiffEventHandler, interval: int = 1000
+    ):
+        """
+        Registers an async callable that will be called with depth updates.
+
+        Works as defined in
+        https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams#diff-depth-stream
+
+        :param pair: The trading pair.
+        :param event_handler: An async callable that receives an OrderBookDiffEvent.
+        :param interval: The update interval in milliseconds. Valid values are: 1000 (1s), 100 (100ms).
+        """
+
+        self._ws_mgr.subscribe_to_order_book_diff_events(pair, event_handler, interval=interval)
 
     def subscribe_to_trade_events(self, pair: Pair, event_handler: TradeEventHandler):
         """
@@ -187,12 +214,25 @@ class Exchange:
         return ret
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Decimal, Decimal]:
-        """Returns the current bid and ask price.
+        """
+        Returns the current best bid and ask prices.
 
         :param pair: The trading pair.
         """
-        order_book = await self._cli.get_order_book(helpers.pair_to_symbol(pair), limit=1)
-        return Decimal(order_book["bids"][0][0]), Decimal(order_book["asks"][0][0])
+        order_book = await self.get_order_book(pair, limit=1)
+        return Decimal(order_book.bids[0].price), Decimal(order_book.asks[0].price)
+
+    async def get_order_book(self, pair: Pair, limit: Optional[int] = None) -> order_book.PartialOrderBook:
+        """
+        Returns the order book for a given trading pair.
+
+        :param pair: The trading pair.
+        :param limit: The maximum number of levels to return.
+        """
+        return order_book.PartialOrderBook(
+            pair,
+            await self._cli.get_order_book(helpers.pair_to_symbol(pair), limit=limit)
+        )
 
     @property
     def spot_account(self) -> spot.Account:

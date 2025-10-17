@@ -12,6 +12,7 @@ API Reference
     backtesting_lending
     binance_exchange
     binance_order_book
+    binance_order_book_diff
     binance_trades
     binance_spot
     binance_margin

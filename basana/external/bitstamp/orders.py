@@ -18,7 +18,7 @@ from decimal import Decimal
 import datetime
 
 from . import helpers
-from basana.core import dt, event, websockets as core_ws
+from basana.core import event, websockets as core_ws
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
@@ -38,7 +38,7 @@ class Order:
     @property
     def datetime(self) -> datetime.datetime:
         timestamp = int(self.json["microtimestamp"]) / 1e6
-        return datetime.datetime.utcfromtimestamp(timestamp).replace(tzinfo=datetime.timezone.utc)
+        return datetime.datetime.fromtimestamp(timestamp, tz=datetime.timezone.utc)
 
     @property
     def amount(self) -> Decimal:
@@ -89,7 +89,8 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         self._pair = pair
 
     async def push_from_message(self, message: dict):
-        self.push(OrderEvent(dt.utc_now(), message["event"], Order(self._pair, message["data"])))
+        order = Order(self._pair, message["data"])
+        self.push(OrderEvent(order.datetime, message["event"], order))
 
 
 def get_public_channel(pair: Pair) -> str:

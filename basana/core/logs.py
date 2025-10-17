@@ -32,9 +32,11 @@ def backtesting_log_mode(dispatcher):
         record.msecs = int(record_dt.microsecond / 1000)
         return record
 
-    logging.setLogRecordFactory(record_factory)
-    yield
-    logging.setLogRecordFactory(old_factory)
+    try:
+        logging.setLogRecordFactory(record_factory)
+        yield
+    finally:
+        logging.setLogRecordFactory(old_factory)
 
 
 # https://docs.python.org/3/howto/logging-cookbook.html#implementing-structured-logging

@@ -48,7 +48,7 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         if kline["x"] is False:
             return
         self.push(bar.BarEvent(
-            helpers.timestamp_to_datetime(int(kline_event["E"])),
+            helpers.timestamp_to_datetime(int(kline_event["E"])),  # Event time
             Bar(self._pair, kline)
         ))
 

@@ -28,6 +28,9 @@ from basana.external.binance import exchange, spot
 import basana as bs
 
 
+logger = logging.getLogger(__name__)
+
+
 @dataclasses.dataclass
 class OrderInfo:
     def update_from_order_info(self, order_info: spot.OrderInfo):
@@ -167,14 +170,14 @@ class SpotAccountPositionManager:
         bids_and_asks = await asyncio.gather(*[self._exchange.get_bid_ask(pos_info.pair) for pos_info in non_neutral])
         for pos_info, (bid, ask) in zip(non_neutral, bids_and_asks):
             pnl_pct = pos_info.calculate_unrealized_pnl_pct(bid, ask)
-            logging.info(StructuredMessage(
+            logger.info(StructuredMessage(
                 f"Position for {pos_info.pair}", current=pos_info.current, target=pos_info.target,
                 order_open=pos_info.order_open,
                 avg_price=bs.round_decimal(pos_info.avg_price, pos_info.pair_info.quote_precision),
                 pnl_pct=bs.round_decimal(pnl_pct, 2)
             ))
             if pnl_pct <= self._stop_loss_pct * -1:
-                logging.info(f"Stop loss for {pos_info.pair}")
+                logger.info(f"Stop loss for {pos_info.pair}")
                 await self.switch_position(pos_info.pair, bs.Position.NEUTRAL, force=True)
 
     async def switch_position(self, pair: bs.Pair, target_position: bs.Position, force: bool = False):
@@ -195,7 +198,7 @@ class SpotAccountPositionManager:
         async with self._pos_mutex[pair]:
             # Cancel the previous order.
             if current_pos_info and current_pos_info.order_open:
-                logging.info(StructuredMessage("Canceling order", order_ids=current_pos_info.order.id))
+                logger.info(StructuredMessage("Canceling order", order_ids=current_pos_info.order.id))
                 await self._exchange.spot_account.cancel_order(pair, order_id=current_pos_info.order.id)
                 order_info = await self._exchange.spot_account.get_order_info(
                     pair, order_id=current_pos_info.order.id
@@ -228,18 +231,18 @@ class SpotAccountPositionManager:
             # 2. Calculate the difference between the target balance and our current balance.
             current = Decimal(0) if current_pos_info is None else current_pos_info.current
             delta = target - current
-            logging.info(StructuredMessage("Switch position", pair=pair, current=current, target=target, delta=delta))
+            logger.info(StructuredMessage("Switch position", pair=pair, current=current, target=target, delta=delta))
             if delta == 0:
                 return
 
             # 3. Create the order.
             order_size = abs(delta)
             operation = bs.OrderOperation.BUY if delta > 0 else bs.OrderOperation.SELL
-            logging.info(StructuredMessage(
+            logger.info(StructuredMessage(
                 "Creating market order", operation=operation, pair=pair, order_size=order_size
             ))
             created_order = await self._exchange.spot_account.create_market_order(operation, pair, order_size)
-            logging.info(StructuredMessage("Order created", id=created_order.id))
+            logger.info(StructuredMessage("Order created", id=created_order.id))
             order = await self._exchange.spot_account.get_order_info(pair, order_id=created_order.id)
 
             # 4. Keep track of the position.
@@ -255,7 +258,7 @@ class SpotAccountPositionManager:
 
     async def on_trading_signal(self, trading_signal: bs.TradingSignal):
         pairs = list(trading_signal.get_pairs())
-        logging.info(StructuredMessage("Trading signal", pairs=pairs))
+        logger.info(StructuredMessage("Trading signal", pairs=pairs))
 
         try:
             coros = []
@@ -266,11 +269,11 @@ class SpotAccountPositionManager:
                 coros.append(self.switch_position(pair, target_position))
             await asyncio.gather(*coros)
         except Exception as e:
-            logging.exception(e)
+            logger.exception(e)
 
     async def on_bar_event(self, bar_event: bs.BarEvent):
         bar = bar_event.bar
-        logging.info(StructuredMessage(bar.pair, close=bar.close))
+        logger.info(StructuredMessage(bar.pair, close=bar.close))
         if self._last_check_loss is None or self._last_check_loss < bar_event.when:
             self._last_check_loss = bar_event.when
             await self.check_loss()
@@ -278,7 +281,7 @@ class SpotAccountPositionManager:
     async def on_order_event(self, order_event: spot.OrderEvent):
         order_update = order_event.order_update
         pair = await self._exchange.symbol_to_pair(order_update.symbol)
-        logging.info(StructuredMessage(
+        logger.info(StructuredMessage(
             "Order updated", id=order_update.id, pair=pair, is_open=order_update.is_open, amount=order_update.amount,
             amount_filled=order_update.amount_filled, avg_fill_price=order_update.fill_price
         ))
