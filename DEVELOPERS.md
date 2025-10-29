@@ -20,7 +20,7 @@
 
 	```
 	$ poetry run -- mypy basana
-	$ poetry run -- flake8
+	$ poetry run -- ruff check
 	```
 
 1. Execute testcases

@@ -22,7 +22,7 @@ def clean(c):
 @task
 def lint(c):
     c.run("poetry run -- mypy basana", pty=True, echo=cmd_echo)
-    c.run("poetry run -- flake8", pty=True, echo=cmd_echo)
+    c.run("poetry run -- ruff check", pty=True, echo=cmd_echo)
 
 
 @task(lint)
