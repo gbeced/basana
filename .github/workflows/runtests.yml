@@ -52,7 +52,7 @@ jobs:
     - name: Static checks
       run: |
         poetry run -- mypy basana
-        poetry run -- flake8
+        poetry run -- ruff check
     - name: Run testcases
       run: |
         poetry run pytest -vv --cov --cov-config=setup.cfg --durations=10
