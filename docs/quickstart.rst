@@ -8,7 +8,7 @@ Ready to get started ? This page gives a good introduction on how to get started
 Installation
 ------------
 
-Basana requires Python 3.9 or above and to install the package you can use the following command:
+Basana requires Python 3.10 or above and to install the package you can use the following command:
 
 .. code-block:: console
 

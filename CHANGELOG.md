@@ -1,5 +1,11 @@
 # Changelog
 
+## TBD
+
+### Misc
+
+* Dropped support for Python 3.9.
+
 ## 1.9
 
 ### Features
