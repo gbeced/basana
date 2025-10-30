@@ -4,6 +4,7 @@
 
 ### Misc
 
+* Added support for Python 3.14.
 * Dropped support for Python 3.9.
 
 ## 1.9
