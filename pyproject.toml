@@ -10,7 +10,7 @@ license = "Apache-2.0"
 packages = [{include = "basana"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 aiohttp = {extras = ["speedups"], version = "^3.10"}
 python-dateutil = "^2.9"
 # Optional dependencies, some of which are included in the below `extras`. They can be opted into by apps.
