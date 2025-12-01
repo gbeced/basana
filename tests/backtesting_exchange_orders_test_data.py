@@ -454,6 +454,42 @@ test_order_requests_data = [
                         )
                     ]
                 ),
+                # Stop order gets filled a few bars later.
+                (
+                    lambda e: e.create_stop_order(
+                        OrderOperation.SELL, orcl_p, Decimal("1"), Decimal("53.99")
+                    ),
+                    [
+                        dict(
+                            when=datetime.datetime(2000, 1, 28, tzinfo=tz.tzlocal()),
+                            balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("53.99")},
+                            fees={"USD": Decimal("-0.14")},
+                        ),
+                    ],
+                    [
+                        dict(
+                            is_open=True,
+                            operation=OrderOperation.SELL,
+                            amount=Decimal("1"),
+                            amount_filled=Decimal("0"),
+                            amount_remaining=Decimal("1"),
+                            quote_amount_filled=Decimal("0"),
+                            fees={},
+                            stop_price=Decimal("53.99")
+                        ),
+                        dict(
+                            is_open=False,
+                            operation=OrderOperation.SELL,
+                            amount=Decimal("1"),
+                            amount_filled=Decimal("1"),
+                            amount_remaining=Decimal("0"),
+                            quote_amount_filled=Decimal("53.99"),
+                            fees={"USD": Decimal("0.14")},
+                            stop_price=Decimal("53.99")
+                        )
+                    ]
+                ),
+
             ],
             datetime.date(2000, 1, 26): [
                 # Stop limit order gets filled on the next bar.

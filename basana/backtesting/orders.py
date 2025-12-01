@@ -234,7 +234,6 @@ class MarketOrder(Order):
         super().__init__(id, operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
 
     def not_filled(self):
-        # Fill or kill market orders.
         self.cancel()
 
     def get_balance_updates(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Dict[str, Decimal]:
@@ -323,10 +322,11 @@ class StopOrder(Order):
 
         super().__init__(id, operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
+        self._stop_price_hit = False
 
     def not_filled(self):
-        # Fill or kill stop orders.
-        self.cancel()
+        if self._stop_price_hit:
+            self.cancel()
 
     def get_balance_updates(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Dict[str, Decimal]:
         # No partial fills for stop orders.
@@ -361,6 +361,7 @@ class StopOrder(Order):
 
         ret = {}
         if price:
+            self._stop_price_hit = True
             ret = {
                 self.pair.base_symbol: amount * base_sign,
                 self.pair.quote_symbol: price * amount * -base_sign

@@ -2,6 +2,10 @@
 
 ## TBD
 
+### Bug fixes
+
+* Backtesting stop orders were being canceled if the stop price was not hit.
+
 ### Misc
 
 * Added support for Python 3.14.
