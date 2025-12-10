@@ -101,18 +101,29 @@ class EventMultiplexer:
     def pop(self, max_dt: datetime.datetime) -> Tuple[Optional[event.EventSource], Optional[event.Event]]:
         ret_source: Optional[event.EventSource] = None
         ret_event: Optional[event.Event] = None
+        when_upper = max_dt
 
-        # Find the next event to return, this is, the oldest one that is <= max_dt.
+        # Find the next event to return, this is, the oldest one that is <= max_dt and with the highest priority.
         for source, evnt in self._prefetched_events.items():
-            # Prefetch the event for sorting purposes.
-            if evnt is None:
-                evnt = source.pop()
+            # Prefetch the event if necessary.
+            if evnt is None and (evnt := source.pop()):
                 self._prefetched_events[source] = evnt
-            # If the event matches the filter, check if the next one to return.
-            if evnt and evnt.when <= max_dt and (ret_event is None or evnt.when < ret_event.when):
+
+            # Skip it if its empty.
+            if evnt is None:
+                continue
+
+            # Skip it its out of range
+            if evnt.when > when_upper:
+                continue
+
+            # Select it if its older than the best one so far, or if both have the same age but current one has
+            # higher priority.
+            if evnt.when < when_upper or ret_source is None or source.priority > ret_source.priority:
                 ret_source = source
                 ret_event = evnt
-
+                when_upper = evnt.when
+ 
         # Consume the event.
         if ret_source:
             self._prefetched_events[ret_source] = None

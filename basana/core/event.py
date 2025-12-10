@@ -22,6 +22,10 @@ from collections import deque
 from . import dt
 
 
+MIN_EVENTSOURCE_PRIORITY = -1000
+MAX_EVENTSOURCE_PRIORITY = 1000
+
+
 class Producer:
     """Base class for producers.
 
@@ -82,6 +86,16 @@ class EventSource(metaclass=abc.ABCMeta):
 
     def __init__(self, producer: Optional[Producer] = None):
         self.producer = producer
+        self._priority = 0
+
+    @property
+    def priority(self):
+        return self._priority
+
+    @priority.setter
+    def priority(self, value: int):
+        assert value >= MIN_EVENTSOURCE_PRIORITY and value <= MAX_EVENTSOURCE_PRIORITY, "Invalid priority"
+        self._priority = value
 
     @abc.abstractmethod
     def pop(self) -> Optional[Event]:
