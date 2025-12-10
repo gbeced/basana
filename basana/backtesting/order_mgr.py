@@ -25,7 +25,7 @@ import logging
 from basana.backtesting import account_balances, config, errors, fees, helpers, lending, loan_mgr, liquidity, prices
 from basana.backtesting.orders import Order, OrderInfo
 from basana.backtesting.value_map import ValueMap, ValueMapDict
-from basana.core import dispatcher, helpers as core_helpers, logs
+from basana.core import dispatcher, event, helpers as core_helpers, logs
 from basana.core.bar import Bar, BarEvent
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
 OrderEventHandler = Callable[["OrderEvent"], Awaitable[Any]]
+ORDER_UPDATE_PRIORITY = event.DEFAULT_EVENT_SOURCE_PRIORITY + 1
 
 
 @dataclasses.dataclass
@@ -81,7 +82,7 @@ class OrderManager:
         )
         self._orders = helpers.ExchangeObjectContainer[Order]()
         self._holds_by_order: Dict[str, ValueMap] = {}
-        self._order_updates = core_helpers.LazyProxy(bs.FifoQueueEventSource)
+        self._order_updates = core_helpers.LazyProxy(lambda: bs.FifoQueueEventSource(priority=ORDER_UPDATE_PRIORITY))
 
     def on_bar_event(self, bar_event: BarEvent):
         liquidity_strategy = self._liquidity_strategies[bar_event.bar.pair]

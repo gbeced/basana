@@ -5,6 +5,7 @@
 ### Bug fixes
 
 * Backtesting stop orders were being canceled if the stop price was not hit.
+* Backtesting order updates were sometimes being processed after bar events. Order update events should get processed first.
 
 ### Misc
 
