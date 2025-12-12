@@ -16,7 +16,7 @@
 
 import datetime
 
-from basana.core import dispatcher
+from basana.core import dispatcher, dt, event
 
 
 async def scheduler_job():
@@ -45,3 +45,33 @@ def test_scheduler_queue():
     queue.push(now - datetime.timedelta(seconds=3), scheduler_job)
     assert queue.peek_next_event_dt() == expected_next
     assert queue.peek_last_event_dt() == expected_last
+
+
+class Event(event.Event):
+    def __init__(self, when: datetime.datetime, value: int):
+        super().__init__(when)
+        self.value = value
+
+
+def test_multiplexer_priority():
+    mux = dispatcher.EventMultiplexer()
+    when = dt.utc_now()
+    event_1 = Event(when, 1)
+    event_2 = Event(when, 2)
+    event_3 = Event(when, 3)
+    src_1 = event.FifoQueueEventSource(events=[event_1])
+    src_2 = event.FifoQueueEventSource(events=[event_2])
+    src_3 = event.FifoQueueEventSource(events=[event_3])
+    src_2.priority = src_3.priority + 1
+    src_1.priority = src_2.priority + 1
+
+    mux.add(src_2)
+    mux.add(src_1)
+    mux.add(src_3)
+
+    events = []
+    while next_dt := mux.peek_next_event_dt():
+        _, evnt = mux.pop(next_dt)
+        events.append(evnt)
+
+    assert events == [event_1, event_2, event_3]
