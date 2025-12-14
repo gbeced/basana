@@ -31,7 +31,8 @@ class InvalidBar(Exception):
 
 
 class Bar:
-    """A Bar, also known as candlestick or OHLC, is the summary of the trading activity in a given period.
+    """
+    A Bar, also known as candlestick or OHLC, is the summary of the trading activity in a given period.
 
     :param datetime: The beginning of the period. It must have timezone information set.
     :param pair: The trading pair.
@@ -40,25 +41,27 @@ class Bar:
     :param low: The lowest traded price.
     :param close: The closing price.
     :param volume: The volume traded.
+    :param duration: The duration of the trading period.
     """
 
     def __init__(
-            self, datetime: datetime.datetime, pair: pair.Pair,
-            open: Decimal, high: Decimal, low: Decimal, close: Decimal, volume: Decimal
+            self, begin: datetime.datetime, pair: pair.Pair,
+            open: Decimal, high: Decimal, low: Decimal, close: Decimal, volume: Decimal,
+            duration: datetime.timedelta
     ):
         if high < low:
-            raise InvalidBar(f"high < low on {datetime}")
+            raise InvalidBar(f"high < low on {begin}")
         elif high < open:
-            raise InvalidBar(f"high < open on {datetime}")
+            raise InvalidBar(f"high < open on {begin}")
         elif high < close:
-            raise InvalidBar(f"high < close on {datetime}")
+            raise InvalidBar(f"high < close on {begin}")
         elif low > open:
-            raise InvalidBar(f"low > open on {datetime}")
+            raise InvalidBar(f"low > open on {begin}")
         elif low > close:
-            raise InvalidBar(f"low > close on {datetime}")
+            raise InvalidBar(f"low > close on {begin}")
 
         #: The beginning of the period.
-        self.datetime = datetime
+        self.begin = begin
         #: The trading pair.
         self.pair = pair
         #: The opening price.
@@ -71,6 +74,12 @@ class Bar:
         self.close = close
         #: The volume traded.
         self.volume = volume
+        #: The duration.
+        self.duration = duration
+
+    @property
+    def datetime(self):
+        return self.begin
 
 
 class BarEvent(event.Event):
@@ -145,7 +154,7 @@ class RealTimeTradesToBar(event.FifoQueueEventSource, event.Producer):
 
         # If there were trades in the current window then build the bar and publish the event.
         if volume and not self._skip_first_bar:
-            bar = Bar(begin, self._pair, open, high, low, close, volume)
+            bar = Bar(begin, self._pair, open, high, low, close, volume, datetime.timedelta(seconds=self._bar_duration))
             self.push(BarEvent(end, bar))
         self._skip_first_bar = False
 

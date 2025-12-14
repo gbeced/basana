@@ -18,6 +18,7 @@ from collections import defaultdict
 from decimal import Decimal
 import asyncio
 import dataclasses
+import datetime
 
 import pytest
 
@@ -99,7 +100,8 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
                     dt.local_datetime(2001, 1, 3),
                     bar.Bar(
                         dt.local_datetime(2001, 1, 2), pair,
-                        Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal(100)
+                        Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal(100),
+                        datetime.timedelta(days=1)
                     )
                 ),
             ])
@@ -143,7 +145,8 @@ def test_order_updates_have_priority(backtesting_dispatcher):
                     dt.local_datetime(2001, 1, 3),
                     bar.Bar(
                         dt.local_datetime(2001, 1, 2), pair,
-                        Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal(100)
+                        Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal(100),
+                        datetime.timedelta(days=1)
                     )
                 ),
             ])
@@ -252,35 +255,40 @@ def test_order_requests(order_plan, immediate_order_processing, backtesting_disp
                 dt.local_datetime(2001, 1, 3),
                 bar.Bar(
                     dt.local_datetime(2001, 1, 2), aapl_p,
-                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
+                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100"),
+                    datetime.timedelta(days=1)
                 )
             ),
             bar.BarEvent(
                 dt.local_datetime(2001, 1, 4),
                 bar.Bar(
                     dt.local_datetime(2001, 1, 3), aapl_p,
-                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
+                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100"),
+                    datetime.timedelta(days=1)
                 )
             ),
             bar.BarEvent(
                 dt.local_datetime(2001, 1, 5),
                 bar.Bar(
                     dt.local_datetime(2001, 1, 4), aapl_p,
-                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
+                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100"),
+                    datetime.timedelta(days=1)
                 )
             ),
             bar.BarEvent(
                 dt.local_datetime(2001, 1, 6),
                 bar.Bar(
                     dt.local_datetime(2001, 1, 5), aapl_p,
-                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100")
+                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100"),
+                    datetime.timedelta(days=1)
                 )
             ),
             # bar.BarEvent(
             #     dt.local_datetime(2001, 1, 7),
             #     bar.Bar(
             #         dt.local_datetime(2001, 1, 6), aapl_p,
-            #         Decimal(500), Decimal(1000), Decimal(100), Decimal(500), Decimal("10000")
+            #         Decimal(500), Decimal(1000), Decimal(100), Decimal(500), Decimal("10000"),
+            #         datetime.timedelta(days=1)
             #     )
             # ),
         ])
@@ -388,14 +396,16 @@ def test_small_fill_is_ignored_after_rounding(backtesting_dispatcher):
         bar.BarEvent(
             dt.local_datetime(2000, 1, 3, 23, 59, 59),
             bar.Bar(
-                dt.local_datetime(2000, 1, 3), p, Decimal(1), Decimal(1), Decimal(1), Decimal(1), Decimal("0.01")
+                dt.local_datetime(2000, 1, 3), p, Decimal(1), Decimal(1), Decimal(1), Decimal(1), Decimal("0.01"),
+                datetime.timedelta(days=1)
             )
         ),
         # This one should be used during fill.
         bar.BarEvent(
             dt.local_datetime(2000, 1, 4, 23, 59, 59),
             bar.Bar(
-                dt.local_datetime(2000, 1, 4), p, Decimal(2), Decimal(2), Decimal(2), Decimal(2), Decimal(10)
+                dt.local_datetime(2000, 1, 4), p, Decimal(2), Decimal(2), Decimal(2), Decimal(2), Decimal(10),
+                datetime.timedelta(days=1)
             )
         )
     ])
@@ -438,7 +448,8 @@ def test_liquidity_is_exhausted_and_order_is_canceled(backtesting_dispatcher):
                 bar.Bar(
                     dt.local_datetime(2000, 1, 3), orcl_p,
                     Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"),
-                    Decimal("98122000")
+                    Decimal("98122000"),
+                    datetime.timedelta(days=1)
                 )
             ),
             bar.BarEvent(
@@ -446,7 +457,8 @@ def test_liquidity_is_exhausted_and_order_is_canceled(backtesting_dispatcher):
                 bar.Bar(
                     dt.local_datetime(2000, 1, 7), orcl_p,
                     Decimal("95.00"), Decimal("103.50"), Decimal("93.56"), Decimal("103.37"),
-                    Decimal("91775600")
+                    Decimal("91775600"),
+                    datetime.timedelta(days=1)
                 )
             ),
         ])

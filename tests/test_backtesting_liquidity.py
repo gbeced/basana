@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
+import datetime
 
 import pytest
 
@@ -27,7 +28,8 @@ def test_infinite_liquidity():
     strat.on_bar(
         bar.Bar(
             dt.utc_now(), pair.Pair("BTC", "USD"),
-            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal("0.00000001")
+            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal("0.00000001"),
+            datetime.timedelta(seconds=1)
         )
     )
 
@@ -48,7 +50,8 @@ def test_volume_share_impact():
     strat.on_bar(
         bar.Bar(
             dt.utc_now(), pair.Pair("BTC", "USD"),
-            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal("10000")
+            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal("10000"),
+            datetime.timedelta(seconds=1)
         )
     )
 
@@ -80,7 +83,8 @@ def test_volume_share_impact_without_liquidity():
     strat.on_bar(
         bar.Bar(
             dt.utc_now(), pair.Pair("BTC", "USD"),
-            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal(0)
+            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal(0),
+            datetime.timedelta(seconds=1)
         )
     )
 
@@ -103,7 +107,8 @@ def test_volume_share_impact_with_zero_price_impact():
     strat.on_bar(
         bar.Bar(
             dt.utc_now(), pair.Pair("BTC", "USD"),
-            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal("100")
+            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal("100"),
+            datetime.timedelta(seconds=1)
         )
     )
 

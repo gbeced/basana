@@ -156,7 +156,8 @@ def test_bid_ask(backtesting_dispatcher):
                 dt.local_datetime(2000, 1, 3, 23, 59, 59),
                 bar.Bar(
                     dt.local_datetime(2000, 1, 3), p,
-                    Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"), Decimal("98122000")
+                    Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"), Decimal("98122000"),
+                    datetime.timedelta(days=1)
                 )
             )
         ])

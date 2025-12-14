@@ -15,9 +15,9 @@
 # limitations under the License.
 
 from decimal import Decimal
+from typing import List, Tuple
 import asyncio
 import datetime
-from typing import List, Tuple
 
 import pytest
 
@@ -39,7 +39,8 @@ def build_bar_source(
             bar_begin + bar_duration,
             bar.Bar(
                 bar_begin, pair,
-                price, price, price, price, Decimal("1e7")
+                price, price, price, price, Decimal("1e7"),
+                bar_duration
             )
         ))
     return bs

@@ -14,8 +14,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from uuid import uuid4
 from decimal import Decimal
+from uuid import uuid4
+import datetime
 
 import pytest
 
@@ -307,7 +308,7 @@ def test_get_balance_updates_with_infinite_liquidity(order, ohlcv, expected_bala
     e.set_pair_info(pair, PairInfo(8, 2))
 
     ls = liquidity.InfiniteLiquidity()
-    b = bar.Bar(dt.local_now(), pair, *ohlcv)
+    b = bar.Bar(dt.local_now(), pair, *ohlcv, datetime.timedelta(seconds=1))
     balance_updates = value_map.ValueMap(order.get_balance_updates(b, ls))
     e._order_mgr._round_balance_updates(balance_updates, order.pair)
     assert balance_updates == expected_balance_updates
@@ -371,7 +372,10 @@ def test_get_balance_updates_with_finite_liquidity(order, ohlcv, expected_balanc
     e.set_pair_info(pair, PairInfo(8, 2))
 
     ls = liquidity.VolumeShareImpact()
-    b = bar.Bar(dt.local_now(), pair, *ohlcv)
+    b = bar.Bar(
+        dt.local_now(), pair, *ohlcv,
+        datetime.timedelta(seconds=1)
+    )
     ls.on_bar(b)
 
     balance_updates = value_map.ValueMap(order.get_balance_updates(b, ls))
@@ -398,7 +402,8 @@ def test_no_liquidity_calculating_balance_updates(order, backtesting_dispatcher)
     ls = liquidity.VolumeShareImpact()
     b = bar.Bar(
         dt.local_now(), pair,
-        Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("0")
+        Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("0"),
+        datetime.timedelta(seconds=1)
     )
     ls.on_bar(b)
 

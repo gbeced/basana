@@ -16,6 +16,7 @@
 
 from decimal import Decimal
 import asyncio
+import datetime
 import json
 import time
 
@@ -71,7 +72,7 @@ def test_bars(realtime_dispatcher):
                 kline_event["E"] = int(timestamp * 1e3)
                 kline_event["k"]["x"] = kline_closed
                 await websocket.send(json.dumps({
-                    "stream": "bnbbtc@kline_1s",
+                    "stream": "bnbbtc@kline_1m",
                     "data": kline_event,
                 }))
                 await asyncio.sleep(0.4)
@@ -81,7 +82,7 @@ def test_bars(realtime_dispatcher):
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
             config_overrides = {"api": {"websockets": {"base_url": ws_uri}}}
             e = exchange.Exchange(realtime_dispatcher, config_overrides=config_overrides)
-            e.subscribe_to_bar_events(p, 1, on_bar_event)
+            e.subscribe_to_bar_events(p, "1m", on_bar_event)
 
             await realtime_dispatcher.run()
 
@@ -95,3 +96,5 @@ def test_bars(realtime_dispatcher):
     assert last_bar.low == Decimal("0.0005")
     assert last_bar.close == Decimal("0.002")
     assert last_bar.volume == Decimal(1000)
+    assert last_bar.begin == datetime.datetime(1970, 1, 2, 10, 16, 40, tzinfo=datetime.timezone.utc)
+    assert last_bar.duration == datetime.timedelta(seconds=60)

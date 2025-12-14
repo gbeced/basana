@@ -82,7 +82,7 @@ class RowParser(csv.RowParser):
         return [
             bar.BarEvent(
                 dt + self.timedelta,
-                bar.Bar(dt, self.pair, open, high, low, close, Decimal(row_dict["Volume"]))
+                bar.Bar(dt, self.pair, open, high, low, close, Decimal(row_dict["Volume"]), self.timedelta)
             )
         ]
 

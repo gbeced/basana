@@ -122,9 +122,9 @@ class OrderManager:
             else:
                 now = self._ctx.dispatcher.now()
                 bar = Bar(
-                    datetime=now, pair=order.pair,
+                    begin=now, pair=order.pair,
                     open=last_bar.close, high=last_bar.close, low=last_bar.close, close=last_bar.close,
-                    volume=last_bar.volume
+                    volume=last_bar.volume, duration=datetime.timedelta(milliseconds=1)
                 )
                 liquidity_strategy = self._liquidity_strategies[order.pair]
                 # If the order is not updated during processing, we push an update for the order that is being added.

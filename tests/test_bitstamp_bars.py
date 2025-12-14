@@ -16,6 +16,7 @@
 
 from decimal import Decimal
 import asyncio
+import datetime
 import json
 import time
 
@@ -88,3 +89,5 @@ def test_bars_from_trades(realtime_dispatcher):
     assert last_bar.low == Decimal(1000)
     assert last_bar.close == Decimal(1000)
     assert last_bar.volume >= Decimal(2) and last_bar.volume <= Decimal(3)
+    assert last_bar.begin == last_bar.datetime
+    assert last_bar.duration == datetime.timedelta(seconds=1)

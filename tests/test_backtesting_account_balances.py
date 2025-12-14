@@ -16,6 +16,7 @@
 
 from decimal import Decimal
 import asyncio
+import datetime
 
 import pytest
 
@@ -131,21 +132,24 @@ def test_balance_updates_as_orders_get_processed(order_fun, checkpoints, backtes
                 dt.local_datetime(2001, 1, 2),
                 bar.Bar(
                     dt.local_datetime(2001, 1, 1),
-                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100)
+                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
+                    datetime.timedelta(days=1)
                 )
             ),
             bar.BarEvent(
                 dt.local_datetime(2001, 1, 3),
                 bar.Bar(
                     dt.local_datetime(2001, 1, 2),
-                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100)
+                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
+                    datetime.timedelta(days=1)
                 )
             ),
             bar.BarEvent(
                 dt.local_datetime(2001, 1, 4),
                 bar.Bar(
                     dt.local_datetime(2001, 1, 3),
-                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100)
+                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
+                    datetime.timedelta(days=1)
                 )
             ),
         ])
