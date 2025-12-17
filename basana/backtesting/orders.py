@@ -25,7 +25,8 @@ import logging
 from basana.backtesting import helpers, liquidity, value_map
 from basana.core import bar, logs
 from basana.core.enums import OrderOperation
-from basana.core.pair import Pair
+from basana.core.helpers import round_decimal, truncate_decimal
+from basana.core.pair import Pair, PairInfo
 
 
 logger = logging.getLogger(__name__)
@@ -46,6 +47,8 @@ class Fill:
     balance_updates: Dict[str, Decimal]
     #: The fees.
     fees: Dict[str, Decimal]
+    #: The fill price.
+    fill_price: Decimal
 
 
 @dataclasses.dataclass
@@ -89,14 +92,15 @@ class OrderInfo:
 # This is an internal abstraction to be used by the exchange.
 class Order(metaclass=abc.ABCMeta):
     def __init__(
-            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal,
-            auto_borrow: bool = False, auto_repay: bool = False
+            self, id: str, operation: OrderOperation, pair: Pair, pair_info: PairInfo,
+            amount: Decimal, auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert amount > Decimal(0), f"Invalid amount {amount}"
 
         self._id = id
         self._operation = operation
         self._pair = pair
+        self._pair_info = pair_info
         self._amount = amount
         self._state = OrderState.OPEN
         self._balance_updates = value_map.ValueMap()
@@ -113,6 +117,10 @@ class Order(metaclass=abc.ABCMeta):
     @property
     def pair(self) -> Pair:
         return self._pair
+
+    @property
+    def pair_info(self) -> PairInfo:
+        return self._pair_info
 
     @property
     def amount(self) -> Decimal:
@@ -166,12 +174,12 @@ class Order(metaclass=abc.ABCMeta):
         assert self._state == OrderState.OPEN
         self._state = OrderState.CANCELED
 
-    def add_fill(self, when: datetime.datetime, balance_updates: Dict[str, Decimal], fees: Dict[str, Decimal]):
-        self._balance_updates += balance_updates
-        self._fees += fees
+    def add_fill(self, fill: Fill):
+        self._balance_updates += fill.balance_updates
+        self._fees += fill.fees
         if self.amount_filled >= self.amount:
             self._state = OrderState.COMPLETED
-        self._fills.append(Fill(when=when, balance_updates=balance_updates, fees=fees))
+        self._fills.append(fill)
 
     def add_loan(self, loan_id: str):
         self._loan_ids.add(loan_id)
@@ -182,26 +190,24 @@ class Order(metaclass=abc.ABCMeta):
             amount=self.amount, amount_filled=self.amount_filled, amount_remaining=self.amount_pending,
             quote_amount_filled=self.quote_amount_filled,
             fees={symbol: -amount for symbol, amount in self._fees.items() if amount},
-            loan_ids=[loan_id for loan_id in self._loan_ids], fills=self.fills
+            loan_ids=[loan_id for loan_id in self._loan_ids], fills=copy.copy(self.fills)
         )
 
     @abc.abstractmethod
-    def get_balance_updates(
-            self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy
-    ) -> Dict[str, Decimal]:
+    def try_fill(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Optional[Fill]:
         """
-        Returns the balance updates required to fill the order.
+        Try to fill the order.
 
         :param bar: The bar that summarizes the trading activity.
         :param liquidity_strategy: The strategy used to model available liquidity.
-        :returns: A dictionary that maps the symbol to the amount.
 
         .. note::
 
             * It can be either a complete or partial fill, based on the trading activity summarized by the bar and the
               available liquidity.
-            * It should include both the base amount and the quote amount, with opposite signs depending on the
-              operation.
+            * The balance updates in the fill should include both the base amount and the quote amount, with opposite
+              signs depending on the operation.
+            * The order state should not change inside try_fill.
         """
         raise NotImplementedError()
 
@@ -228,74 +234,84 @@ class Order(metaclass=abc.ABCMeta):
 
 class MarketOrder(Order):
     def __init__(
-            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal,
-            auto_borrow: bool = False, auto_repay: bool = False
+            self, id: str, operation: OrderOperation, pair: Pair, pair_info: PairInfo,
+            amount: Decimal, auto_borrow: bool = False, auto_repay: bool = False
     ):
-        super().__init__(id, operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
+        super().__init__(id, operation, pair, pair_info, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
 
     def not_filled(self):
         self.cancel()
 
-    def get_balance_updates(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Dict[str, Decimal]:
+    def try_fill(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Optional[Fill]:
         # No partial fills for market orders.
         if self.amount_pending > liquidity_strategy.available_liquidity:
             logger.debug(logs.StructuredMessage("Not enough liquidity to fill order", order_id=self.id))
-            return {}
+            return None
 
         amount = self.amount_pending
+        price = slipped_price(bar.open, amount, self, liquidity_strategy)
         base_sign = helpers.get_base_sign_for_operation(self.operation)
-        if self.operation == OrderOperation.BUY:
-            price = slipped_price(bar.open, self.operation, amount, liquidity_strategy)
-        else:
-            assert self.operation == OrderOperation.SELL
-            price = slipped_price(bar.open, self.operation, amount, liquidity_strategy)
-
-        return {
-            self.pair.base_symbol: amount * base_sign,
-            self.pair.quote_symbol: price * amount * -base_sign
-        }
+        return Fill(
+            when=bar.begin,
+            balance_updates={
+                self.pair.base_symbol: amount * base_sign,
+                self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+            },
+            fees={},
+            fill_price=price
+        )
 
 
 class LimitOrder(Order):
     def __init__(
-            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            auto_borrow: bool = False, auto_repay: bool = False
+            self, id: str, operation: OrderOperation, pair: Pair, pair_info: PairInfo,
+            amount: Decimal, limit_price: Decimal, auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert limit_price > Decimal(0), "Invalid limit_price {limit_price}"
 
-        super().__init__(id, operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
+        super().__init__(id, operation, pair, pair_info, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._limit_price = limit_price
 
-    def get_balance_updates(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Dict[str, Decimal]:
+    def try_fill(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Optional[Fill]:
         amount = min(self.amount_pending, liquidity_strategy.available_liquidity)
+        amount = truncate_decimal(amount, self.pair_info.base_precision)
         if not amount:
-            return {}
+            return None
 
         price = None
+        fill_dt = None
         base_sign = helpers.get_base_sign_for_operation(self.operation)
 
         if self.operation == OrderOperation.BUY:
             # Limit price was hit at bar open.
-            if bar.open < self._limit_price:
-                price = slipped_price(bar.open, self.operation, amount, liquidity_strategy, cap_high=self._limit_price)
+            if bar.open <= self._limit_price:
+                price = slipped_price(bar.open, amount, self, liquidity_strategy, cap_high=self._limit_price)
+                fill_dt = bar.begin
             # The price went down to limit price or lower.
             elif bar.low <= self._limit_price:
                 price = self._limit_price
+                fill_dt = last_datetime_within_bar(bar)
         else:
-            assert self.operation == OrderOperation.SELL
             # Limit price was hit at bar open.
-            if bar.open > self._limit_price:
-                price = slipped_price(bar.open, self.operation, amount, liquidity_strategy, cap_low=self._limit_price)
+            if bar.open >= self._limit_price:
+                price = slipped_price(bar.open, amount, self, liquidity_strategy, cap_low=self._limit_price)
+                fill_dt = bar.begin
             # The price went up to limit price or higher.
             elif bar.high >= self._limit_price:
                 price = self._limit_price
+                fill_dt = last_datetime_within_bar(bar)
 
-        ret = {}
-        if amount and price:
-            ret = {
-                self.pair.base_symbol: amount * base_sign,
-                self.pair.quote_symbol: price * amount * -base_sign
-            }
+        ret = None
+        if price and fill_dt:
+            ret = Fill(
+                when=fill_dt,
+                balance_updates={
+                    self.pair.base_symbol: amount * base_sign,
+                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                },
+                fees={},
+                fill_price=price
+            )
         return ret
 
     def calculate_estimated_fill_price(self) -> Optional[Decimal]:
@@ -315,12 +331,12 @@ class LimitOrder(Order):
 
 class StopOrder(Order):
     def __init__(
-            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
-            auto_borrow: bool = False, auto_repay: bool = False
+            self, id: str, operation: OrderOperation, pair: Pair, pair_info: PairInfo,
+            amount: Decimal, stop_price: Decimal, auto_borrow: bool = False, auto_repay: bool = False
     ):
         assert stop_price > Decimal(0), "Invalid stop_price {stop_price}"
 
-        super().__init__(id, operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
+        super().__init__(id, operation, pair, pair_info, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
         self._stop_price_hit = False
 
@@ -328,44 +344,51 @@ class StopOrder(Order):
         if self._stop_price_hit:
             self.cancel()
 
-    def get_balance_updates(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Dict[str, Decimal]:
+    def try_fill(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Optional[Fill]:
         # No partial fills for stop orders.
         if self.amount_pending > liquidity_strategy.available_liquidity:
             logger.debug(logs.StructuredMessage("Not enough liquidity to fill order", order_id=self.id))
-            return {}
+            return None
 
         price = None
+        fill_dt = None
         amount = self.amount_pending
         base_sign = helpers.get_base_sign_for_operation(self.operation)
+
         if self.operation == OrderOperation.BUY:
             # Stop price was hit at bar open.
             if bar.open >= self._stop_price:
                 price = bar.open
+                fill_dt = bar.begin
             # The price went up to stop price or higher.
             elif bar.high >= self._stop_price:
                 price = self._stop_price
-
-            if price:
-                price = slipped_price(price, self.operation, amount, liquidity_strategy)
+                fill_dt = last_datetime_within_bar(bar)
         else:
-            assert self.operation == OrderOperation.SELL
             # Stop price was hit at bar open.
             if bar.open <= self._stop_price:
                 price = bar.open
+                fill_dt = bar.begin
             # The price went down to stop price or lower.
             elif bar.low <= self._stop_price:
                 price = self._stop_price
+                fill_dt = last_datetime_within_bar(bar)
 
-            if price:
-                price = slipped_price(price, self.operation, amount, liquidity_strategy)
-
-        ret = {}
         if price:
+            price = slipped_price(price, amount, self, liquidity_strategy)
+
+        ret = None
+        if price and fill_dt:
             self._stop_price_hit = True
-            ret = {
-                self.pair.base_symbol: amount * base_sign,
-                self.pair.quote_symbol: price * amount * -base_sign
-            }
+            ret = Fill(
+                when=fill_dt,
+                balance_updates={
+                    self.pair.base_symbol: amount * base_sign,
+                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                },
+                fees={},
+                fill_price=price
+            )
         return ret
 
     def calculate_estimated_fill_price(self) -> Optional[Decimal]:
@@ -385,25 +408,26 @@ class StopOrder(Order):
 
 class StopLimitOrder(Order):
     def __init__(
-            self, id: str, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
-            limit_price: Decimal, auto_borrow: bool = False, auto_repay: bool = False
+            self, id: str, operation: OrderOperation, pair: Pair, pair_info: PairInfo,
+            amount: Decimal, stop_price: Decimal, limit_price: Decimal, auto_borrow: bool = False,
+            auto_repay: bool = False
     ):
         assert stop_price > Decimal(0), "Invalid stop_price {stop_price}"
         assert limit_price > Decimal(0), "Invalid limit_price {limit_price}"
 
-        super().__init__(id, operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
+        super().__init__(id, operation, pair, pair_info, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
         self._limit_price = limit_price
         self._stop_price_hit = False
 
-    def get_balance_updates_before_stop_hit(
-            self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy
-    ) -> Dict[str, Decimal]:
+    def try_fill_before_stop_hit(
+            self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy, amount: Decimal
+    ) -> Optional[Fill]:
         assert not self._stop_price_hit
 
         price = None
+        fill_dt = None
         base_sign = helpers.get_base_sign_for_operation(self.operation)
-        amount = min(self.amount_pending, liquidity_strategy.available_liquidity)
 
         if self.operation == OrderOperation.BUY:
             # Stop price was hit at bar open.
@@ -412,86 +436,106 @@ class StopLimitOrder(Order):
                 # Limit price was also hit at open.
                 if bar.open <= self._limit_price:
                     price = bar.open
+                    fill_dt = bar.begin
                 # Limit price was hit some time later within the bar.
                 elif bar.low <= self._limit_price <= bar.high:
                     price = self._limit_price
+                    fill_dt = last_datetime_within_bar(bar)
             # The price went up to stop price or higher.
             elif bar.high >= self._stop_price:
                 self._stop_price_hit = True
                 # Limit price was hit some time later within the bar.
                 if bar.low <= self._limit_price <= bar.high:
                     price = self._limit_price
+                    fill_dt = last_datetime_within_bar(bar)
             # Calculate slippage if necessary.
             if price is not None and price != self._limit_price:
-                price = slipped_price(price, self.operation, amount, liquidity_strategy, cap_high=self._limit_price)
+                price = slipped_price(price, amount, self, liquidity_strategy, cap_high=self._limit_price)
         else:
-            assert self.operation == OrderOperation.SELL
             # Stop price was hit at bar open.
             if bar.open <= self._stop_price:
                 self._stop_price_hit = True
                 # Limit price was also hit at open.
                 if bar.open >= self._limit_price:
                     price = bar.open
+                    fill_dt = bar.begin
                 # Limit price was hit some time later within the bar.
                 elif bar.low <= self._limit_price <= bar.high:
                     price = self._limit_price
+                    fill_dt = last_datetime_within_bar(bar)
             # The price went down to stop price or lower.
             elif bar.low <= self._stop_price:
                 self._stop_price_hit = True
                 # Limit price was hit some time later within the bar.
                 if bar.low <= self._limit_price <= bar.high:
                     price = self._limit_price
+                    fill_dt = last_datetime_within_bar(bar)
             # Calculate slippage if necessary.
             if price is not None and price != self._limit_price:
-                price = slipped_price(price, self.operation, amount, liquidity_strategy, cap_low=self._limit_price)
+                price = slipped_price(price, amount, self, liquidity_strategy, cap_low=self._limit_price)
 
-        ret = {}
-        if amount and price:
-            ret = {
-                self.pair.base_symbol: amount * base_sign,
-                self.pair.quote_symbol: price * amount * -base_sign
-            }
-
+        ret = None
+        if price and fill_dt:
+            ret = Fill(
+                when=fill_dt,
+                balance_updates={
+                    self.pair.base_symbol: amount * base_sign,
+                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                },
+                fees={},
+                fill_price=price
+            )
         return ret
 
-    def get_balance_updates_after_stop_hit(
-            self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy
-    ) -> Dict[str, Decimal]:
+    def try_fill_after_stop_hit(
+            self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy, amount: Decimal
+    ) -> Optional[Fill]:
         price = None
-        amount = min(self.amount_pending, liquidity_strategy.available_liquidity)
+        fill_dt = None
         base_sign = helpers.get_base_sign_for_operation(self.operation)
 
         if self.operation == OrderOperation.BUY:
             # Limit price was hit at bar open.
             if bar.open < self._limit_price:
-                price = slipped_price(bar.open, self.operation, amount, liquidity_strategy, cap_high=self._limit_price)
+                price = slipped_price(bar.open, amount, self, liquidity_strategy, cap_high=self._limit_price)
+                fill_dt = bar.begin
             # The price went down to limit price or lower.
             elif bar.low <= self._limit_price:
                 price = self._limit_price
+                fill_dt = last_datetime_within_bar(bar)
         else:
-            assert self.operation == OrderOperation.SELL
             # Limit price was hit at bar open.
             if bar.open > self._limit_price:
-                price = slipped_price(bar.open, self.operation, amount, liquidity_strategy, cap_low=self._limit_price)
+                price = slipped_price(bar.open, amount, self, liquidity_strategy, cap_low=self._limit_price)
+                fill_dt = bar.begin
             # The price went up to limit price or higher.
             elif bar.high >= self._limit_price:
                 price = self._limit_price
+                fill_dt = last_datetime_within_bar(bar)
 
-        ret = {}
-        if amount and price:
-            ret = {
-                self.pair.base_symbol: amount * base_sign,
-                self.pair.quote_symbol: price * amount * -base_sign
-            }
+        ret = None
+        if price and fill_dt:
+            ret = Fill(
+                when=fill_dt,
+                balance_updates={
+                    self.pair.base_symbol: amount * base_sign,
+                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                },
+                fees={},
+                fill_price=price
+            )
         return ret
 
-    def get_balance_updates(
-            self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy
-    ) -> Dict[str, Decimal]:
+    def try_fill(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Optional[Fill]:
+        amount = min(self.amount_pending, liquidity_strategy.available_liquidity)
+        amount = truncate_decimal(amount, self.pair_info.base_precision)
+        if not amount:
+            return None
+
         if not self._stop_price_hit:
-            ret = self.get_balance_updates_before_stop_hit(bar, liquidity_strategy)
+            ret = self.try_fill_before_stop_hit(bar, liquidity_strategy, amount)
         else:
-            ret = self.get_balance_updates_after_stop_hit(bar, liquidity_strategy)
+            ret = self.try_fill_after_stop_hit(bar, liquidity_strategy, amount)
         return ret
 
     def calculate_estimated_fill_price(self) -> Optional[Decimal]:
@@ -512,14 +556,14 @@ class StopLimitOrder(Order):
 
 
 def slipped_price(
-        price: Decimal, operation: OrderOperation, amount: Decimal, liquidity_strategy: liquidity.LiquidityStrategy,
+        price: Decimal, amount: Decimal,
+        order: Order, liquidity_strategy: liquidity.LiquidityStrategy,
         cap_low: Optional[Decimal] = None, cap_high: Optional[Decimal] = None
 ) -> Decimal:
     price_impact = liquidity_strategy.calculate_price_impact(amount)
-    if operation == OrderOperation.BUY:
+    if order.operation == OrderOperation.BUY:
         price *= (Decimal(1) + price_impact)
     else:
-        assert operation == OrderOperation.SELL
         price *= (Decimal(1) - price_impact)
 
     if cap_low is not None:
@@ -527,4 +571,12 @@ def slipped_price(
     if cap_high is not None:
         price = min(price, cap_high)
 
-    return price
+    return round_decimal(price, order.pair_info.quote_precision)
+
+
+def last_datetime_within_bar(bar: bar.Bar):
+    # Just in case the bar's begin and end are equal.
+    return max(
+        (bar.begin + bar.duration) - datetime.timedelta(milliseconds=1),
+        bar.begin
+    )

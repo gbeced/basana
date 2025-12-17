@@ -267,28 +267,31 @@ class OrderManager:
             self, order: Order, bar: Bar, liquidity_strategy: liquidity.LiquidityStrategy
     ) -> bool:
 
-        # Calculate balance updates for the current bar.
+        # Try to fill the order.
         logger.debug(logs.StructuredMessage(
             "Processing order", order=order.get_debug_info(),
             bar={"open": bar.open, "high": bar.high, "low": bar.low, "close": bar.close, "volume": bar.volume}
         ))
-        prev_state = order.state
-        balance_updates = ValueMap(order.get_balance_updates(bar, liquidity_strategy))
-        assert order.state == prev_state, "The order state should not change inside get_balance_updates"
-        self._round_balance_updates(balance_updates, order.pair)
+        fill = order.try_fill(bar, liquidity_strategy)
+        if fill is None:
+            return self._order_not_filled(order)
+
+        # Round fill data.
+        balance_updates = ValueMap(fill.balance_updates)
+        balance_updates.prune()
         logger.debug(logs.StructuredMessage(
-            "Order balance updates", order_id=order.id, balance_updates=balance_updates
+            "Order fill details before fees", order_id=order.id, fill_price=fill.fill_price,
+            balance_updates=balance_updates
+            
         ))
         # Base and quote symbols must be present in the balance updates, otherwise the order can't be filled.
         if order.pair.base_symbol not in balance_updates or order.pair.quote_symbol not in balance_updates:
             return self._order_not_filled(order)
 
-        # Get fees, round them, and combine them with the balance updates.
+        # Calculate fees.
         fees = ValueMap(self._ctx.fee_strategy.calculate_fees(order, balance_updates))
         self._round_fees(fees, order.pair)
-        logger.debug(logs.StructuredMessage(
-            "Order fees", order_id=order.id, fees=fees
-        ))
+        logger.debug(logs.StructuredMessage("Order fees", order_id=order.id, fees=fees))
 
         ret = False
         try:
@@ -299,7 +302,8 @@ class OrderManager:
             # Update the liquidity strategy.
             liquidity_strategy.take_liquidity(abs(balance_updates[bar.pair.base_symbol]))
             # Update the order and release any pending balance on hold if the order is now closed.
-            order.add_fill(self._ctx.dispatcher.now(), balance_updates, fees)
+            fill.fees = fees
+            order.add_fill(fill)
             logger.debug(logs.StructuredMessage(
                 "Order updated", order_id=order.id, final_updates=final_updates, order_state=order.state
             ))

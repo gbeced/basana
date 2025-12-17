@@ -29,12 +29,13 @@ from basana.core.pair import Pair, PairInfo
 base_currency = "BTC"
 quote_currency = "USD"
 pair = Pair(base_currency, quote_currency)
+pair_info = PairInfo(8, 2)
 
 
 @pytest.mark.parametrize("order, ohlcv, expected_balance_updates", [
     # Buy market
     (
-        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("1")),
+        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("1"),
@@ -43,7 +44,7 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Buy market. Rounding should take place.
     (
-        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("1.61")),
+        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1.61")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("1.61"),
@@ -51,7 +52,7 @@ pair = Pair(base_currency, quote_currency)
         }
     ),
     (
-        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("1.61")),
+        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1.61")),
         (Decimal("3.14"), Decimal("3.14"), Decimal("3.14"), Decimal("3.14"), Decimal("1")),
         {
             base_currency: Decimal("1.61"),
@@ -60,7 +61,7 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Buy limit
     (
-        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("1"), Decimal("39000.01")),
+        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1"), Decimal("39000.01")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("1"),
@@ -68,7 +69,7 @@ pair = Pair(base_currency, quote_currency)
         }
     ),
     (
-        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("1"), Decimal("4")),
+        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1"), Decimal("4")),
         (Decimal("3.14"), Decimal("3.14"), Decimal("3.14"), Decimal("3.14"), Decimal("1")),
         {
             base_currency: Decimal("1"),
@@ -77,7 +78,7 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Buy limit uses open price which is better.
     (
-        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("2"), Decimal("42000")),
+        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("2"), Decimal("42000")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("2"),
@@ -86,7 +87,7 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Buy limit uses open price which is better. Rounding should take place
     (
-        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("3.8"), Decimal("42000")),
+        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("3.8"), Decimal("42000")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("3.8"),
@@ -95,29 +96,29 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Buy limit price not hit.
     (
-        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("2"), Decimal("29000")),
+        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("2"), Decimal("29000")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {}
     ),
     (
-        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("2"), Decimal("50")),
+        LimitOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("2"), Decimal("50")),
         (Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("500")),
         {}
     ),
     # Buy stop not hit.
     (
-        StopOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("2"), Decimal("50401.02")),
+        StopOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("2"), Decimal("50401.02")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {}
     ),
     (
-        StopOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("2"), Decimal("100.01")),
+        StopOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("2"), Decimal("100.01")),
         (Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("500")),
         {}
     ),
     # Buy stop hit on open.
     (
-        StopOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("1"), Decimal("30000.01")),
+        StopOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1"), Decimal("30000.01")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("1"),
@@ -125,7 +126,7 @@ pair = Pair(base_currency, quote_currency)
         }
     ),
     (
-        StopOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("1"), Decimal("99.99")),
+        StopOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1"), Decimal("99.99")),
         (Decimal("100"), Decimal("100"), Decimal("100"), Decimal("100"), Decimal("500")),
         {
             base_currency: Decimal("1"),
@@ -134,7 +135,7 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Buy stop hit after open.
     (
-        StopOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("1"), Decimal("40001.77")),
+        StopOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1"), Decimal("40001.77")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("1"),
@@ -144,14 +145,14 @@ pair = Pair(base_currency, quote_currency)
     # Buy stop limit not hit.
     (
         StopLimitOrder(
-            uuid4().hex, OrderOperation.BUY, pair, Decimal("2"), Decimal("50401.02"), Decimal("60000")
+            uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("2"), Decimal("50401.02"), Decimal("60000")
         ),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {}
     ),
     (
         StopLimitOrder(
-            uuid4().hex, OrderOperation.BUY, pair, Decimal("2"), Decimal("50401.02"), Decimal("60000")
+            uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("2"), Decimal("50401.02"), Decimal("60000")
         ),
         (Decimal("50401.01"), Decimal("50401.01"), Decimal("50401.01"), Decimal("50401.01"), Decimal("10")),
         {}
@@ -159,14 +160,14 @@ pair = Pair(base_currency, quote_currency)
     # Buy stop limit not hit.
     (
         StopLimitOrder(
-            uuid4().hex, OrderOperation.BUY, pair, Decimal("2"), Decimal("20000"), Decimal("21000")
+            uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("2"), Decimal("20000"), Decimal("21000")
         ),
         (Decimal("21100"), Decimal("21900"), Decimal("21000.01"), Decimal("21000.01"), Decimal("100")),
         {}
     ),
     (
         StopLimitOrder(
-            uuid4().hex, OrderOperation.BUY, pair, Decimal("2"), Decimal("20000"), Decimal("21000")
+            uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("2"), Decimal("20000"), Decimal("21000")
         ),
         (Decimal("25000"), Decimal("25000"), Decimal("25000"), Decimal("25000"), Decimal("100")),
         {}
@@ -174,7 +175,7 @@ pair = Pair(base_currency, quote_currency)
     # Buy stop limit hit on open.
     (
         StopLimitOrder(
-            uuid4().hex, OrderOperation.BUY, pair, Decimal("1"), Decimal("40000"), Decimal("42000")
+            uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1"), Decimal("40000"), Decimal("42000")
         ),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
@@ -185,7 +186,7 @@ pair = Pair(base_currency, quote_currency)
     # Buy stop limit hit after open.
     (
         StopLimitOrder(
-            uuid4().hex, OrderOperation.BUY, pair, Decimal("2"), Decimal("41000"), Decimal("42000")
+            uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("2"), Decimal("41000"), Decimal("42000")
         ),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
@@ -195,7 +196,7 @@ pair = Pair(base_currency, quote_currency)
     ),
     (
         StopLimitOrder(
-            uuid4().hex, OrderOperation.BUY, pair, Decimal("1"), Decimal("41000"), Decimal("42000")
+            uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1"), Decimal("41000"), Decimal("42000")
         ),
         (Decimal("41900"), Decimal("41900"), Decimal("41900"), Decimal("41900"), Decimal("100")),
         {
@@ -205,7 +206,7 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Sell market
     (
-        MarketOrder(uuid4().hex, OrderOperation.SELL, pair, Decimal("1")),
+        MarketOrder(uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("1")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("-1"),
@@ -214,7 +215,7 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Sell limit
     (
-        LimitOrder(uuid4().hex, OrderOperation.SELL, pair, Decimal("1"), Decimal("41200.02")),
+        LimitOrder(uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("1"), Decimal("41200.02")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("-1"),
@@ -223,7 +224,7 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Sell limit uses open price which is better.
     (
-        LimitOrder(uuid4().hex, OrderOperation.SELL, pair, Decimal("2"), Decimal("39000")),
+        LimitOrder(uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("2"), Decimal("39000")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("-2"),
@@ -232,19 +233,19 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Sell limit price not hit.
     (
-        LimitOrder(uuid4().hex, OrderOperation.SELL, pair, Decimal("2"), Decimal("50401.02")),
+        LimitOrder(uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("2"), Decimal("50401.02")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {}
     ),
     # Sell stop not hit.
     (
-        StopOrder(uuid4().hex, OrderOperation.SELL, pair, Decimal("2"), Decimal("29999.99")),
+        StopOrder(uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("2"), Decimal("29999.99")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {}
     ),
     # Sell stop hit on open.
     (
-        StopOrder(uuid4().hex, OrderOperation.SELL, pair, Decimal("1"), Decimal("40002")),
+        StopOrder(uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("1"), Decimal("40002")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("-1"),
@@ -253,7 +254,7 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Sell stop hit on open. Rounding should take place
     (
-        StopOrder(uuid4().hex, OrderOperation.SELL, pair, Decimal("3.6"), Decimal("40002")),
+        StopOrder(uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("3.6"), Decimal("40002")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("-3.6"),
@@ -262,7 +263,7 @@ pair = Pair(base_currency, quote_currency)
     ),
     # Sell stop hit after open.
     (
-        StopOrder(uuid4().hex, OrderOperation.SELL, pair, Decimal("1"), Decimal("35000")),
+        StopOrder(uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("1"), Decimal("35000")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
             base_currency: Decimal("-1"),
@@ -272,7 +273,7 @@ pair = Pair(base_currency, quote_currency)
     # Sell stop limit hit on open.
     (
         StopLimitOrder(
-            uuid4().hex, OrderOperation.SELL, pair, Decimal("1"), Decimal("41000"), Decimal("40000")
+            uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("1"), Decimal("41000"), Decimal("40000")
         ),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
@@ -283,7 +284,7 @@ pair = Pair(base_currency, quote_currency)
     # Sell stop limit hit after open.
     (
         StopLimitOrder(
-            uuid4().hex, OrderOperation.SELL, pair, Decimal("1"), Decimal("35000"), Decimal("41000")
+            uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("1"), Decimal("35000"), Decimal("41000")
         ),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
@@ -294,7 +295,7 @@ pair = Pair(base_currency, quote_currency)
     # Sell stop limit hit after open. Rounding should take place.
     (
         StopLimitOrder(
-            uuid4().hex, OrderOperation.SELL, pair, Decimal("1.07"), Decimal("35000"), Decimal("41000.09")
+            uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("1.07"), Decimal("35000"), Decimal("41000.09")
         ),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
@@ -303,38 +304,38 @@ pair = Pair(base_currency, quote_currency)
         }
     ),
 ])
-def test_get_balance_updates_with_infinite_liquidity(order, ohlcv, expected_balance_updates, backtesting_dispatcher):
+def test_try_fill_with_infinite_liquidity(order, ohlcv, expected_balance_updates, backtesting_dispatcher):
     e = exchange.Exchange(backtesting_dispatcher, {})  # Just for rounding purposes
     e.set_pair_info(pair, PairInfo(8, 2))
 
     ls = liquidity.InfiniteLiquidity()
     b = bar.Bar(dt.local_now(), pair, *ohlcv, datetime.timedelta(seconds=1))
-    balance_updates = value_map.ValueMap(order.get_balance_updates(b, ls))
-    e._order_mgr._round_balance_updates(balance_updates, order.pair)
+    fill = order.try_fill(b, ls)
+    balance_updates = value_map.ValueMap({} if fill is None else fill.balance_updates)
     assert balance_updates == expected_balance_updates
 
 
 @pytest.mark.parametrize("order, ohlcv, expected_balance_updates", [
     # Buy market but there is not enough volume.
     (
-        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("2000")),
+        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("2000")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {}
     ),
     (
-        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("10")),
+        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("10")),
         (Decimal("1000"), Decimal("1000"), Decimal("1000"), Decimal("1000"), Decimal("1")),
         {}
     ),
     # Buy market but there is not enough volume. 250.075 should be available, which should get truncated to 250.07.
     (
-        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("250.08")),
+        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("250.08")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {}
     ),
     # Buy market with slippage.
     (
-        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("10")),
+        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("10")),
         (Decimal("50000"), Decimal("51000.01"), Decimal("49000"), Decimal("50500"), Decimal("40")),
         {
             base_currency: Decimal("10"),
@@ -342,7 +343,7 @@ def test_get_balance_updates_with_infinite_liquidity(order, ohlcv, expected_bala
         }
     ),
     (
-        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, Decimal("10")),
+        MarketOrder(uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("10")),
         (Decimal("50000"), Decimal("50000"), Decimal("50000"), Decimal("50000"), Decimal("40")),
         {
             base_currency: Decimal("10"),
@@ -351,23 +352,23 @@ def test_get_balance_updates_with_infinite_liquidity(order, ohlcv, expected_bala
     ),
     # Sell market. Rounding takes place. 250.075 should be available, which should get truncated to 250.07.
     (
-        MarketOrder(uuid4().hex, OrderOperation.SELL, pair, Decimal("250.07")),
+        MarketOrder(uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("250.07")),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {
-            base_currency: Decimal("-250.07"),
-            quote_currency: Decimal("9002956.11"),
+            base_currency: Decimal("-250.07000000"),
+            quote_currency: Decimal("9002955.12"),
         }
     ),
     # Sell stop but there is not enough volume.
     (
         StopOrder(
-            uuid4().hex, OrderOperation.SELL, pair, Decimal("1004"), Decimal("35000")
+            uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("1004"), Decimal("35000")
         ),
         (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
         {}
     ),
 ])
-def test_get_balance_updates_with_finite_liquidity(order, ohlcv, expected_balance_updates, backtesting_dispatcher):
+def test_try_fill_with_finite_liquidity(order, ohlcv, expected_balance_updates, backtesting_dispatcher):
     e = exchange.Exchange(backtesting_dispatcher, {})  # Just for rounding purposes
     e.set_pair_info(pair, PairInfo(8, 2))
 
@@ -378,20 +379,21 @@ def test_get_balance_updates_with_finite_liquidity(order, ohlcv, expected_balanc
     )
     ls.on_bar(b)
 
-    balance_updates = value_map.ValueMap(order.get_balance_updates(b, ls))
+    fill = order.try_fill(b, ls)
+    balance_updates = value_map.ValueMap({} if fill is None else fill.balance_updates)
     e._order_mgr._round_balance_updates(balance_updates, order.pair)
     assert balance_updates == expected_balance_updates
 
 
 @pytest.mark.parametrize("order", [
     LimitOrder(
-        uuid4().hex, OrderOperation.SELL, pair, Decimal("1"), Decimal("39000.01")
+        uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("1"), Decimal("39000.01")
     ),
     LimitOrder(
-        uuid4().hex, OrderOperation.BUY, pair, Decimal("1"), Decimal("49000.01")
+        uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1"), Decimal("49000.01")
     ),
     StopLimitOrder(
-        uuid4().hex, OrderOperation.SELL, pair, Decimal("1"), Decimal("39000.01"),
+        uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("1"), Decimal("39000.01"),
         Decimal("39000.01")
     ),
 ])
@@ -407,4 +409,4 @@ def test_no_liquidity_calculating_balance_updates(order, backtesting_dispatcher)
     )
     ls.on_bar(b)
 
-    assert order.get_balance_updates(b, ls) == {}
+    assert order.try_fill(b, ls) is None

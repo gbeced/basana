@@ -21,11 +21,8 @@ from dateutil import tz
 
 from basana.backtesting import requests
 from basana.core.enums import OrderOperation
-from basana.core.pair import Pair
+from .common import btc_pair, btc_pair_info, orcl_pair, orcl_pair_info, aapl_pair
 
-
-orcl_p = Pair("ORCL", "USD")
-aapl_p = Pair("AAPL", "USD")
 
 test_order_requests_data = [
     # Order plan is a dictionary with the following structure:
@@ -44,7 +41,7 @@ test_order_requests_data = [
             datetime.date(2000, 1, 4): [
                 (
                     lambda e: e.create_stop_order(
-                        OrderOperation.BUY, orcl_p, Decimal("1e6"), Decimal("0.01")
+                        OrderOperation.BUY, orcl_pair, Decimal("1e6"), Decimal("0.01")
                     ),
                     [],
                     None
@@ -59,7 +56,7 @@ test_order_requests_data = [
             datetime.date(2000, 1, 8): [
                 (
                     lambda e: e.create_market_order(
-                        OrderOperation.BUY, orcl_p, Decimal("9649")
+                        OrderOperation.BUY, orcl_pair, Decimal("9649")
                     ),
                     [],
                     None
@@ -75,18 +72,18 @@ test_order_requests_data = [
                 # Buy market.
                 (
                     lambda e: e.create_market_order(
-                        OrderOperation.BUY, orcl_p, Decimal("2")
+                        OrderOperation.BUY, orcl_pair, Decimal("2")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 5, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 4, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("2"), "USD": Decimal("-231.00")},
                             fees={"USD": Decimal("-0.58")},
                         ),
                     ],
                     [
                         dict(
-                            pair=orcl_p,
+                            pair=orcl_pair,
                             is_open=True,
                             operation=OrderOperation.BUY,
                             amount=Decimal("2"),
@@ -103,19 +100,21 @@ test_order_requests_data = [
                             amount_remaining=Decimal("0"),
                             quote_amount_filled=Decimal("231.00"),
                             fees={"USD": Decimal("0.58")},
+                            fill_price=Decimal("115.5"),
                         ),
                     ]
                 ),
                 # Limit order within bar.
                 (
                     lambda e: e.create_limit_order(
-                        OrderOperation.BUY, orcl_p, Decimal("4"), Decimal("110.01")
+                        OrderOperation.BUY, orcl_pair, Decimal("4"), Decimal("110.01")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 5, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 4, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("4"), "USD": Decimal("-440.04")},
                             fees={"USD": Decimal("-1.11")},
+                            fill_price=Decimal("110.01")
                         ),
                     ],
                     None
@@ -125,11 +124,11 @@ test_order_requests_data = [
                 # Sell market.
                 (
                     lambda e: e.create_market_order(
-                        OrderOperation.SELL, orcl_p, Decimal("1")
+                        OrderOperation.SELL, orcl_pair, Decimal("1")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 19, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 18, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("107.87")},
                             fees={"USD": Decimal("-0.27")},
                         ),
@@ -139,11 +138,11 @@ test_order_requests_data = [
                 # Limit order within bar.
                 (
                     lambda e: e.create_limit_order(
-                        OrderOperation.SELL, orcl_p, Decimal("1"), Decimal("108")
+                        OrderOperation.SELL, orcl_pair, Decimal("1"), Decimal("108")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 19, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 18, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("108.00")},
                             fees={"USD": Decimal("-0.27")},
                         ),
@@ -153,13 +152,14 @@ test_order_requests_data = [
                 # Sell stop.
                 (
                     lambda e: e.create_stop_order(
-                        OrderOperation.SELL, orcl_p, Decimal("1"), Decimal("108")
+                        OrderOperation.SELL, orcl_pair, Decimal("1"), Decimal("108")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 19, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 18, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("107.87")},
                             fees={"USD": Decimal("-0.27")},
+                            fill_price=Decimal("107.87"),
                         ),
                     ],
                     None
@@ -169,12 +169,12 @@ test_order_requests_data = [
                 # Stop price should be hit on 2000-01-20 and order should be filled on 2000-01-24.
                 (
                     lambda e: e.create_stop_limit_order(
-                        OrderOperation.BUY, orcl_p, Decimal("5"), Decimal("59.5"),
+                        OrderOperation.BUY, orcl_pair, Decimal("5"), Decimal("59.5"),
                         Decimal("58.03")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 25, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 24, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("5"), "USD": Decimal("-290.15")},
                             fees={"USD": Decimal("-0.73")},
                         ),
@@ -186,12 +186,12 @@ test_order_requests_data = [
                 # Stop price should be hit on 2000-03-10 and order should be filled on 2000-03-13 at open price.
                 (
                     lambda e: e.create_stop_limit_order(
-                        OrderOperation.BUY, orcl_p, Decimal("10"), Decimal("81.62"),
+                        OrderOperation.BUY, orcl_pair, Decimal("10"), Decimal("81.62"),
                         Decimal("80.24")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 3, 14, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 3, 13, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("10"), "USD": Decimal("-785.00")},
                             fees={"USD": Decimal("-1.97")},
                         ),
@@ -201,12 +201,12 @@ test_order_requests_data = [
                 # Stop price should be hit on 2000-03-10 and order should be filled on 2000-03-10.
                 (
                     lambda e: e.create_stop_limit_order(
-                        OrderOperation.BUY, orcl_p, Decimal("9"), Decimal("81.62"),
+                        OrderOperation.BUY, orcl_pair, Decimal("9"), Decimal("81.62"),
                         Decimal("81")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 3, 11, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 3, 10, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("9"), "USD": Decimal("-729.00")},
                             fees={"USD": Decimal("-1.83")},
                         ),
@@ -216,12 +216,12 @@ test_order_requests_data = [
                 # Stop price should be hit on 2000-03-13 and order should be filled on 2000-03-13.
                 (
                     lambda e: e.create_stop_limit_order(
-                        OrderOperation.SELL, orcl_p, Decimal("1"), Decimal("79"),
+                        OrderOperation.SELL, orcl_pair, Decimal("1"), Decimal("79"),
                         Decimal("78.75")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 3, 14, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 3, 13, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("78.75")},
                             fees={"USD": Decimal("-0.20")},
                         ),
@@ -231,12 +231,12 @@ test_order_requests_data = [
                 # Stop price should be hit on 2000-03-13 and order should be filled on 2000-03-14.
                 (
                     lambda e: e.create_stop_limit_order(
-                        OrderOperation.SELL, orcl_p, Decimal("1"), Decimal("79"),
+                        OrderOperation.SELL, orcl_pair, Decimal("1"), Decimal("79"),
                         Decimal("83.65")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 3, 15, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 3, 14, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("83.65")},
                             fees={"USD": Decimal("-0.21")},
                         ),
@@ -246,12 +246,12 @@ test_order_requests_data = [
                 # Stop price should be hit on 2000-03-13 and order should be filled on 2000-03-15 at open.
                 (
                     lambda e: e.create_stop_limit_order(
-                        OrderOperation.SELL, orcl_p, Decimal("1"), Decimal("79"),
+                        OrderOperation.SELL, orcl_pair, Decimal("1"), Decimal("79"),
                         Decimal("83.80")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 3, 16, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 3, 15, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("84.00")},
                             fees={"USD": Decimal("-0.21")},
                         ),
@@ -268,18 +268,20 @@ test_order_requests_data = [
             datetime.date(2001, 1, 3): [
                 (
                     lambda e: e.create_limit_order(
-                        OrderOperation.BUY, aapl_p, Decimal("50"), Decimal("10")
+                        OrderOperation.BUY, aapl_pair, Decimal("50"), Decimal("10")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2001, 1, 4, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2001, 1, 3, tzinfo=tz.tzlocal()),
                             balance_updates={"AAPL": Decimal("25"), "USD": Decimal("-137.50")},
                             fees={"USD": Decimal("-0.35")},
+                            fill_price=Decimal("5.5"),
                         ),
                         dict(
-                            when=datetime.datetime(2001, 1, 5, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2001, 1, 4, tzinfo=tz.tzlocal()),
                             balance_updates={"AAPL": Decimal("25"), "USD": Decimal("-137.50")},
                             fees={"USD": Decimal("-0.34")},
+                            fill_price=Decimal("5.5"),
                         ),
                     ],
                     [
@@ -302,6 +304,7 @@ test_order_requests_data = [
                             quote_amount_filled=Decimal("137.50"),
                             fees={"USD": Decimal("0.35")},
                             limit_price=Decimal("10"),
+                            fill_price=Decimal("5.5"),
                         ),
                         dict(
                             is_open=False,
@@ -312,6 +315,7 @@ test_order_requests_data = [
                             quote_amount_filled=Decimal("275.00"),
                             fees={"USD": Decimal("0.69")},
                             limit_price=Decimal("10"),
+                            fill_price=Decimal("5.5"),
                         ),
                     ]
                 ),
@@ -325,13 +329,14 @@ test_order_requests_data = [
             datetime.date(2000, 1, 4): [
                 (
                     lambda e: e.create_limit_order(
-                        OrderOperation.BUY, orcl_p, Decimal("8600"), Decimal("115.50")
+                        OrderOperation.BUY, orcl_pair, Decimal("8600"), Decimal("115.50")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 5, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 4, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("8600"), "USD": Decimal("-993300.00")},
                             fees={"USD": Decimal("-2483.25")},
+                            fill_price=Decimal("115.50")
                         ),
                     ],
                     None
@@ -344,9 +349,9 @@ test_order_requests_data = [
     (
         {
             datetime.date(2000, 1, 4): [
-                # Market order gets filled immediately.
+                # Market order gets filled immediately using previous bar's close.
                 (
-                    lambda e: e.create_market_order(OrderOperation.BUY, orcl_p, Decimal("1")),
+                    lambda e: e.create_market_order(OrderOperation.BUY, orcl_pair, Decimal("1")),
                     [
                         dict(
                             when=datetime.datetime(2000, 1, 4, tzinfo=tz.tzlocal()),
@@ -363,20 +368,22 @@ test_order_requests_data = [
                             amount_remaining=Decimal("0"),
                             quote_amount_filled=Decimal("118.12"),
                             fees={"USD": Decimal("0.3")},
-                            limit_price=None
+                            limit_price=None,
+                            fill_price=Decimal("118.12"),
                         ),
                     ]
                 ),
-                # Limit order gets filled immediately.
+                # Limit order gets filled immediately using previous bar's close.
                 (
                     lambda e: e.create_limit_order(
-                        OrderOperation.BUY, orcl_p, Decimal("1"), Decimal("119")
+                        OrderOperation.BUY, orcl_pair, Decimal("1"), Decimal("119")
                     ),
                     [
                         dict(
                             when=datetime.datetime(2000, 1, 4, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("1"), "USD": Decimal("-118.12")},
                             fees={"USD": Decimal("-0.3")},
+                            fill_price=Decimal("118.12"),
                         ),
                     ],
                     [
@@ -388,18 +395,19 @@ test_order_requests_data = [
                             amount_remaining=Decimal("0"),
                             quote_amount_filled=Decimal("118.12"),
                             fees={"USD": Decimal("0.3")},
-                            limit_price=Decimal("119")
+                            limit_price=Decimal("119"),
+                            fill_price=Decimal("118.12"),
                         ),
                     ]
                 ),
-                # Limit order gets filled on the next bar.
+                # Order gets filled on the 23rd bar, not the previous one.
                 (
                     lambda e: e.create_limit_order(
-                        OrderOperation.BUY, orcl_p, Decimal("1"), Decimal("108")
+                        OrderOperation.BUY, orcl_pair, Decimal("1"), Decimal("108")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 5, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 4, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("1"), "USD": Decimal("-108")},
                             fees={"USD": Decimal("-0.27")},
                         ),
@@ -423,16 +431,17 @@ test_order_requests_data = [
                             amount_remaining=Decimal("0"),
                             quote_amount_filled=Decimal("108"),
                             fees={"USD": Decimal("0.27")},
-                            limit_price=Decimal("108")
+                            limit_price=Decimal("108"),
+                            fill_price=Decimal("108"),
                         ),
                     ]
                 ),
             ],
             datetime.date(2000, 1, 25): [
-                # Stop order gets filled immediately.
+                # Stop order gets filled immediately using previous bar's close.
                 (
                     lambda e: e.create_stop_order(
-                        OrderOperation.SELL, orcl_p, Decimal("1"), Decimal("55")
+                        OrderOperation.SELL, orcl_pair, Decimal("1"), Decimal("55")
                     ),
                     [
                         dict(
@@ -450,18 +459,19 @@ test_order_requests_data = [
                             amount_remaining=Decimal("0"),
                             quote_amount_filled=Decimal("54.19"),
                             fees={"USD": Decimal("0.14")},
-                            stop_price=Decimal("55")
+                            stop_price=Decimal("55"),
+                            fill_price=Decimal("54.19"),
                         )
                     ]
                 ),
                 # Stop order gets filled a few bars later.
                 (
                     lambda e: e.create_stop_order(
-                        OrderOperation.SELL, orcl_p, Decimal("1"), Decimal("53.99")
+                        OrderOperation.SELL, orcl_pair, Decimal("1"), Decimal("53.99")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 28, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 27, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("53.99")},
                             fees={"USD": Decimal("-0.14")},
                         ),
@@ -485,21 +495,21 @@ test_order_requests_data = [
                             amount_remaining=Decimal("0"),
                             quote_amount_filled=Decimal("53.99"),
                             fees={"USD": Decimal("0.14")},
-                            stop_price=Decimal("53.99")
+                            stop_price=Decimal("53.99"),
+                            fill_price=Decimal("53.99"),
                         )
                     ]
                 ),
-
             ],
             datetime.date(2000, 1, 26): [
-                # Stop limit order gets filled on the next bar.
+                # Stop limit order gets filled on the 26th bar, not the previous one.
                 (
                     lambda e: e.create_stop_limit_order(
-                        OrderOperation.SELL, orcl_p, Decimal("1"), Decimal("56"), Decimal("55.5")
+                        OrderOperation.SELL, orcl_pair, Decimal("1"), Decimal("56"), Decimal("55.5")
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 27, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 26, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("55.5")},
                             fees={"USD": Decimal("-0.14")},
                         ),
@@ -514,7 +524,7 @@ test_order_requests_data = [
                             quote_amount_filled=Decimal("0"),
                             fees={},
                             stop_price=Decimal("56"),
-                            limit_price=Decimal("55.5")
+                            limit_price=Decimal("55.5"),
                         ),
                         dict(
                             is_open=False,
@@ -525,7 +535,8 @@ test_order_requests_data = [
                             quote_amount_filled=Decimal("55.5"),
                             fees={"USD": Decimal("0.14")},
                             stop_price=Decimal("56"),
-                            limit_price=Decimal("55.5")
+                            limit_price=Decimal("55.5"),
+                            fill_price=Decimal("55.5"),
                         )
                     ]
                 ),
@@ -533,7 +544,7 @@ test_order_requests_data = [
             datetime.date(2000, 12, 29): [
                 # No bars for the given pair at the moment. Should get canceled.
                 (
-                    lambda e: e.create_market_order(OrderOperation.BUY, aapl_p, Decimal("1")),
+                    lambda e: e.create_market_order(OrderOperation.BUY, aapl_pair, Decimal("1")),
                     [],
                     [
                         dict(
@@ -556,49 +567,49 @@ test_order_requests_data = [
 
 test_invalid_requests_data = [
     # Market order: Invalid amount.
-    requests.MarketOrder(OrderOperation.BUY, orcl_p, Decimal(0)),
-    requests.MarketOrder(OrderOperation.BUY, orcl_p, Decimal(-1)),
-    requests.MarketOrder(OrderOperation.BUY, orcl_p, Decimal("0.1")),
-    requests.MarketOrder(OrderOperation.BUY, orcl_p, Decimal("1.1")),
-    requests.MarketOrder(OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1.000000001")),
+    requests.MarketOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(0)),
+    requests.MarketOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(-1)),
+    requests.MarketOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal("0.1")),
+    requests.MarketOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal("1.1")),
+    requests.MarketOrder(OrderOperation.BUY, btc_pair, btc_pair_info, Decimal("1.000000001")),
     # Limit order: Invalid amount/price.
-    requests.LimitOrder(OrderOperation.BUY, orcl_p, Decimal(0), Decimal("1")),
-    requests.LimitOrder(OrderOperation.BUY, orcl_p, Decimal(1), Decimal("0")),
-    requests.LimitOrder(OrderOperation.BUY, orcl_p, Decimal(1), Decimal("0.001")),
-    requests.LimitOrder(OrderOperation.BUY, orcl_p, Decimal(1), Decimal("1.001")),
-    requests.LimitOrder(OrderOperation.BUY, orcl_p, Decimal(1), Decimal("-0.1")),
+    requests.LimitOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(0), Decimal("1")),
+    requests.LimitOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("0")),
+    requests.LimitOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("0.001")),
+    requests.LimitOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1.001")),
+    requests.LimitOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("-0.1")),
     # Stop order: Invalid amount/price.
-    requests.StopOrder(OrderOperation.BUY, orcl_p, Decimal(0), Decimal("1")),
-    requests.StopOrder(OrderOperation.BUY, orcl_p, Decimal(1), Decimal("0")),
-    requests.StopOrder(OrderOperation.BUY, orcl_p, Decimal(1), Decimal("0.001")),
-    requests.StopOrder(OrderOperation.BUY, orcl_p, Decimal(1), Decimal("1.001")),
-    requests.StopOrder(OrderOperation.BUY, orcl_p, Decimal(1), Decimal("-0.1")),
+    requests.StopOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(0), Decimal("1")),
+    requests.StopOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("0")),
+    requests.StopOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("0.001")),
+    requests.StopOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1.001")),
+    requests.StopOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("-0.1")),
     # Stop limit order: Invalid amount/price.
     requests.StopLimitOrder(
-        OrderOperation.BUY, orcl_p, Decimal(0), Decimal("1"), Decimal("1")
+        OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(0), Decimal("1"), Decimal("1")
     ),
     requests.StopLimitOrder(
-        OrderOperation.BUY, orcl_p, Decimal(1), Decimal("0"), Decimal("1")
+        OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("0"), Decimal("1")
     ),
     requests.StopLimitOrder(
-        OrderOperation.BUY, orcl_p, Decimal(1), Decimal("0.001"), Decimal("1")
+        OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("0.001"), Decimal("1")
     ),
     requests.StopLimitOrder(
-        OrderOperation.BUY, orcl_p, Decimal(1), Decimal("1.001"), Decimal("1")
+        OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1.001"), Decimal("1")
     ),
     requests.StopLimitOrder(
-        OrderOperation.BUY, orcl_p, Decimal(1), Decimal("-0.1"), Decimal("1")
+        OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("-0.1"), Decimal("1")
     ),
     requests.StopLimitOrder(
-        OrderOperation.BUY, orcl_p, Decimal(1), Decimal("1"), Decimal("0")
+        OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1"), Decimal("0")
     ),
     requests.StopLimitOrder(
-        OrderOperation.BUY, orcl_p, Decimal(1), Decimal("1"), Decimal("0.001")
+        OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1"), Decimal("0.001")
     ),
     requests.StopLimitOrder(
-        OrderOperation.BUY, orcl_p, Decimal(1), Decimal("1"), Decimal("1.001")
+        OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1"), Decimal("1.001")
     ),
     requests.StopLimitOrder(
-        OrderOperation.BUY, orcl_p, Decimal(1), Decimal("1"), Decimal("-0.1")
+        OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1"), Decimal("-0.1")
     ),
 ]
