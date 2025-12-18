@@ -17,6 +17,7 @@
 from decimal import Decimal
 from typing import Dict, List, Optional, Set
 import abc
+import copy
 import dataclasses
 import datetime
 import enum
@@ -83,10 +84,11 @@ class OrderInfo:
     @property
     def fill_price(self) -> Optional[Decimal]:
         """The fill price."""
-        fill_price = None
-        if self.amount_filled:
-            fill_price = self.quote_amount_filled / self.amount_filled
-        return fill_price
+        wsum = Decimal(0)
+        for fill in self.fills:
+            fill_amount = abs(fill.balance_updates.get(self.pair.base_symbol, Decimal(0)))
+            wsum += fill_amount * fill.fill_price
+        return None if not self.amount_filled else wsum / self.amount_filled
 
 
 # This is an internal abstraction to be used by the exchange.
