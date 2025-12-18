@@ -20,7 +20,7 @@ import datetime
 
 import pytest
 
-from basana.backtesting import exchange, liquidity, value_map
+from basana.backtesting import exchange, liquidity, value_map, order_mgr
 from basana.backtesting.orders import OrderOperation, MarketOrder, LimitOrder, StopOrder, \
     StopLimitOrder
 from basana.core import bar, dt
@@ -381,7 +381,7 @@ def test_try_fill_with_finite_liquidity(order, ohlcv, expected_balance_updates, 
 
     fill = order.try_fill(b, ls)
     balance_updates = value_map.ValueMap({} if fill is None else fill.balance_updates)
-    e._order_mgr._round_balance_updates(balance_updates, order.pair)
+    order_mgr.round_balance_updates(order, balance_updates)
     assert balance_updates == expected_balance_updates
 
 
