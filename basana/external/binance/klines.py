@@ -27,9 +27,11 @@ logger = logging.getLogger(__name__)
 
 class Bar(bar.Bar):
     def __init__(self, pair: Pair, json: dict):
+        start = helpers.timestamp_to_datetime(int(json["t"]))
+        close = helpers.timestamp_to_datetime(int(json["T"]))
         super().__init__(
-            helpers.timestamp_to_datetime(int(json["t"])), pair, Decimal(json["o"]), Decimal(json["h"]),
-            Decimal(json["l"]), Decimal(json["c"]), Decimal(json["v"])
+            start, pair, Decimal(json["o"]), Decimal(json["h"]),
+            Decimal(json["l"]), Decimal(json["c"]), Decimal(json["v"]), close - start
         )
         self.pair: Pair = pair
         self.json: dict = json

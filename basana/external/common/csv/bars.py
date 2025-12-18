@@ -47,7 +47,7 @@ class RowParser(csv.RowParser):
                 dt + self.timedelta,
                 bar.Bar(
                     dt, self.pair, Decimal(row_dict["open"]), Decimal(row_dict["high"]), Decimal(row_dict["low"]),
-                    Decimal(row_dict["close"]), volume
+                    Decimal(row_dict["close"]), volume, self.timedelta
                 )
             )
         ]

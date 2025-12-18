@@ -47,6 +47,17 @@ def test_long_partially_filled():
     order.amount_filled = Decimal(7)
     order.amount_remaining = Decimal(3)
     order.quote_amount_filled = Decimal(70000)
+    order.fills.append(
+        exchange.Fill(
+            when=bs.utc_now(),
+            balance_updates={
+                pair.base_symbol: Decimal(7),
+                pair.quote_symbol: -Decimal(70000),
+            },
+            fees={},
+            fill_price=Decimal(10000),
+        )
+    )
 
     assert pos_info.order_open is True
     assert pos_info.target_reached is False
@@ -78,6 +89,18 @@ def test_short_completely_filled():
     order.amount_filled = abs(target)
     order.amount_remaining = Decimal(0)
     order.quote_amount_filled = Decimal(100000)
+    order.fills.append(
+        exchange.Fill(
+            when=bs.utc_now(),
+            balance_updates={
+                pair.base_symbol: Decimal(target),
+                pair.quote_symbol: -Decimal(100000),
+            },
+            fees={},
+            fill_price=Decimal(10000),
+        )
+    )
+
     order.is_open = False
 
     assert pos_info.order_open is False
@@ -118,10 +141,21 @@ def test_long_jump(target_position):
     assert pos_info.target_reached is False
 
     # The order gets partially filled and gets canceled.
-    pos_info.order.amount_filled = Decimal(13)
-    pos_info.order.amount_remaining = Decimal(7)
-    pos_info.order.quote_amount_filled = Decimal(13000)
-    pos_info.order.is_open = False
+    order.amount_filled = Decimal(13)
+    order.amount_remaining = Decimal(7)
+    order.quote_amount_filled = Decimal(13000)
+    order.is_open = False
+    order.fills.append(
+        exchange.Fill(
+            when=bs.utc_now(),
+            balance_updates={
+                pair.base_symbol: sign * Decimal(13),
+                pair.quote_symbol: -sign * Decimal(13000),
+            },
+            fees={},
+            fill_price=Decimal(1000),
+        )
+    )
 
     assert pos_info.order_open is False
     assert pos_info.target_reached is False
@@ -129,19 +163,31 @@ def test_long_jump(target_position):
 
     # The last order was canceled and a new one will start at 3/-3.
     pos_info.initial, pos_info.initial_avg_price = pos_info.current, pos_info.avg_price
-    pos_info.order = exchange.OrderInfo(
+    order = exchange.OrderInfo(
         id="2", pair=pair, is_open=True, operation=operation, amount=Decimal(7), amount_filled=Decimal(0),
-        amount_remaining=Decimal(7), quote_amount_filled=Decimal(0), fees={}
+        amount_remaining=Decimal(7), quote_amount_filled=Decimal(0), fees={},
     )
+    pos_info.order = order
 
     assert pos_info.order_open is True
     assert pos_info.target_reached is False
 
     # The order gets partially filled and gets canceled.
-    pos_info.order.amount_filled = Decimal(5)
-    pos_info.order.amount_remaining = Decimal(2)
-    pos_info.order.quote_amount_filled = Decimal(5500)
-    pos_info.order.is_open = False
+    order.amount_filled = Decimal(5)
+    order.amount_remaining = Decimal(2)
+    order.quote_amount_filled = Decimal(5500)
+    order.is_open = False
+    order.fills.append(
+        exchange.Fill(
+            when=bs.utc_now(),
+            balance_updates={
+                pair.base_symbol: sign * Decimal(5),
+                pair.quote_symbol: -sign * Decimal(5500),
+            },
+            fees={},
+            fill_price=Decimal(1100),
+        )
+    )
 
     assert pos_info.order_open is False
     assert pos_info.target_reached is False
@@ -150,16 +196,28 @@ def test_long_jump(target_position):
     # We're at 8/-8, and the position is resized to 7/-7 so we need to step back 1.
     pos_info.initial, pos_info.initial_avg_price = pos_info.current, pos_info.avg_price
     pos_info.target = Decimal(7) * sign
-    pos_info.order = exchange.OrderInfo(
+    order = exchange.OrderInfo(
         id="3", pair=pair, is_open=True, operation=reverse_operation, amount=Decimal(1), amount_filled=Decimal(0),
         amount_remaining=Decimal(1), quote_amount_filled=Decimal(0), fees={}
     )
+    pos_info.order = order
 
     # The resize order gets completely filled.
-    pos_info.order.amount_filled = Decimal(1)
-    pos_info.order.amount_remaining = Decimal(0)
-    pos_info.order.quote_amount_filled = Decimal(100000)
-    pos_info.order.is_open = False
+    order.amount_filled = Decimal(1)
+    order.amount_remaining = Decimal(0)
+    order.quote_amount_filled = Decimal(100000)
+    order.is_open = False
+    order.fills.append(
+        exchange.Fill(
+            when=bs.utc_now(),
+            balance_updates={
+                pair.base_symbol: -sign * Decimal(1),
+                pair.quote_symbol: sign * Decimal(100000),
+            },
+            fees={},
+            fill_price=Decimal(100000),
+        )
+    )
 
     assert pos_info.order_open is False
     assert pos_info.target_reached is True
@@ -198,12 +256,24 @@ def test_avg_price(
     ]
     order_amount = abs(target - initial)
     is_open = order_amount != order_filled_amount
+    sign = 1 if order_operation == bs.OrderOperation.BUY else -1
     pair = bs.Pair("BTC", "USDT")
 
     order = exchange.OrderInfo(
         id="1", pair=pair, is_open=is_open, operation=order_operation, amount=order_amount,
         amount_filled=order_filled_amount, amount_remaining=order_amount - order_filled_amount,
-        quote_amount_filled=order_filled_amount * order_filled_price, fees={}
+        quote_amount_filled=order_filled_amount * order_filled_price, fees={},
+        fills=[
+            exchange.Fill(
+                when=bs.utc_now(),
+                balance_updates={
+                    pair.base_symbol: sign * order_filled_amount,
+                    pair.quote_symbol: -sign * order_filled_amount * order_filled_price,
+                },
+                fees={},
+                fill_price=Decimal(order_filled_price),
+            )
+        ]
     )
     pos_info = PositionInfo(
         pair=btc_usdt_pair, pair_info=btc_usdt_pair_info, initial=initial, initial_avg_price=initial_avg_price,
@@ -217,7 +287,18 @@ def test_pnl_pct():
     order = exchange.OrderInfo(
         id="1", pair=pair, is_open=False, operation=bs.OrderOperation.BUY, amount=Decimal(1),
         amount_filled=Decimal(1), amount_remaining=Decimal(0),
-        quote_amount_filled=(Decimal(1000)), fees={}
+        quote_amount_filled=(Decimal(1000)), fees={},
+        fills=[
+            exchange.Fill(
+                when=bs.utc_now(),
+                balance_updates={
+                    pair.base_symbol: Decimal(1),
+                    pair.quote_symbol: -Decimal(1000),
+                },
+                fees={},
+                fill_price=Decimal(1000),
+            )
+        ]
     )
     pos_info = PositionInfo(
         pair=btc_usdt_pair, pair_info=btc_usdt_pair_info, initial=Decimal(0), initial_avg_price=Decimal(0),

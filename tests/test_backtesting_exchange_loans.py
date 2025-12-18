@@ -153,7 +153,10 @@ def test_borrow_and_repay(
         for pair, exchange_rate in exchange_rates.items():
             e._prices.on_bar_event(BarEvent(
                 now,
-                Bar(now, pair, exchange_rate, exchange_rate, exchange_rate, exchange_rate, Decimal(10))
+                Bar(
+                    now, pair, exchange_rate, exchange_rate, exchange_rate, exchange_rate, Decimal(10),
+                    datetime.timedelta(seconds=1)
+                )
             ))
         backtesting_dispatcher._set_now(now)
 
@@ -244,7 +247,10 @@ def test_margin_exceeded(backtesting_dispatcher):
         for pair, exchange_rate in exchange_rates.items():
             e._prices.on_bar_event(BarEvent(
                 now,
-                Bar(now, pair, exchange_rate, exchange_rate, exchange_rate, exchange_rate, Decimal(10))
+                Bar(
+                    now, pair, exchange_rate, exchange_rate, exchange_rate, exchange_rate, Decimal(10),
+                    datetime.timedelta(seconds=1)
+                )
             ))
         backtesting_dispatcher._set_now(dt.local_now())
 

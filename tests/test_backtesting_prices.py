@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
+import datetime
 
 import pytest
 
@@ -44,7 +45,13 @@ def test_prices():
 
     now = dt.local_now()
     p.on_bar_event(
-        BarEvent(now, Bar(now, pair, Decimal(10), Decimal(10), Decimal(10), Decimal(10), Decimal(10)))
+        BarEvent(
+            now,
+            Bar(
+                now, pair, Decimal(10), Decimal(10), Decimal(10), Decimal(10), Decimal(10),
+                datetime.timedelta(seconds=1)
+            )
+        )
     )
 
     assert p.get_bid_ask(pair) == (Decimal("9.95"), Decimal("10.05"))
@@ -71,19 +78,28 @@ def test_convert_value_map():
     p.on_bar_event(
         BarEvent(
             now,
-            Bar(now, btc_usdt, Decimal(50000), Decimal(50000), Decimal(50000), Decimal(50000), Decimal(50000))
+            Bar(
+                now, btc_usdt, Decimal(50000), Decimal(50000), Decimal(50000), Decimal(50000), Decimal(50000),
+                datetime.timedelta(seconds=1)
+            )
         )
     )
     p.on_bar_event(
         BarEvent(
             now,
-            Bar(now, eth_usdt, Decimal(3000), Decimal(3000), Decimal(3000), Decimal(3000), Decimal(3000))
+            Bar(
+                now, eth_usdt, Decimal(3000), Decimal(3000), Decimal(3000), Decimal(3000), Decimal(3000),
+                datetime.timedelta(seconds=1)
+            )
         )
     )
     p.on_bar_event(
         BarEvent(
             now,
-            Bar(now, eth_btc, Decimal("0.06"), Decimal("0.06"), Decimal("0.06"), Decimal("0.06"), Decimal("0.06"))
+            Bar(
+                now, eth_btc, Decimal("0.06"), Decimal("0.06"), Decimal("0.06"), Decimal("0.06"), Decimal("0.06"),
+                datetime.timedelta(seconds=1)
+            )
         )
     )
 

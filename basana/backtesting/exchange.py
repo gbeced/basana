@@ -90,7 +90,7 @@ class Exchange:
     :param fee_strategy: The stragegy to use to calculate fees.
     :param default_pair_info: The default pair information if a specific one was not set using
         :meth:`Exchange.set_pair_info`.
-    :param bid_ask_spread: The spread to use for :meth:`Exchange.get_bid_ask`.
+    :param bid_ask_spread: The spread, as a percentage, to use for :meth:`Exchange.get_bid_ask`.
     :param lending_strategy: The strategy to use for managing loans.
     :param immediate_order_processing: If True, orders will be processed immediately after being added,
         using the closing price of the last bar available. If False, orders will be processed in the next bar event.
@@ -194,8 +194,9 @@ class Exchange:
         :param auto_borrow: Automatically borrow missing funds.
         :param auto_repay: Automatically repay open loans once the order gets filled.
         """
+        pair_info = self._get_pair_info(pair)
         return await self.create_order(requests.MarketOrder(
-            operation, pair, amount, auto_borrow=auto_borrow, auto_repay=auto_repay
+            operation, pair, pair_info, amount, auto_borrow=auto_borrow, auto_repay=auto_repay
         ))
 
     async def create_limit_order(
@@ -218,8 +219,9 @@ class Exchange:
         :param auto_borrow: Automatically borrow missing funds.
         :param auto_repay: Automatically repay open loans once the order gets filled.
         """
+        pair_info = self._get_pair_info(pair)
         return await self.create_order(requests.LimitOrder(
-            operation, pair, amount, limit_price, auto_borrow=auto_borrow, auto_repay=auto_repay
+            operation, pair, pair_info, amount, limit_price, auto_borrow=auto_borrow, auto_repay=auto_repay
         ))
 
     async def create_stop_order(
@@ -247,8 +249,9 @@ class Exchange:
         :param auto_borrow: Automatically borrow missing funds.
         :param auto_repay: Automatically repay open loans once the order gets filled.
         """
+        pair_info = self._get_pair_info(pair)
         return await self.create_order(requests.StopOrder(
-            operation, pair, amount, stop_price, auto_borrow=auto_borrow, auto_repay=auto_repay
+            operation, pair, pair_info, amount, stop_price, auto_borrow=auto_borrow, auto_repay=auto_repay
         ))
 
     async def create_stop_limit_order(
@@ -272,8 +275,9 @@ class Exchange:
         :param auto_borrow: Automatically borrow missing funds.
         :param auto_repay: Automatically repay open loans once the order gets filled.
         """
+        pair_info = self._get_pair_info(pair)
         return await self.create_order(requests.StopLimitOrder(
-            operation, pair, amount, stop_price, limit_price, auto_borrow=auto_borrow, auto_repay=auto_repay
+            operation, pair, pair_info, amount, stop_price, limit_price, auto_borrow=auto_borrow, auto_repay=auto_repay
         ))
 
     async def cancel_order(self, order_id: str) -> CanceledOrder:
