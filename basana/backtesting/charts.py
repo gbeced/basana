@@ -72,13 +72,20 @@ class LineChart(metaclass=abc.ABCMeta):
 
 
 class PairLineChart(LineChart):
-    def __init__(self, pair: Pair, include_buys: bool, include_sells: bool, exchange: Exchange):
+    def __init__(self, pair: Pair, include_buys: bool, include_sells: bool, candlesticks: bool, exchange: Exchange):
         self._pair = pair
         self._include_buys = include_buys
         self._include_sells = include_sells
+        self._candlesticks = candlesticks
         self._exchange = exchange
-        self._ts = TimeSeries()
         self._indicators: Dict[str, Tuple[ChartDataPointFn, TimeSeries]] = {}
+        self.buy_marker_size = 10
+        self.sell_marker_size = 10
+        if self._candlesticks:
+            self._open_values = TimeSeries()
+            self._high_values = TimeSeries()
+            self._low_values = TimeSeries()
+        self._close_values = TimeSeries()
 
         exchange.subscribe_to_bar_events(pair, self._on_bar_event)
 
@@ -86,15 +93,32 @@ class PairLineChart(LineChart):
         return str(self._pair)
 
     def add_traces(self, figure: go.Figure, row: int):
-        # Add a trace with the pair values.
-        x, y = self._ts.get_x_y()
-        figure.add_trace(go.Scatter(x=x, y=y, name=str(self._pair)), row=row, col=1)
+        if self._candlesticks:
+            # Add a trace with the OHLC values.
+            open_values = list(self._open_values.get_x_y())
+            high_values = list(self._high_values.get_x_y())
+            low_values = list(self._low_values.get_x_y())
+            close_values = list(self._close_values.get_x_y())
+            figure.add_trace(
+                go.Candlestick(
+                    x=open_values[0], open=open_values[1], high=high_values[1], low=low_values[1],
+                    close=close_values[1], name=str(self._pair), xperiodalignment="start"
+                ),
+                row=row, col=1
+            )
+        else:
+            # Add a trace just with the closing values.
+            x, y = self._close_values.get_x_y()
+            figure.add_trace(go.Scatter(x=x, y=y, name=str(self._pair)), row=row, col=1)
 
         # Add a trace with buy prices.
         if self._include_buys:
             x, y = self._get_order_fills(OrderOperation.BUY).get_x_y()
             figure.add_trace(
-                go.Scatter(x=x, y=y, name="Buy", mode="markers", marker=dict(symbol="arrow-up", color="green")),
+                go.Scatter(
+                    x=x, y=y, name="Buy", mode="markers",
+                    marker=dict(symbol="arrow-up", color="green", size=self.buy_marker_size)
+                ),
                 row=row, col=1
             )
 
@@ -102,7 +126,10 @@ class PairLineChart(LineChart):
         if self._include_sells:
             x, y = self._get_order_fills(OrderOperation.SELL).get_x_y()
             figure.add_trace(
-                go.Scatter(x=x, y=y, name="Sell", mode="markers", marker=dict(symbol="arrow-down", color="red")),
+                go.Scatter(
+                    x=x, y=y, name="Sell", mode="markers",
+                    marker=dict(symbol="arrow-down", color="red", size=self.sell_marker_size)
+                ),
                 row=row, col=1
             )
 
@@ -131,10 +158,15 @@ class PairLineChart(LineChart):
         return ret
 
     async def _on_bar_event(self, bar_event: bar.BarEvent):
-        dt = bar_event.when
-        value = bar_event.bar.close
-        # Add the value to the main time series.
-        self._ts.add_value(dt, value)
+        bar = bar_event.bar
+        dt = bar.begin
+        # Add the values to the main time series.
+        if self._candlesticks:
+            self._open_values.add_value(dt, bar.open)
+            self._high_values.add_value(dt, bar.high)
+            self._low_values.add_value(dt, bar.low)
+        self._close_values.add_value(dt, bar.close)
+
         # Add the custom indicator values.
         for get_data_point, ts in self._indicators.values():
             indicator_value = get_data_point(dt)
@@ -263,14 +295,15 @@ class LineCharts:
         """
         self._portfolio_charts[symbol] = PortfolioValueLineChart(symbol, self._exchange, precision=precision)
 
-    def add_pair(self, pair: Pair, include_buys: bool = True, include_sells: bool = True):
+    def add_pair(self, pair: Pair, include_buys: bool = True, include_sells: bool = True, candlesticks: bool = True):
         """Adds a chart with the pair values.
 
         :param pair: The pair.
         :param include_buys: True to include buy prices.
         :param include_sells: True to include sell prices.
+        :param candlesticks: True to produce a candlestick chart, False to plot only the closing value.
         """
-        self._pair_charts[pair] = PairLineChart(pair, include_buys, include_sells, self._exchange)
+        self._pair_charts[pair] = PairLineChart(pair, include_buys, include_sells, candlesticks, self._exchange)
 
     def add_pair_indicator(self, name: str, pair: Pair, get_data_point: ChartDataPointFn):
         """Adds a technical indicator to a pair's chart.
@@ -343,6 +376,7 @@ class LineCharts:
             row = 1
             for chart in charts:
                 chart.add_traces(figure, row)
+                figure.update_xaxes(rangeslider={'visible':False}, row=row, col=1)
                 row += 1
 
             figure.layout.update(showlegend=show_legend)

@@ -26,20 +26,22 @@ from basana.backtesting import charts, exchange
 from basana.core.pair import Pair
 from basana.external.yahoo import bars
 
+order_plan = {
+    datetime.date(2000, 1, 4): [
+        # Buy market.
+        lambda e: e.create_market_order(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("2")),
+    ],
+    datetime.date(2000, 1, 14): [
+        # Sell market.
+        lambda e: e.create_market_order(exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1")),
+    ],
+}
 
-@pytest.mark.parametrize("order_plan", [
-    {
-        datetime.date(2000, 1, 4): [
-            # Buy market.
-            lambda e: e.create_market_order(exchange.OrderOperation.BUY, Pair("ORCL", "USD"), Decimal("2")),
-        ],
-        datetime.date(2000, 1, 14): [
-            # Sell market.
-            lambda e: e.create_market_order(exchange.OrderOperation.SELL, Pair("ORCL", "USD"), Decimal("1")),
-        ],
-    },
+@pytest.mark.parametrize("order_plan, candlesticks", [
+    (order_plan, True),
+    (order_plan, False),
 ])
-def test_save_line_chart(order_plan, backtesting_dispatcher, caplog):
+def test_save_line_chart(order_plan, candlesticks, backtesting_dispatcher, caplog):
     e = exchange.Exchange(
         backtesting_dispatcher,
         {
@@ -49,7 +51,7 @@ def test_save_line_chart(order_plan, backtesting_dispatcher, caplog):
     )
     pair = Pair("ORCL", "USD")
     line_charts = charts.LineCharts(e)
-    line_charts.add_pair(pair)
+    line_charts.add_pair(pair, candlesticks=candlesticks)
     line_charts.add_balance("USD")
     line_charts.add_pair_indicator("CONSTANT", pair, charts.DataPointFromSequence([100]))
     line_charts.add_portfolio_value("USD")

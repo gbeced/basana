@@ -111,7 +111,7 @@ test_order_requests_data = [
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 4, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 4, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("4"), "USD": Decimal("-440.04")},
                             fees={"USD": Decimal("-1.11")},
                             fill_price=Decimal("110.01")
@@ -142,7 +142,7 @@ test_order_requests_data = [
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 18, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 18, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("108.00")},
                             fees={"USD": Decimal("-0.27")},
                         ),
@@ -174,7 +174,7 @@ test_order_requests_data = [
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 24, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 24, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("5"), "USD": Decimal("-290.15")},
                             fees={"USD": Decimal("-0.73")},
                         ),
@@ -206,7 +206,7 @@ test_order_requests_data = [
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 3, 10, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 3, 10, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("9"), "USD": Decimal("-729.00")},
                             fees={"USD": Decimal("-1.83")},
                         ),
@@ -221,7 +221,7 @@ test_order_requests_data = [
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 3, 13, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 3, 13, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("78.75")},
                             fees={"USD": Decimal("-0.20")},
                         ),
@@ -236,7 +236,7 @@ test_order_requests_data = [
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 3, 14, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 3, 14, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("83.65")},
                             fees={"USD": Decimal("-0.21")},
                         ),
@@ -407,7 +407,7 @@ test_order_requests_data = [
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 4, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 4, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("1"), "USD": Decimal("-108")},
                             fees={"USD": Decimal("-0.27")},
                         ),
@@ -471,7 +471,7 @@ test_order_requests_data = [
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 27, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 27, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("53.99")},
                             fees={"USD": Decimal("-0.14")},
                         ),
@@ -509,7 +509,7 @@ test_order_requests_data = [
                     ),
                     [
                         dict(
-                            when=datetime.datetime(2000, 1, 26, 23, 59, 59, 999000, tzinfo=tz.tzlocal()),
+                            when=datetime.datetime(2000, 1, 26, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("55.5")},
                             fees={"USD": Decimal("-0.14")},
                         ),

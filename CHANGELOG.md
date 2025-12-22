@@ -2,11 +2,15 @@
 
 ## TBD
 
+### Features
+
+* Candlestick charts.
+
 ### Bug fixes
 
 * Backtesting stop orders were being canceled if the stop price was not hit.
 * Backtesting order updates were sometimes being processed after bar events. Order update events should get processed first.
-* Backtesting fills had the datetime of the event and now they have a datetime within the bar where the fill occurred.
+* Backtesting fills had the datetime of the event and now they have the datetime of the bar where the fill occurred.
 * Backtesting `OrderInfo.fill_price` was being calculated using the base and quote amounts filled and that could lead to invalid values.
 
 ### Misc

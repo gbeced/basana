@@ -292,7 +292,7 @@ class LimitOrder(Order):
             # The price went down to limit price or lower.
             elif bar.low <= self._limit_price:
                 price = self._limit_price
-                fill_dt = last_datetime_within_bar(bar)
+                fill_dt = bar.begin
         else:
             # Limit price was hit at bar open.
             if bar.open >= self._limit_price:
@@ -301,7 +301,7 @@ class LimitOrder(Order):
             # The price went up to limit price or higher.
             elif bar.high >= self._limit_price:
                 price = self._limit_price
-                fill_dt = last_datetime_within_bar(bar)
+                fill_dt = bar.begin
 
         ret = None
         if price and fill_dt:
@@ -365,7 +365,7 @@ class StopOrder(Order):
             # The price went up to stop price or higher.
             elif bar.high >= self._stop_price:
                 price = self._stop_price
-                fill_dt = last_datetime_within_bar(bar)
+                fill_dt = bar.begin
         else:
             # Stop price was hit at bar open.
             if bar.open <= self._stop_price:
@@ -374,7 +374,7 @@ class StopOrder(Order):
             # The price went down to stop price or lower.
             elif bar.low <= self._stop_price:
                 price = self._stop_price
-                fill_dt = last_datetime_within_bar(bar)
+                fill_dt = bar.begin
 
         if price:
             price = slipped_price(price, amount, self, liquidity_strategy)
@@ -442,14 +442,14 @@ class StopLimitOrder(Order):
                 # Limit price was hit some time later within the bar.
                 elif bar.low <= self._limit_price <= bar.high:
                     price = self._limit_price
-                    fill_dt = last_datetime_within_bar(bar)
+                    fill_dt = bar.begin
             # The price went up to stop price or higher.
             elif bar.high >= self._stop_price:
                 self._stop_price_hit = True
                 # Limit price was hit some time later within the bar.
                 if bar.low <= self._limit_price <= bar.high:
                     price = self._limit_price
-                    fill_dt = last_datetime_within_bar(bar)
+                    fill_dt = bar.begin
             # Calculate slippage if necessary.
             if price is not None and price != self._limit_price:
                 price = slipped_price(price, amount, self, liquidity_strategy, cap_high=self._limit_price)
@@ -464,14 +464,14 @@ class StopLimitOrder(Order):
                 # Limit price was hit some time later within the bar.
                 elif bar.low <= self._limit_price <= bar.high:
                     price = self._limit_price
-                    fill_dt = last_datetime_within_bar(bar)
+                    fill_dt = bar.begin
             # The price went down to stop price or lower.
             elif bar.low <= self._stop_price:
                 self._stop_price_hit = True
                 # Limit price was hit some time later within the bar.
                 if bar.low <= self._limit_price <= bar.high:
                     price = self._limit_price
-                    fill_dt = last_datetime_within_bar(bar)
+                    fill_dt = bar.begin
             # Calculate slippage if necessary.
             if price is not None and price != self._limit_price:
                 price = slipped_price(price, amount, self, liquidity_strategy, cap_low=self._limit_price)
@@ -504,7 +504,7 @@ class StopLimitOrder(Order):
             # The price went down to limit price or lower.
             elif bar.low <= self._limit_price:
                 price = self._limit_price
-                fill_dt = last_datetime_within_bar(bar)
+                fill_dt = bar.begin
         else:
             # Limit price was hit at bar open.
             if bar.open > self._limit_price:
@@ -513,7 +513,7 @@ class StopLimitOrder(Order):
             # The price went up to limit price or higher.
             elif bar.high >= self._limit_price:
                 price = self._limit_price
-                fill_dt = last_datetime_within_bar(bar)
+                fill_dt = bar.begin
 
         ret = None
         if price and fill_dt:
@@ -574,11 +574,3 @@ def slipped_price(
         price = min(price, cap_high)
 
     return round_decimal(price, order.pair_info.quote_precision)
-
-
-def last_datetime_within_bar(bar: bar.Bar):
-    # Just in case the bar's begin and end are equal.
-    return max(
-        (bar.begin + bar.duration) - datetime.timedelta(milliseconds=1),
-        bar.begin
-    )
