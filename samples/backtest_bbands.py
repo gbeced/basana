@@ -22,6 +22,7 @@ from decimal import Decimal
 import asyncio
 import datetime
 import logging
+import time
 
 from basana.backtesting import charts, lending
 from basana.core.logs import StructuredMessage
@@ -32,6 +33,9 @@ import basana.backtesting.fees as backtesting_fees
 
 from samples.backtesting import position_manager
 from samples.strategies import bbands
+
+
+logging.Formatter.converter = time.gmtime  # Use UTC instead of local time
 
 
 async def main():

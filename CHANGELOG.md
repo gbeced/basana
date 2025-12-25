@@ -5,6 +5,7 @@
 ### Features
 
 * Candlestick charts.
+* Technical indicators and custom charts can now set a custom marker for Plotly.
 
 ### Bug fixes
 
