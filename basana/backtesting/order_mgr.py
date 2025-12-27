@@ -25,7 +25,7 @@ import logging
 from basana.backtesting import account_balances, config, errors, fees, helpers, lending, loan_mgr, liquidity, prices
 from basana.backtesting.orders import Order, OrderInfo
 from basana.backtesting.value_map import ValueMap, ValueMapDict
-from basana.core import dispatcher, helpers as core_helpers, logs
+from basana.core import dispatcher, event, helpers as core_helpers, logs
 from basana.core.bar import Bar, BarEvent
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 LiquidityStrategyFactory = Callable[[], liquidity.LiquidityStrategy]
 OrderEventHandler = Callable[["OrderEvent"], Awaitable[Any]]
+ORDER_UPDATE_PRIORITY = event.DEFAULT_EVENT_SOURCE_PRIORITY + 1
 
 
 @dataclasses.dataclass
@@ -81,7 +82,7 @@ class OrderManager:
         )
         self._orders = helpers.ExchangeObjectContainer[Order]()
         self._holds_by_order: Dict[str, ValueMap] = {}
-        self._order_updates = core_helpers.LazyProxy(bs.FifoQueueEventSource)
+        self._order_updates = core_helpers.LazyProxy(lambda: bs.FifoQueueEventSource(priority=ORDER_UPDATE_PRIORITY))
 
     def on_bar_event(self, bar_event: BarEvent):
         liquidity_strategy = self._liquidity_strategies[bar_event.bar.pair]
@@ -121,9 +122,9 @@ class OrderManager:
             else:
                 now = self._ctx.dispatcher.now()
                 bar = Bar(
-                    datetime=now, pair=order.pair,
+                    begin=now, pair=order.pair,
                     open=last_bar.close, high=last_bar.close, low=last_bar.close, close=last_bar.close,
-                    volume=last_bar.volume
+                    volume=last_bar.volume, duration=datetime.timedelta(milliseconds=1)
                 )
                 liquidity_strategy = self._liquidity_strategies[order.pair]
                 # If the order is not updated during processing, we push an update for the order that is being added.
@@ -266,28 +267,31 @@ class OrderManager:
             self, order: Order, bar: Bar, liquidity_strategy: liquidity.LiquidityStrategy
     ) -> bool:
 
-        # Calculate balance updates for the current bar.
+        # Try to fill the order.
         logger.debug(logs.StructuredMessage(
             "Processing order", order=order.get_debug_info(),
             bar={"open": bar.open, "high": bar.high, "low": bar.low, "close": bar.close, "volume": bar.volume}
         ))
-        prev_state = order.state
-        balance_updates = ValueMap(order.get_balance_updates(bar, liquidity_strategy))
-        assert order.state == prev_state, "The order state should not change inside get_balance_updates"
-        self._round_balance_updates(balance_updates, order.pair)
+        fill = order.try_fill(bar, liquidity_strategy)
+        if fill is None:
+            return self._order_not_filled(order)
+
+        # Round fill data.
+        balance_updates = ValueMap(fill.balance_updates)
+        balance_updates.prune()
         logger.debug(logs.StructuredMessage(
-            "Order balance updates", order_id=order.id, balance_updates=balance_updates
+            "Order fill details before fees", order_id=order.id, fill_price=fill.fill_price,
+            balance_updates=balance_updates
+            
         ))
         # Base and quote symbols must be present in the balance updates, otherwise the order can't be filled.
         if order.pair.base_symbol not in balance_updates or order.pair.quote_symbol not in balance_updates:
             return self._order_not_filled(order)
 
-        # Get fees, round them, and combine them with the balance updates.
+        # Calculate fees.
         fees = ValueMap(self._ctx.fee_strategy.calculate_fees(order, balance_updates))
-        self._round_fees(fees, order.pair)
-        logger.debug(logs.StructuredMessage(
-            "Order fees", order_id=order.id, fees=fees
-        ))
+        round_fees(order, fees)
+        logger.debug(logs.StructuredMessage("Order fees", order_id=order.id, fees=fees))
 
         ret = False
         try:
@@ -298,7 +302,8 @@ class OrderManager:
             # Update the liquidity strategy.
             liquidity_strategy.take_liquidity(abs(balance_updates[bar.pair.base_symbol]))
             # Update the order and release any pending balance on hold if the order is now closed.
-            order.add_fill(self._ctx.dispatcher.now(), balance_updates, fees)
+            fill.fees = fees
+            order.add_fill(fill)
             logger.debug(logs.StructuredMessage(
                 "Order updated", order_id=order.id, final_updates=final_updates, order_state=order.state
             ))
@@ -313,31 +318,6 @@ class OrderManager:
             ))
             ret = self._order_not_filled(order)
         return ret
-
-    def _round_balance_updates(self, balance_updates: ValueMap, pair: Pair):
-        pair_info = self._ctx.config.get_pair_info(pair)
-
-        # For the base amount we truncate instead of rounding to avoid exceeding available liquidity.
-        if (base_amount := balance_updates.get(pair.base_symbol)) is not None:
-            balance_updates[pair.base_symbol] = core_helpers.truncate_decimal(base_amount, pair_info.base_precision)
-
-        # For the quote amount we simply round.
-        if (quote_amount := balance_updates.get(pair.quote_symbol)) is not None:
-            balance_updates[pair.quote_symbol] = core_helpers.round_decimal(quote_amount, pair_info.quote_precision)
-
-        balance_updates.prune()
-
-    def _round_fees(self, fees: ValueMap, pair: Pair):
-        pair_info = self._ctx.config.get_pair_info(pair)
-        precisions = {
-            pair.base_symbol: pair_info.base_precision,
-            pair.quote_symbol: pair_info.quote_precision,
-        }
-        for symbol, precision in precisions.items():
-            if (amount := fees.get(symbol)) is not None:
-                fees[symbol] = core_helpers.round_decimal(amount, precision, rounding=decimal.ROUND_UP)
-
-        fees.prune()
 
     def _estimate_required_balances(self, order: Order) -> ValueMap:
         # Get an estimated fill price. If the order can't provide one, use the last price available.
@@ -355,13 +335,13 @@ class OrderManager:
         })
         if estimated_fill_price:
             estimated_balance_updates[order.pair.quote_symbol] = order.amount * estimated_fill_price * -base_sign
-        self._round_balance_updates(estimated_balance_updates, order.pair)
+        round_balance_updates(order, estimated_balance_updates)
 
         # Calculate fees.
         fees = ValueMap()
         if len(estimated_balance_updates) == 2:
             fees += self._ctx.fee_strategy.calculate_fees(order, estimated_balance_updates)
-            self._round_fees(fees, order.pair)
+            round_fees(order, fees)
         estimated_balance_updates += fees
 
         # Return only negative balance updates as required balances.
@@ -376,3 +356,32 @@ class OrderManager:
         now = self._ctx.dispatcher.now() if self._ctx.dispatcher.now_available else None
         if now and self._order_updates.initialized:
             self._order_updates.push(OrderEvent(now, order.get_order_info()))
+
+
+def round_balance_updates(order: Order, balance_updates: ValueMap):
+    # For the base amount we truncate instead of rounding to avoid exceeding available liquidity.
+    if (base_amount := balance_updates.get(order.pair.base_symbol)) is not None:
+        balance_updates[order.pair.base_symbol] = core_helpers.truncate_decimal(
+            base_amount, order.pair_info.base_precision
+        )
+
+    # For the quote amount we simply round.
+    if (quote_amount := balance_updates.get(order.pair.quote_symbol)) is not None:
+        balance_updates[order.pair.quote_symbol] = core_helpers.round_decimal(
+            quote_amount, order.pair_info.quote_precision
+        )
+
+    balance_updates.prune()
+
+
+def round_fees(order: Order, fees: ValueMap):
+    precisions = {
+        order.pair.base_symbol: order.pair_info.base_precision,
+        order.pair.quote_symbol: order.pair_info.quote_precision,
+    }
+    for symbol, precision in precisions.items():
+        if (amount := fees.get(symbol)) is not None:
+            fees[symbol] = core_helpers.round_decimal(amount, precision, rounding=decimal.ROUND_UP)
+
+    fees.prune()
+

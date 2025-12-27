@@ -28,7 +28,7 @@ The examples use [TALIpp](https://github.com/nardew/talipp) for the technical in
 $ pip install talipp pandas statsmodels textual
 ```
 
-Download and unzip [samples](https://github.com/gbeced/basana/releases/download/1.9/samples.zip) or clone the [GitHub](https://github.com/gbeced/basana/) repository.
+Download and unzip [samples](https://github.com/gbeced/basana/releases/download/1.10/samples.zip) or clone the [GitHub](https://github.com/gbeced/basana/) repository.
 
 ### Backtest a pairs trading strategy
 

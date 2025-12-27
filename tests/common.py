@@ -14,8 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# ruff: noqa
 
-from .bars import (
-    BarSource,
-)
+from basana.core.pair import Pair, PairInfo
+
+btc_pair = Pair("BTC", "USD")
+btc_pair_info = PairInfo(8, 2)
+
+orcl_pair = Pair("ORCL", "USD")
+orcl_pair_info = PairInfo(0, 2)
+
+aapl_pair = Pair("AAPL", "USD")
+aapl_pair_info = PairInfo(0, 2)

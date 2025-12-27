@@ -61,6 +61,14 @@ class OrderBook:
         ret.last_update_id = obook.last_update_id
         return ret
 
+    def update_bids(self, bids: List[Tuple[Decimal, Decimal]]):
+        self.bids = sorted(bids, reverse=True)
+        self._last_bid = self.bids[-1][0]
+
+    def update_asks(self, asks: List[Tuple[Decimal, Decimal]]):
+        self.asks = sorted(asks)
+        self._last_ask = self.asks[-1][0]
+
     def update_from_diff(self, diff_event: binance_exchange.OrderBookDiffEvent):
         """
         Updates the order book based on a diff received from Binance WebSocket stream.
@@ -148,16 +156,21 @@ class OrderBookUpdater:
     :param diff_interval_ms: The interval in milliseconds for receiving order book diffs (100 or 1000 ms).
     :param check_interval_ms: The interval in milliseconds for checking order book consistency via snapshots.
     :param check_depth: The depth of the order book to check for consistency.
-    :param re_sync_threshold: The threshold (as a fraction of max_depth) below which a re-sync is triggered.
+    :param full_depth_threshold: The threshold below which depper fetches are used during checks to keep the order
+        book depth in shape.
+    :param restart_threshold: The threshold below which a re-sync from start is triggered.
     """
     def __init__(
             self, pair: bs.Pair, exchange: binance_exchange.Exchange, max_depth: int = 5000,
-            diff_interval_ms: int = 100, check_interval_ms: int = 1000, check_depth: int = 20,
-            re_sync_threshold: float = 0.2
+            diff_interval_ms: int = 100, check_interval_ms: int = 5000, check_depth: int = 20,
+            full_depth_threshold: float = 0.8,
+            restart_threshold: float = 0.2,
     ):
         assert diff_interval_ms in (100, 1000)
-        assert max_depth <= 5000
-        assert re_sync_threshold > 0 and re_sync_threshold < 1
+        assert max_depth > 0 and max_depth <= 5000
+        assert check_depth > 0 and check_depth < max_depth
+        assert restart_threshold > 0 and restart_threshold < 1
+        assert full_depth_threshold > restart_threshold and full_depth_threshold < 1
 
         self.order_book = OrderBook()
         self._pair = pair
@@ -167,7 +180,8 @@ class OrderBookUpdater:
         self._check_interval_ms = check_interval_ms
         self._check_depth = check_depth
         self._switch_mutex = asyncio.Lock()
-        self._re_sync_threshold = round(max_depth * re_sync_threshold)
+        self._restart_threshold = round(max_depth * restart_threshold)
+        self._full_depth_threshold = round(max_depth * full_depth_threshold)
 
         exchange.subscribe_to_order_book_diff_events(pair, self._on_order_book_diff_event, interval=diff_interval_ms)
 
@@ -193,7 +207,7 @@ class OrderBookUpdater:
 
         logger.info(StructuredMessage(self._pair, **msg_kwargs))
 
-        if len(self.order_book.bids) <= self._re_sync_threshold or len(self.order_book.asks) <= self._re_sync_threshold:
+        if len(self.order_book.bids) <= self._restart_threshold or len(self.order_book.asks) <= self._restart_threshold:
             await self._state.on_sync_required(self)
 
     async def switch_state(self, state: UpdaterState, order_book: Optional[OrderBook] = None):
@@ -295,7 +309,13 @@ class Updating(UpdaterState):
         while True:
             try:
                 await asyncio.sleep(updater._check_interval_ms / 1000)
-                snapshot = await updater._exchange.get_order_book(updater._pair, limit=updater._check_depth)
+
+                limit = updater._check_depth
+                if len(updater.order_book.bids) <= updater._full_depth_threshold \
+                        or len(updater.order_book.asks) <= updater._full_depth_threshold:
+                    limit = updater._max_depth
+
+                snapshot = await updater._exchange.get_order_book(updater._pair, limit=limit)
                 self._snapshot = snapshot
                 logger.info(StructuredMessage("Fetched order book", last_update_id=self._snapshot.last_update_id))
                 await self._check_order_book_consistency(updater)
@@ -308,16 +328,42 @@ class Updating(UpdaterState):
 
         logger.info(StructuredMessage("Checking order book", last_update_id=self._snapshot.last_update_id))
 
-        snapshot_bids = [(bid.price, bid.volume) for bid in self._snapshot.bids]
-        snapshot_asks = [(ask.price, ask.volume) for ask in self._snapshot.asks]
-        local_bids = updater.order_book.bids[:updater._check_depth]
-        local_asks = updater.order_book.asks[:updater._check_depth]
-        if local_bids != snapshot_bids or local_asks != snapshot_asks:
-            logger.error(StructuredMessage(
-                "Order book mismatch", last_update_id=self._snapshot.last_update_id,
-                local_bids=local_bids, snapshot_bids=snapshot_bids,
-                local_asks=local_asks, snapshot_asks=snapshot_asks
-            ))
+        def value_desc(is_bid: bool):
+            return "bids" if is_bid else "asks"
+
+        def check_or_update(
+                snapshot_values: List[Tuple[Decimal, Decimal]], order_book_values: List[Tuple[Decimal, Decimal]],
+                is_bid: bool
+        ):
+            ret = True
+            if len(snapshot_values) > len(order_book_values):
+                # There is no need to check, just go and update.
+                logger.info(StructuredMessage(
+                    f"Updating {value_desc(is_bid)} using snapshot", order_book=len(order_book_values),
+                    snapshot=len(snapshot_values)
+                ))
+                if is_bid:
+                    updater.order_book.update_bids(snapshot_values)
+                else:
+                    updater.order_book.update_asks(snapshot_values)
+            elif order_book_values[:updater._check_depth] != snapshot_values[:updater._check_depth]:
+                logger.error(StructuredMessage(
+                    f"{value_desc(is_bid).title()} mismatch", last_update_id=self._snapshot.last_update_id,
+                    order_book=order_book_values[:updater._check_depth],
+                    snapshot=snapshot_values[:updater._check_depth],
+                ))
+                ret = False
+            return ret
+
+        if not check_or_update(
+                [(bid.price, bid.volume) for bid in self._snapshot.bids],
+                updater.order_book.bids,
+                True
+        ) or not check_or_update(
+                [(ask.price, ask.volume) for ask in self._snapshot.asks],
+                updater.order_book.asks,
+                False
+        ):
             await updater.switch_state(Initializing())
 
 

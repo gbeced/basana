@@ -72,13 +72,21 @@ class LineChart(metaclass=abc.ABCMeta):
 
 
 class PairLineChart(LineChart):
-    def __init__(self, pair: Pair, include_buys: bool, include_sells: bool, exchange: Exchange):
+    def __init__(self, pair: Pair, include_buys: bool, include_sells: bool, candlesticks: bool, exchange: Exchange):
         self._pair = pair
         self._include_buys = include_buys
         self._include_sells = include_sells
+        self._candlesticks = candlesticks
         self._exchange = exchange
-        self._ts = TimeSeries()
         self._indicators: Dict[str, Tuple[ChartDataPointFn, TimeSeries]] = {}
+        self._indicator_markers: Dict[str, Any] = {}
+        self.buy_marker_size = 10
+        self.sell_marker_size = 10
+        if self._candlesticks:
+            self._open_values = TimeSeries()
+            self._high_values = TimeSeries()
+            self._low_values = TimeSeries()
+        self._close_values = TimeSeries()
 
         exchange.subscribe_to_bar_events(pair, self._on_bar_event)
 
@@ -86,15 +94,32 @@ class PairLineChart(LineChart):
         return str(self._pair)
 
     def add_traces(self, figure: go.Figure, row: int):
-        # Add a trace with the pair values.
-        x, y = self._ts.get_x_y()
-        figure.add_trace(go.Scatter(x=x, y=y, name=str(self._pair)), row=row, col=1)
+        if self._candlesticks:
+            # Add a trace with the OHLC values.
+            open_values = list(self._open_values.get_x_y())
+            high_values = list(self._high_values.get_x_y())
+            low_values = list(self._low_values.get_x_y())
+            close_values = list(self._close_values.get_x_y())
+            figure.add_trace(
+                go.Candlestick(
+                    x=open_values[0], open=open_values[1], high=high_values[1], low=low_values[1],
+                    close=close_values[1], name=str(self._pair), xperiodalignment="start"
+                ),
+                row=row, col=1
+            )
+        else:
+            # Add a trace just with the closing values.
+            x, y = self._close_values.get_x_y()
+            figure.add_trace(go.Scatter(x=x, y=y, name=str(self._pair)), row=row, col=1)
 
         # Add a trace with buy prices.
         if self._include_buys:
             x, y = self._get_order_fills(OrderOperation.BUY).get_x_y()
             figure.add_trace(
-                go.Scatter(x=x, y=y, name="Buy", mode="markers", marker=dict(symbol="arrow-up", color="green")),
+                go.Scatter(
+                    x=x, y=y, name="Buy", mode="markers",
+                    marker=dict(symbol="arrow-up", color="green", size=self.buy_marker_size)
+                ),
                 row=row, col=1
             )
 
@@ -102,18 +127,29 @@ class PairLineChart(LineChart):
         if self._include_sells:
             x, y = self._get_order_fills(OrderOperation.SELL).get_x_y()
             figure.add_trace(
-                go.Scatter(x=x, y=y, name="Sell", mode="markers", marker=dict(symbol="arrow-down", color="red")),
+                go.Scatter(
+                    x=x, y=y, name="Sell", mode="markers",
+                    marker=dict(symbol="arrow-down", color="red", size=self.sell_marker_size)
+                ),
                 row=row, col=1
             )
 
         # Add one trace per indicator.
         for name, (_, ts) in self._indicators.items():
-            x, y = ts.get_x_y()
-            figure.add_trace(go.Scatter(x=x, y=y, name=name), row=row, col=1)
+            # Check if a custom marker was set.
+            extra_kwargs = {}
+            marker = self._indicator_markers[name]
+            if marker:
+                extra_kwargs["mode"] = "markers"
+                extra_kwargs["marker"] = marker
 
-    def add_indicator(self, name: str, get_data_point: ChartDataPointFn):
+            x, y = ts.get_x_y()
+            figure.add_trace(go.Scatter(x=x, y=y, name=name, **extra_kwargs), row=row, col=1)
+
+    def add_indicator(self, name: str, get_data_point: ChartDataPointFn, marker: dict = {}):
         assert name not in self._indicators
         self._indicators[name] = (get_data_point, TimeSeries())
+        self._indicator_markers[name] = marker
 
     def _get_order_fills(self, op: OrderOperation) -> TimeSeries:
         ret = TimeSeries()
@@ -131,10 +167,15 @@ class PairLineChart(LineChart):
         return ret
 
     async def _on_bar_event(self, bar_event: bar.BarEvent):
-        dt = bar_event.when
-        value = bar_event.bar.close
-        # Add the value to the main time series.
-        self._ts.add_value(dt, value)
+        bar = bar_event.bar
+        dt = bar.begin
+        # Add the values to the main time series.
+        if self._candlesticks:
+            self._open_values.add_value(dt, bar.open)
+            self._high_values.add_value(dt, bar.high)
+            self._low_values.add_value(dt, bar.low)
+        self._close_values.add_value(dt, bar.close)
+
         # Add the custom indicator values.
         for get_data_point, ts in self._indicators.values():
             indicator_value = get_data_point(dt)
@@ -208,6 +249,7 @@ class CustomLineChart(LineChart):
         self._name = name
         self._exchange = exchange
         self._data_point_fns: Dict[str, Tuple[ChartDataPointFn, TimeSeries]] = {}
+        self._markers: Dict[str, Any] = {}
 
         exchange._get_dispatcher().subscribe_all(self._on_any_event)
 
@@ -216,12 +258,20 @@ class CustomLineChart(LineChart):
 
     def add_traces(self, figure: go.Figure, row: int):
         for name, (_, ts) in self._data_point_fns.items():
-            x, y = ts.get_x_y()
-            figure.add_trace(go.Scatter(x=x, y=y, name=name), row=row, col=1)
+            # Check if a custom marker was set.
+            extra_kwargs = {}
+            marker = self._markers[name]
+            if marker:
+                extra_kwargs["mode"] = "markers"
+                extra_kwargs["marker"] = marker
 
-    def add_data_point_fn(self, name: str, get_data_point: ChartDataPointFn):
+            x, y = ts.get_x_y()
+            figure.add_trace(go.Scatter(x=x, y=y, name=name, **extra_kwargs), row=row, col=1)
+
+    def add_data_point_fn(self, name: str, get_data_point: ChartDataPointFn, marker: dict = {}):
         assert name not in self._data_point_fns
         self._data_point_fns[name] = (get_data_point, TimeSeries())
+        self._markers[name] = marker
 
     async def _on_any_event(self, event: event.Event):
         dt = event.when
@@ -263,36 +313,39 @@ class LineCharts:
         """
         self._portfolio_charts[symbol] = PortfolioValueLineChart(symbol, self._exchange, precision=precision)
 
-    def add_pair(self, pair: Pair, include_buys: bool = True, include_sells: bool = True):
+    def add_pair(self, pair: Pair, include_buys: bool = True, include_sells: bool = True, candlesticks: bool = True):
         """Adds a chart with the pair values.
 
         :param pair: The pair.
         :param include_buys: True to include buy prices.
         :param include_sells: True to include sell prices.
+        :param candlesticks: True to produce a candlestick chart, False to plot only the closing value.
         """
-        self._pair_charts[pair] = PairLineChart(pair, include_buys, include_sells, self._exchange)
+        self._pair_charts[pair] = PairLineChart(pair, include_buys, include_sells, candlesticks, self._exchange)
 
-    def add_pair_indicator(self, name: str, pair: Pair, get_data_point: ChartDataPointFn):
+    def add_pair_indicator(self, name: str, pair: Pair, get_data_point: ChartDataPointFn, marker: dict = {}):
         """Adds a technical indicator to a pair's chart.
 
         :param name: The name of the indicator.
         :param pair: The pair chart to add the indicator to.
         :param get_data_point: A callable that will be used to get the data point on each bar.
+        :param marker: Forwarded to Plotly when creating a go.Scatter.
         """
         assert pair in self._pair_charts, f"{pair} was not added"
-        self._pair_charts[pair].add_indicator(name, get_data_point)
+        self._pair_charts[pair].add_indicator(name, get_data_point, marker=marker)
 
-    def add_custom(self, name: str, line: str, get_data_point: ChartDataPointFn):
+    def add_custom(self, name: str, line: str, get_data_point: ChartDataPointFn, marker: dict = {}):
         """Adds a custom chart.
 
         :param name: The name of the chart.
         :param line: The name of the line.
         :param get_data_point: A callable that will be used to get the line data points.
+        :param marker: Forwarded to Plotly when creating a go.Scatter.
         """
         if (chart := self._custom_charts.get(name)) is None:
             chart = CustomLineChart(name, self._exchange)
             self._custom_charts[name] = chart
-        chart.add_data_point_fn(line, get_data_point)
+        chart.add_data_point_fn(line, get_data_point, marker=marker)
 
     def show(self, show_legend: bool = True):  # pragma: no cover
         """Shows the chart using either the default renderer(s).
@@ -343,6 +396,7 @@ class LineCharts:
             row = 1
             for chart in charts:
                 chart.add_traces(figure, row)
+                figure.update_xaxes(rangeslider={'visible':False}, row=row, col=1)
                 row += 1
 
             figure.layout.update(showlegend=show_legend)

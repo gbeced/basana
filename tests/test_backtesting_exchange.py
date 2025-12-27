@@ -24,6 +24,7 @@ from dateutil import tz
 import pytest
 
 from .helpers import abs_data_path
+from .common import btc_pair, btc_pair_info
 from basana.backtesting import errors, exchange, fees, helpers as bt_helpers, orders
 from basana.core import bar, dt, event
 from basana.core.enums import OrderOperation
@@ -59,7 +60,7 @@ def test_exchange_object_container():
     for i in range(1, 3):
         idx.add(
             orders.MarketOrder(
-                str(i), OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1")
+                str(i), OrderOperation.BUY, btc_pair, btc_pair_info, Decimal("1")
             )
         )
     assert "1" in [o.id for o in idx.get_open()]
@@ -156,7 +157,8 @@ def test_bid_ask(backtesting_dispatcher):
                 dt.local_datetime(2000, 1, 3, 23, 59, 59),
                 bar.Bar(
                     dt.local_datetime(2000, 1, 3), p,
-                    Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"), Decimal("98122000")
+                    Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"), Decimal("98122000"),
+                    datetime.timedelta(days=1)
                 )
             )
         ])

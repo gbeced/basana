@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "basana"
-version = "1.9"
+version = "1.10"
 homepage = "https://github.com/gbeced/basana"
 repository = "https://github.com/gbeced/basana"
 documentation = "https://basana.readthedocs.io/en/latest/"
@@ -10,7 +10,7 @@ license = "Apache-2.0"
 packages = [{include = "basana"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 aiohttp = {extras = ["speedups"], version = "^3.10"}
 python-dateutil = "^2.9"
 # Optional dependencies, some of which are included in the below `extras`. They can be opted into by apps.
@@ -22,7 +22,6 @@ charts = ["plotly", "kaleido"]
 
 [tool.poetry.group.dev.dependencies]
 aioresponses = "^0.7.7"
-flake8 = "^7.1"
 mypy = "^1.11"
 pytest = "^8.3"
 pytest-cov = "^5.0"
@@ -33,12 +32,23 @@ websockets = "^13"
 pandas = "^2.2"
 statsmodels = "^0.14"
 textual = "^6.3.0"
+ruff = "^0.14.2"
 
 [tool.poetry.group.docs.dependencies]
-sphinx = {version = "^8.1", markers = "python_version >= '3.10'"}
-sphinx-rtd-theme = {version = "^3.0", markers = "python_version >= '3.10'"}
+sphinx = {version = "^9", markers = "python_version >= '3.11'"}
+sphinx-rtd-theme = {version = "^3.0", markers = "python_version >= '3.11'"}
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 120
+exclude = [
+    "pocs"
+]
+
+[tool.ruff.lint]
+# Add the `line-too-long` rule to the enforced rule set.
+extend-select = ["E501"]
 

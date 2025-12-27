@@ -10,3 +10,4 @@ docs/_build
 docs/generated
 pocs/*
 venv/*
+.python-version

@@ -22,6 +22,11 @@ from collections import deque
 from . import dt
 
 
+MIN_EVENT_SOURCE_PRIORITY = -1000
+MAX_EVENT_SOURCE_PRIORITY = 1000
+DEFAULT_EVENT_SOURCE_PRIORITY = 0
+
+
 class Producer:
     """Base class for producers.
 
@@ -80,8 +85,20 @@ class EventSource(metaclass=abc.ABCMeta):
     :param producer: An optional producer associated with this event source.
     """
 
-    def __init__(self, producer: Optional[Producer] = None):
+    def __init__(self, producer: Optional[Producer] = None, priority: int = DEFAULT_EVENT_SOURCE_PRIORITY):
+        assert priority >= MIN_EVENT_SOURCE_PRIORITY and priority <= MAX_EVENT_SOURCE_PRIORITY, "Invalid priority"
+
         self.producer = producer
+        self._priority = priority
+
+    @property
+    def priority(self):
+        return self._priority
+
+    @priority.setter
+    def priority(self, value: int):
+        assert value >= MIN_EVENT_SOURCE_PRIORITY and value <= MAX_EVENT_SOURCE_PRIORITY, "Invalid priority"
+        self._priority = value
 
     @abc.abstractmethod
     def pop(self) -> Optional[Event]:
@@ -99,8 +116,11 @@ class FifoQueueEventSource(EventSource):
     :param producer: An optional producer associated with this event source.
     :param events: An optional list of initial events.
     """
-    def __init__(self, producer: Optional[Producer] = None, events: List[Event] = []):
-        super().__init__(producer)
+    def __init__(
+            self, producer: Optional[Producer] = None, events: List[Event] = [],
+            priority: int = DEFAULT_EVENT_SOURCE_PRIORITY
+    ):
+        super().__init__(producer, priority)
         self._queue = deque(events)
 
     def push(self, event: Event):

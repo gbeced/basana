@@ -62,15 +62,17 @@ def test_loans(
     )
     pair = Pair(borrowed_symbol, quote_symbol)
     prices = Prices(bid_ask_spread_pct=Decimal('0.01'), config=config)
+
     # Set a bar for price conversion
     bar = Bar(
-        datetime=datetime.datetime.now(datetime.timezone.utc),
+        begin=datetime.datetime.now(datetime.timezone.utc),
         pair=pair,
         open=current_price,
         high=current_price,
         low=current_price,
         close=current_price,
-        volume=Decimal('1000')
+        volume=Decimal('1000'),
+        duration=datetime.timedelta(days=1)
     )
     prices.on_bar_event(BarEvent(bar.datetime, bar))
 

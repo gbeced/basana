@@ -73,6 +73,7 @@ def test_trades_to_bar_manual_flush():
     assert bar_event.bar.low == Decimal("200")
     assert bar_event.bar.close == Decimal("203")
     assert bar_event.bar.volume == Decimal("5")
+    assert bar_event.bar.duration == datetime.timedelta(seconds=bar_duration)
 
     # Flush the next day (gap day).
     begin += datetime.timedelta(seconds=bar_duration)
@@ -92,5 +93,7 @@ def test_trades_to_bar_manual_flush():
     assert bar_event.bar.low == Decimal("300")
     assert bar_event.bar.close == Decimal("303")
     assert bar_event.bar.volume == Decimal("9")
+    assert bar_event.bar.begin == begin
+    assert bar_event.bar.duration == datetime.timedelta(seconds=bar_duration)
 
     assert len(trade_to_bar._trades) == 0
