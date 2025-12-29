@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.10.1
+
+### Bug fixes
+
+* Account balance charts were subtracting borrowed balance twice.
+
 ## 1.10
 
 ### Features
