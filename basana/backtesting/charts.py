@@ -203,7 +203,7 @@ class AccountBalanceLineChart(LineChart):
 
     async def _on_any_event(self, event: event.Event):
         balance = await self._exchange.get_balance(self._symbol)
-        self._ts.add_value(event.when, balance.total - balance.borrowed)
+        self._ts.add_value(event.when, balance.total)
 
 
 class PortfolioValueLineChart(LineChart):
