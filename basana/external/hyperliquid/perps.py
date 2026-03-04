@@ -6,6 +6,7 @@
 
 from decimal import Decimal
 from typing import Callable, List, Optional
+import asyncio
 import dataclasses
 import logging
 
@@ -235,4 +236,4 @@ class Account:
         )
 
 
-import asyncio  # noqa: E402 (needed for fill handler)
+

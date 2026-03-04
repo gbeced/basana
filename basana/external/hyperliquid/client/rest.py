@@ -7,7 +7,7 @@
 #   POST https://api.hyperliquid.xyz/info     - market data and account info
 #   POST https://api.hyperliquid.xyz/exchange - order placement and management
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import eth_account
 import logging
 

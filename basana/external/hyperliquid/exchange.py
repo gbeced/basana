@@ -15,8 +15,9 @@
 #       await d.run()
 
 from decimal import Decimal
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 import dataclasses
+import datetime
 import logging
 
 import aiohttp
@@ -96,23 +97,22 @@ class Exchange:
         pair = self._coin_to_pair(coin)
 
         async def _on_candle(data: dict) -> None:
-            candle = data.get("candle", data)
-            if not candle.get("isClosed", True):
-                return  # Only emit completed bars (consistent with Binance connector)
-            b = bar.Bar(
-                datetime=None,  # Will be set from timestamp
-                open=Decimal(str(candle["o"])),
-                high=Decimal(str(candle["h"])),
-                low=Decimal(str(candle["l"])),
-                close=Decimal(str(candle["c"])),
-                volume=Decimal(str(candle["v"])),
-            )
-            event = bar.BarEvent(
-                when=bar.ts_to_datetime(int(candle["t"])),
-                pair=pair,
-                bar=b,
-            )
-            await event_handler(event)
+            # Hyperliquid WS candle payload: {"t": ms, "T": ms, "o": str, "h": str, "l": str, "c": str, "v": str}
+            # The WS only delivers closed candles when a new one opens, so no "isClosed" check needed.
+            try:
+                when = datetime.datetime.fromtimestamp(int(data["T"]) / 1e3, tz=datetime.timezone.utc)
+                b = bar.Bar(
+                    when,
+                    pair,
+                    Decimal(str(data["o"])),
+                    Decimal(str(data["h"])),
+                    Decimal(str(data["l"])),
+                    Decimal(str(data["c"])),
+                    Decimal(str(data["v"])),
+                )
+                await event_handler(bar.BarEvent(when, b))
+            except (KeyError, ValueError) as e:
+                logger.warning("Malformed candle data for %s: %s - %s", coin, e, data)
 
         self._ws_mgr.subscribe_to_candle_events(coin, interval, _on_candle)
 
@@ -177,7 +177,7 @@ class Exchange:
         return self._asset_info[coin]
 
     def list_coins(self) -> List[str]:
-        """Return a list of all tradeable coins."""
+        """Return a list of all tradeable perpetuals coins."""
         meta = self._cli.get_meta()
         return [a["name"] for a in meta.get("universe", [])]
 

@@ -156,15 +156,28 @@ class WebsocketManager:
         channel = message.get("channel", "")
         data = message.get("data", {})
 
-        # Route to registered handlers by channel key.
+        if not channel or channel == "subscriptionResponse":
+            return  # Ignore subscription ack messages
+
+        # Match handlers: key format is "type:coin[:interval]" or "type:address"
+        # Hyperliquid sends channel names like "candle", "trades", "l2Book", "orderUpdates", "userFills"
         for key, handlers in self._handlers.items():
             sub_type = key.split(":")[0]
-            if channel == sub_type or channel.startswith(sub_type):
-                for handler in handlers:
-                    try:
-                        if asyncio.iscoroutinefunction(handler):
-                            await handler(data)
-                        else:
-                            handler(data)
-                    except Exception as e:
-                        logger.error("Handler error for %s: %s", key, e)
+            if channel != sub_type:
+                continue
+
+            # For coin-scoped channels, also match on coin name from data payload
+            if sub_type in ("candle", "trades", "l2Book"):
+                payload_coin = data.get("coin") or data.get("s", "")
+                key_coin = key.split(":")[1] if ":" in key else ""
+                if key_coin and payload_coin and payload_coin != key_coin:
+                    continue
+
+            for handler in handlers:
+                try:
+                    if asyncio.iscoroutinefunction(handler):
+                        await handler(data)
+                    else:
+                        handler(data)
+                except Exception as e:
+                    logger.error("Handler error for %s: %s", key, e)
