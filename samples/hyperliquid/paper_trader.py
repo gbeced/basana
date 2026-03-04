@@ -268,7 +268,7 @@ class PaperPositionManager:
         for pair, target_position in pairs:
             coin = pair.base_symbol
             try:
-                price = self._exchange.get_mid_price(coin)
+                price = await self._exchange.get_mid_price(coin)
             except Exception:
                 # Coin not on Hyperliquid perps - use LC price
                 lc_data = json.loads(urllib.request.urlopen(
@@ -330,21 +330,18 @@ async def main(coins: List[str], interval: str) -> None:
         hl.subscribe_to_bar_events(coin, interval, strategy.on_bar_event)
         hl.subscribe_to_bar_events(coin, interval, position_mgr.on_bar_event)
 
-    hl.start()
     logger.info("Paper trader live on %d coins (%s bars). Ctrl+C to stop.", len(coins), interval)
 
     try:
         await dispatcher.run()
     except KeyboardInterrupt:
         pass
-    finally:
-        await hl.stop()
 
     # Final summary
     logger.info("=== Final portfolio ===")
     logger.info("Balance: $%.2f | Realized P&L: $%.2f", portfolio.balance, portfolio.realized_pnl)
     for coin, pos in portfolio.positions.items():
-        price = hl.get_mid_price(coin)
+        price = await hl.get_mid_price(coin)
         pnl_pct = portfolio.unrealized_pnl(coin, price)
         logger.info("  %s %s: unrealized %.1f%%", pos["direction"], coin, pnl_pct or 0)
 

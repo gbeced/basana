@@ -57,7 +57,7 @@ class RSIStrategy:
         if not self.in_position and rsi < RSI_OVERSOLD:
             logger.info("RSI oversold (%.1f) - opening LONG %s", rsi, COIN)
             try:
-                order = self.exchange.perps_account.market_open(COIN, OrderOperation.BUY, POSITION_SIZE)
+                order = await self.exchange.perps_account.market_open(COIN, OrderOperation.BUY, POSITION_SIZE)
                 logger.info("Opened: oid=%s filled=%s", order.oid, order.filled)
                 self.in_position = True
             except Exception as e:
@@ -66,7 +66,7 @@ class RSIStrategy:
         elif self.in_position and rsi > RSI_OVERBOUGHT:
             logger.info("RSI overbought (%.1f) - closing LONG %s", rsi, COIN)
             try:
-                order = self.exchange.perps_account.market_close(COIN)
+                order = await self.exchange.perps_account.market_close(COIN)
                 logger.info("Closed: oid=%s filled=%s", order.oid, order.filled)
                 self.in_position = False
             except Exception as e:
@@ -78,20 +78,17 @@ async def main():
     if not private_key:
         logger.info("No HYPERLIQUID_KEY set - running in read-only mode (no trading)")
 
-    d = b.EventDispatcher()
+    d = b.realtime_dispatcher()
     exchange = Exchange(dispatcher=d, private_key=private_key)
 
     strategy = RSIStrategy(exchange)
     exchange.subscribe_to_bar_events(COIN, INTERVAL, strategy.on_bar)
-    exchange.start()
 
     logger.info("Strategy running. Ctrl+C to stop.")
     try:
         await d.run()
     except KeyboardInterrupt:
         pass
-    finally:
-        await exchange.stop()
 
 
 if __name__ == "__main__":
