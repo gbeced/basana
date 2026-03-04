@@ -1,42 +1,37 @@
-# Basana - Hyperliquid connector
+# Basana
 #
-# Licensed under the Apache License, Version 2.0
+# Copyright 2022 Gabriel Martin Becedillas Ruiz
 #
-# Main Exchange class - mirrors the Basana Binance Exchange interface
-# but targets Hyperliquid perpetuals (the primary use case).
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# Usage:
-#   async with aiohttp.ClientSession() as session:
-#       exchange = Exchange(
-#           dispatcher=d,
-#           private_key="0x...",   # optional; omit for read-only
-#       )
-#       exchange.subscribe_to_bar_events("ETH", "1h", my_handler)
-#       await d.run()
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 from decimal import Decimal
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 import dataclasses
-import datetime
 import logging
 
 import aiohttp
 
-from basana.core import bar, dispatcher
+from basana.core import bar, dispatcher, event
 from basana.core.pair import Pair, PairInfo
+from . import client, helpers, perps, websockets
 
-from . import client, perps, websockets
 
 logger = logging.getLogger(__name__)
 
-# Re-export common types so callers only need to import from this module.
+BarEventHandler = Callable[[bar.BarEvent], Awaitable[Any]]
 Error = client.Error
-FillEvent = perps.FillEvent
-FillEventHandler = perps.FillEventHandler
 OrderInfo = perps.OrderInfo
 Position = perps.Position
-
-BarEventHandler = bar.BarEventHandler
 
 
 @dataclasses.dataclass(frozen=True)
@@ -47,138 +42,140 @@ class AssetInfo(PairInfo):
     :param max_leverage: Maximum allowed leverage.
     """
 
+    #: The number of decimal places for order size.
     sz_decimals: int
+    #: Maximum allowed leverage.
     max_leverage: int
 
 
+class BarEventSource(websockets.CandleEventSource):
+    """Converts raw Hyperliquid candle messages into Basana :class:`~basana.core.bar.BarEvent` objects."""
+
+    def __init__(self, pair: Pair, producer: event.Producer):
+        super().__init__(producer=producer)
+        self._pair = pair
+
+    async def push_from_message(self, message: dict):
+        try:
+            when = helpers.timestamp_to_datetime(int(message["T"]))
+            b = bar.Bar(
+                when,
+                self._pair,
+                Decimal(str(message["o"])),
+                Decimal(str(message["h"])),
+                Decimal(str(message["l"])),
+                Decimal(str(message["c"])),
+                Decimal(str(message["v"])),
+            )
+            self.push(bar.BarEvent(when, b))
+        except (KeyError, ValueError) as e:
+            logger.warning("Malformed candle message for %s: %s — %s", self._pair, e, message)
+
+
 class Exchange:
-    """A Basana-compatible client for `Hyperliquid <https://hyperliquid.xyz/>`_ DEX.
+    """A client for `Hyperliquid <https://hyperliquid.xyz/>`_ decentralized perpetuals exchange.
 
-    Supports perpetuals trading, real-time bar/trade/order-book feeds,
-    and position management.
+    Supports perpetuals trading and real-time bar, trade, and order-book feeds.
 
-    :param dispatcher: The Basana event dispatcher.
-    :param private_key: Optional EVM private key (hex, with 0x prefix).
-        Required for trading and user-specific subscriptions.
+    :param dispatcher: The event dispatcher.
+    :param private_key: Optional EVM private key (hex string with 0x prefix).
+        Required for trading and user-specific WebSocket subscriptions.
         If omitted, only public market data endpoints are available.
-    :param testnet: If True, connects to the Hyperliquid testnet.
-    :param session: Optional aiohttp.ClientSession for connection reuse.
+    :param session: Optional :class:`aiohttp.ClientSession` for connection reuse.
+    :param config_overrides: Optional dict for overriding config settings.
     """
 
     def __init__(
         self,
         dispatcher: dispatcher.EventDispatcher,
         private_key: Optional[str] = None,
-        testnet: bool = False,
         session: Optional[aiohttp.ClientSession] = None,
+        config_overrides: dict = {},
     ):
         self._dispatcher = dispatcher
-        self._cli = client.APIClient(private_key=private_key, testnet=testnet)
-        self._ws_mgr = websockets.WebsocketManager(dispatcher, testnet=testnet, session=session)
-        self._perps = perps.Account(self._cli, self._ws_mgr)
-        self._asset_info: dict[str, AssetInfo] = {}
+        self._cli = client.APIClient(private_key=private_key, config_overrides=config_overrides)
+        self._ws = websockets.WebSocketClient(session=session, config_overrides=config_overrides)
+        self._perps = perps.Account(self._cli, self._ws)
+        self._asset_info: Dict[str, AssetInfo] = {}
 
     # ------------------------------------------------------------------
-    # Market data subscriptions (public)
+    # Market data subscriptions
     # ------------------------------------------------------------------
 
-    def subscribe_to_bar_events(
-        self,
-        coin: str,
-        interval: str,
-        event_handler: BarEventHandler,
-    ) -> None:
-        """Subscribe to OHLCV bar events via WebSocket.
+    def subscribe_to_bar_events(self, coin: str, interval: str, event_handler: BarEventHandler) -> None:
+        """Subscribe to OHLCV bar events for ``coin``.
 
-        :param coin: e.g. "ETH", "BTC"
-        :param interval: One of "1m", "3m", "5m", "15m", "30m", "1h", "2h", "4h", "6h", "8h", "12h", "1d", "3d", "1w"
-        :param event_handler: Async callable receiving a BarEvent.
+        :param coin: e.g. ``"ETH"``, ``"BTC"``
+        :param interval: One of ``"1m"``, ``"5m"``, ``"15m"``, ``"30m"``, ``"1h"``, ``"4h"``, ``"1d"``
+        :param event_handler: Async callable receiving a :class:`~basana.core.bar.BarEvent`.
         """
-        pair = self._coin_to_pair(coin)
+        pair = helpers.coin_to_pair(coin)
+        channel = websockets._candle_channel(coin, interval)
+        event_source = BarEventSource(pair=pair, producer=self._ws)
+        self._ws.set_channel_event_source(channel, event_source)
+        self._dispatcher.subscribe(event_source, event_handler)
 
-        async def _on_candle(data: dict) -> None:
-            # Hyperliquid WS candle payload: {"t": ms, "T": ms, "o": str, "h": str, "l": str, "c": str, "v": str}
-            # The WS only delivers closed candles when a new one opens, so no "isClosed" check needed.
-            try:
-                when = datetime.datetime.fromtimestamp(int(data["T"]) / 1e3, tz=datetime.timezone.utc)
-                b = bar.Bar(
-                    when,
-                    pair,
-                    Decimal(str(data["o"])),
-                    Decimal(str(data["h"])),
-                    Decimal(str(data["l"])),
-                    Decimal(str(data["c"])),
-                    Decimal(str(data["v"])),
-                )
-                await event_handler(bar.BarEvent(when, b))
-            except (KeyError, ValueError) as e:
-                logger.warning("Malformed candle data for %s: %s - %s", coin, e, data)
+    def subscribe_to_trade_events(self, coin: str, event_handler: Callable) -> None:
+        """Subscribe to real-time trade events for ``coin``.
 
-        self._ws_mgr.subscribe_to_candle_events(coin, interval, _on_candle)
-
-    def subscribe_to_trade_events(
-        self,
-        coin: str,
-        event_handler: Callable,
-    ) -> None:
-        """Subscribe to real-time trade events.
-
-        :param coin: e.g. "ETH"
-        :param event_handler: Async callable receiving a list of trade dicts.
+        :param coin: e.g. ``"ETH"``
+        :param event_handler: Async callable receiving raw trade message dicts.
         """
-        self._ws_mgr.subscribe_to_trade_events(coin, event_handler)
+        channel = websockets._trades_channel(coin)
+        event_source = websockets.CandleEventSource(producer=self._ws)
+        self._ws.set_channel_event_source(channel, event_source)
+        self._dispatcher.subscribe(event_source, event_handler)
 
-    def subscribe_to_order_book_events(
-        self,
-        coin: str,
-        event_handler: Callable,
-    ) -> None:
-        """Subscribe to L2 order book updates.
+    def subscribe_to_order_book_events(self, coin: str, event_handler: Callable) -> None:
+        """Subscribe to L2 order book updates for ``coin``.
 
-        :param coin: e.g. "ETH"
-        :param event_handler: Async callable receiving the order book dict.
+        :param coin: e.g. ``"ETH"``
+        :param event_handler: Async callable receiving raw order book message dicts.
         """
-        self._ws_mgr.subscribe_to_order_book_events(coin, event_handler)
+        channel = websockets._l2_book_channel(coin)
+        event_source = websockets.CandleEventSource(producer=self._ws)
+        self._ws.set_channel_event_source(channel, event_source)
+        self._dispatcher.subscribe(event_source, event_handler)
 
     # ------------------------------------------------------------------
-    # Market data queries (public, synchronous wrappers)
+    # Market data queries
     # ------------------------------------------------------------------
 
-    def get_mid_price(self, coin: str) -> Decimal:
-        """Return the current mid price for a coin."""
-        mids = self._cli.get_all_mids()
+    async def get_mid_price(self, coin: str) -> Decimal:
+        """Return the current mid price for ``coin``."""
+        mids = await self._cli.get_all_mids()
         if coin not in mids:
             raise Error(f"Unknown coin: {coin}")
         return Decimal(mids[coin])
 
-    def get_bid_ask(self, coin: str) -> Tuple[Decimal, Decimal]:
-        """Return the best bid and ask prices for a coin."""
-        book = self._cli.get_l2_snapshot(coin)
+    async def get_bid_ask(self, coin: str) -> Tuple[Decimal, Decimal]:
+        """Return the best bid and ask prices for ``coin``."""
+        book = await self._cli.get_l2_snapshot(coin)
         levels = book.get("levels", [[], []])
         bid = Decimal(levels[0][0]["px"]) if levels[0] else Decimal(0)
         ask = Decimal(levels[1][0]["px"]) if levels[1] else Decimal(0)
         return bid, ask
 
-    def get_pair_info(self, coin: str) -> AssetInfo:
+    async def get_pair_info(self, coin: str) -> AssetInfo:
         """Return metadata for a tradeable asset.
 
-        :param coin: e.g. "ETH", "BTC"
+        :param coin: e.g. ``"ETH"``, ``"BTC"``
         """
         if coin not in self._asset_info:
-            meta = self._cli.get_meta()
+            meta = await self._cli.get_meta()
             for asset in meta.get("universe", []):
                 name = asset["name"]
                 self._asset_info[name] = AssetInfo(
                     base_precision=asset.get("szDecimals", 8),
-                    quote_precision=6,  # Hyperliquid uses 6dp for USD
+                    quote_precision=6,
                     sz_decimals=asset.get("szDecimals", 8),
                     max_leverage=asset.get("maxLeverage", 50),
                 )
         return self._asset_info[coin]
 
-    def list_coins(self) -> List[str]:
+    async def list_coins(self) -> List[str]:
         """Return a list of all tradeable perpetuals coins."""
-        meta = self._cli.get_meta()
+        meta = await self._cli.get_meta()
         return [a["name"] for a in meta.get("universe", [])]
 
     # ------------------------------------------------------------------
@@ -187,31 +184,13 @@ class Exchange:
 
     @property
     def perps_account(self) -> perps.Account:
-        """Access perpetuals trading and account management.
-
-        Example::
-
-            order = exchange.perps_account.market_open("ETH", OrderOperation.BUY, Decimal("0.1"))
-            positions = exchange.perps_account.get_positions()
-        """
+        """Access perpetuals trading and position management."""
         return self._perps
 
     # ------------------------------------------------------------------
     # Lifecycle
     # ------------------------------------------------------------------
 
-    def start(self) -> None:
-        """Start WebSocket connections. Called automatically by the event dispatcher."""
-        self._ws_mgr.start()
-
-    async def stop(self) -> None:
-        """Stop WebSocket connections and clean up."""
-        await self._ws_mgr.stop()
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _coin_to_pair(coin: str) -> Pair:
-        return Pair(coin, "USD")
+    async def main(self):
+        """Run the WebSocket client. Called automatically by the event dispatcher."""
+        await self._ws.main()

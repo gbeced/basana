@@ -14,13 +14,28 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .exchange import AssetInfo, BarEventHandler, Error, Exchange, OrderInfo, Position
+DEFAULTS = {
+    "api": {
+        "http": {
+            "base_url": "https://api.hyperliquid.xyz/",
+            "timeout": 30,
+        },
+        "websockets": {
+            "base_url": "wss://api.hyperliquid.xyz/ws",
+            "heartbeat": 30,
+        },
+    }
+}
 
-__all__ = [
-    "AssetInfo",
-    "BarEventHandler",
-    "Error",
-    "Exchange",
-    "OrderInfo",
-    "Position",
-]
+TESTNET_DEFAULTS = {
+    "api": {
+        "http": {
+            "base_url": "https://api.hyperliquid-testnet.xyz/",
+            "timeout": 30,
+        },
+        "websockets": {
+            "base_url": "wss://api.hyperliquid-testnet.xyz/ws",
+            "heartbeat": 30,
+        },
+    }
+}
