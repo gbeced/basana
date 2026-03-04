@@ -53,7 +53,7 @@ MACD_FAST, MACD_SLOW, MACD_SIGNAL = 12, 26, 9
 STOP_LOSS_PCT = Decimal("-15")
 TAKE_PROFIT_PCT = Decimal("30")
 
-DEFAULT_COINS = ["ETH", "BTC", "SOL", "AVAX", "MATIC", "DOGE", "LINK", "ARB"]
+DEFAULT_COINS = ["ASTER", "AERO", "PYTH", "XRP", "DOGE", "POL", "TIA", "RYO"]
 DEFAULT_INTERVAL = "1h"
 
 logging.basicConfig(
@@ -267,7 +267,17 @@ class PaperPositionManager:
         pairs = list(signal.get_pairs())
         for pair, target_position in pairs:
             coin = pair.base_symbol
-            price = self._exchange.get_mid_price(coin)
+            try:
+                price = self._exchange.get_mid_price(coin)
+            except Exception:
+                # Coin not on Hyperliquid perps - use LC price
+                lc_data = json.loads(urllib.request.urlopen(
+                    urllib.request.Request(
+                        f"https://lunarcrush.com/api4/public/coins/{coin.lower()}/v1",
+                        headers={"Authorization": f"Bearer {LC_KEY}", "User-Agent": "paper-trader/1.0"}
+                    ), timeout=8
+                ).read())
+                price = Decimal(str(lc_data["data"]["price"]))
 
             if target_position == bs.Position.LONG and coin not in self._portfolio.positions:
                 self._portfolio.open_position(
