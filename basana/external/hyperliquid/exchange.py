@@ -48,7 +48,7 @@ class AssetInfo(PairInfo):
     max_leverage: int
 
 
-class BarEventSource(websockets.CandleEventSource):
+class BarEventSource(websockets.RawEventSource):
     """Converts raw Hyperliquid candle messages into Basana :class:`~basana.core.bar.BarEvent` objects."""
 
     def __init__(self, pair: Pair, producer: event.Producer):
@@ -110,10 +110,11 @@ class Exchange:
         :param event_handler: Async callable receiving a :class:`~basana.core.bar.BarEvent`.
         """
         pair = helpers.coin_to_pair(coin)
-        channel = websockets._candle_channel(coin, interval)
-        event_source = BarEventSource(pair=pair, producer=self._ws)
-        self._ws.set_channel_event_source(channel, event_source)
-        self._dispatcher.subscribe(event_source, event_handler)
+        self._register_channel(
+            websockets._candle_channel(coin, interval),
+            BarEventSource(pair=pair, producer=self._ws),
+            event_handler,
+        )
 
     def subscribe_to_trade_events(self, coin: str, event_handler: Callable) -> None:
         """Subscribe to real-time trade events for ``coin``.
@@ -121,10 +122,11 @@ class Exchange:
         :param coin: e.g. ``"ETH"``
         :param event_handler: Async callable receiving raw trade message dicts.
         """
-        channel = websockets._trades_channel(coin)
-        event_source = websockets.CandleEventSource(producer=self._ws)
-        self._ws.set_channel_event_source(channel, event_source)
-        self._dispatcher.subscribe(event_source, event_handler)
+        self._register_channel(
+            websockets._trades_channel(coin),
+            websockets.RawEventSource(producer=self._ws),
+            event_handler,
+        )
 
     def subscribe_to_order_book_events(self, coin: str, event_handler: Callable) -> None:
         """Subscribe to L2 order book updates for ``coin``.
@@ -132,8 +134,18 @@ class Exchange:
         :param coin: e.g. ``"ETH"``
         :param event_handler: Async callable receiving raw order book message dicts.
         """
-        channel = websockets._l2_book_channel(coin)
-        event_source = websockets.CandleEventSource(producer=self._ws)
+        self._register_channel(
+            websockets._l2_book_channel(coin),
+            websockets.RawEventSource(producer=self._ws),
+            event_handler,
+        )
+
+    def _register_channel(
+        self,
+        channel: str,
+        event_source: websockets.RawEventSource,
+        event_handler: Callable,
+    ) -> None:
         self._ws.set_channel_event_source(channel, event_source)
         self._dispatcher.subscribe(event_source, event_handler)
 

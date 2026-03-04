@@ -50,8 +50,11 @@ def _user_fills_channel(address: str) -> str:
     return f"userFills:{address}"
 
 
-class CandleEventSource(core_ws.ChannelEventSource):
-    """Delivers closed candle messages for one coin/interval pair."""
+class RawEventSource(core_ws.ChannelEventSource):
+    """Passes raw WebSocket message dicts through as events.
+
+    Used as the base for channel-specific event sources (candles, trades, L2 book).
+    """
 
     def __init__(self, producer: event.Producer):
         super().__init__(producer=producer)

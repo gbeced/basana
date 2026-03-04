@@ -191,7 +191,7 @@ class Account:
             raise client.Error("Private key required to subscribe to fill events")
 
         channel = websockets._user_fills_channel(self._cli.address)
-        event_source = websockets.CandleEventSource(producer=self._ws)
+        event_source = websockets.RawEventSource(producer=self._ws)
         self._ws.set_channel_event_source(channel, event_source)
 
     # ------------------------------------------------------------------
