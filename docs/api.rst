@@ -23,3 +23,5 @@ API Reference
     bitstamp_order_book
     bitstamp_orders
     bitstamp_trades
+    hyperliquid_exchange
+    hyperliquid_perps
