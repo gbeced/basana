@@ -45,13 +45,16 @@ async def cancel_task_group(task_group, wait: float = 0.0):
     task_group.cancel()
 
 
-@pytest.mark.parametrize("amount, precision, expected", [
-    ("1", 0, "1"),
-    ("1.1", 0, "1"),
-    ("-1.1", 0, "-1"),
-    ("-1.1999", 1, "-1.1"),
-    ("0.2999", 2, "0.29"),
-])
+@pytest.mark.parametrize(
+    "amount, precision, expected",
+    [
+        ("1", 0, "1"),
+        ("1.1", 0, "1"),
+        ("-1.1", 0, "-1"),
+        ("-1.1999", 1, "-1.1"),
+        ("0.2999", 2, "0.29"),
+    ],
+)
 def test_truncate(amount, precision, expected):
     assert helpers.truncate_decimal(Decimal(amount), precision) == Decimal(expected)
 
@@ -119,11 +122,14 @@ def test_cancel_task_group():
     asyncio.run(asyncio.wait_for(impl(), 1))
 
 
-@pytest.mark.parametrize("pool_size, task_count", [
-    (1, 1),
-    (1, 2),
-    (10, 200),
-])
+@pytest.mark.parametrize(
+    "pool_size, task_count",
+    [
+        (1, 1),
+        (1, 2),
+        (10, 200),
+    ],
+)
 def test_task_pool(pool_size, task_count):
     task_calls = 0
 
@@ -232,10 +238,14 @@ def test_task_pool_task_auto_quit():
 
 
 if sys.version_info >= (3, 12):
-    @pytest.mark.parametrize("task_factory", [
-        None,
-        asyncio.eager_task_factory,
-    ])
+
+    @pytest.mark.parametrize(
+        "task_factory",
+        [
+            None,
+            asyncio.eager_task_factory,
+        ],
+    )
     def test_task_pool_with_eager_tasks(task_factory):
         tasks_found = 0
         pool = helpers.TaskPool(10)
@@ -258,10 +268,13 @@ if sys.version_info >= (3, 12):
         asyncio.run(asyncio.wait_for(test_main(), 1))
 
 
-@pytest.mark.parametrize("obj, expected_classpath", [
-    ("hi", "builtins.str"),
-    (3, "builtins.int"),
-])
+@pytest.mark.parametrize(
+    "obj, expected_classpath",
+    [
+        ("hi", "builtins.str"),
+        (3, "builtins.int"),
+    ],
+)
 def test_classpath(obj, expected_classpath):
     assert helpers.classpath(obj) == expected_classpath
 

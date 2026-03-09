@@ -40,10 +40,14 @@ class ChannelEventSource(event.FifoQueueEventSource):
 
 
 class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
-    """"Base class for channel based web socket clients."""
+    """ "Base class for channel based web socket clients."""
+
     def __init__(
-            self, url: str, session: Optional[aiohttp.ClientSession] = None, config_overrides: dict = {},
-            heartbeat: float = 30
+        self,
+        url: str,
+        session: Optional[aiohttp.ClientSession] = None,
+        config_overrides: dict = {},
+        heartbeat: float = 30,
     ):
         super().__init__()
         self._url = url
@@ -92,10 +96,11 @@ class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
             try:
                 logger.debug(logs.StructuredMessage("Connecting websocket", src=self, url=self._url))
                 last_connect_ts = time.time()
-                async with helpers.use_or_create_session(session=self._session) as session, \
-                        session.ws_connect(self._url, heartbeat=self._heartbeat) as ws_cli, \
-                        helpers.TaskGroup() as tg:
-
+                async with (
+                    helpers.use_or_create_session(session=self._session) as session,
+                    session.ws_connect(self._url, heartbeat=self._heartbeat) as ws_cli,
+                    helpers.TaskGroup() as tg,
+                ):
                     # Turn this off since we just reconnected.
                     self._reconnect_request.clear()
 
@@ -111,9 +116,7 @@ class WebSocketClient(event.Producer, metaclass=abc.ABCMeta):
                 await self.on_error(e)
 
     @abc.abstractmethod
-    async def subscribe_to_channels(
-            self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse
-    ):
+    async def subscribe_to_channels(self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse):
         raise NotImplementedError()
 
     @abc.abstractmethod

@@ -37,10 +37,14 @@ order_plan = {
     ],
 }
 
-@pytest.mark.parametrize("order_plan, candlesticks", [
-    (order_plan, True),
-    (order_plan, False),
-])
+
+@pytest.mark.parametrize(
+    "order_plan, candlesticks",
+    [
+        (order_plan, True),
+        (order_plan, False),
+    ],
+)
 def test_save_line_chart(order_plan, candlesticks, backtesting_dispatcher, caplog):
     e = exchange.Exchange(
         backtesting_dispatcher,
@@ -53,9 +57,7 @@ def test_save_line_chart(order_plan, candlesticks, backtesting_dispatcher, caplo
     line_charts = charts.LineCharts(e)
     line_charts.add_pair(pair, candlesticks=candlesticks)
     line_charts.add_balance("USD")
-    line_charts.add_pair_indicator(
-        "CONSTANT", pair, charts.DataPointFromSequence([100]), marker={"symbol": "arrow"}
-    )
+    line_charts.add_pair_indicator("CONSTANT", pair, charts.DataPointFromSequence([100]), marker={"symbol": "arrow"})
     line_charts.add_portfolio_value("USD")
     line_charts.add_portfolio_value("INVALID")
     line_charts.add_custom("CUSTOM", "line_name", lambda _: 3, marker={"symbol": "arrow"})

@@ -32,34 +32,8 @@ from basana.external.binance import exchange, order_book
 
 ORDER_BOOK = {
     "lastUpdateId": 27229732069,
-    "bids": [
-        [
-            "16757.47000000",
-            "0.04893000"
-        ],
-        [
-            "16757.41000000",
-            "0.00073000"
-        ],
-        [
-            "16756.52000000",
-            "0.00690000"
-        ]
-    ],
-    "asks": [
-        [
-            "16758.13000000",
-            "0.00682000"
-        ],
-        [
-            "16758.55000000",
-            "0.04963000"
-        ],
-        [
-            "16759.25000000",
-            "0.00685000"
-        ]
-    ]
+    "bids": [["16757.47000000", "0.04893000"], ["16757.41000000", "0.00073000"], ["16756.52000000", "0.00690000"]],
+    "asks": [["16758.13000000", "0.00682000"], ["16758.55000000", "0.04963000"], ["16759.25000000", "0.00685000"]],
 }
 
 
@@ -84,10 +58,13 @@ def test_poll_ok_with_custom_session(binance_http_api_mock, realtime_dispatcher)
         async with aiohttp.ClientSession() as session:
             realtime_dispatcher.subscribe(
                 order_book.PollOrderBook(
-                    p, 0.5, limit=100, session=session,
-                    config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+                    p,
+                    0.5,
+                    limit=100,
+                    session=session,
+                    config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}},
                 ),
-                on_order_book_event
+                on_order_book_event,
             )
 
             await realtime_dispatcher.run()
@@ -102,9 +79,12 @@ def test_poll_ok_with_custom_session(binance_http_api_mock, realtime_dispatcher)
     assert last_ob.asks[1].volume == Decimal("0.04963")
 
 
-@pytest.mark.parametrize("response_status, response_body", [
-    (500, {}),
-])
+@pytest.mark.parametrize(
+    "response_status, response_body",
+    [
+        (500, {}),
+    ],
+)
 def test_unhandled_exception_during_poll(
     response_status, response_body, binance_http_api_mock, realtime_dispatcher, caplog
 ):
@@ -124,8 +104,10 @@ def test_unhandled_exception_during_poll(
     async def test_main():
         async with aiohttp.ClientSession() as session:
             poller = order_book.PollOrderBook(
-                pair.Pair("BTC", "USDT"), 0.5, session=session,
-                config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+                pair.Pair("BTC", "USDT"),
+                0.5,
+                session=session,
+                config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}},
             )
             poller.on_error = lambda error: on_error(poller, error)
             realtime_dispatcher.subscribe(poller, on_order_book_event)

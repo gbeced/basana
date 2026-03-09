@@ -49,17 +49,20 @@ async def main():
 
     # We'll be opening short positions so we need to set a lending strategy when initializing the exchange.
     lending_strategy = lending.MarginLoans(
-        quote_symbol, Decimal("0.5"),
+        quote_symbol,
+        Decimal("0.5"),
         default_conditions=lending.MarginLoanConditions(
-            interest_symbol=quote_symbol, interest_percentage=Decimal("10"),
-            interest_period=datetime.timedelta(days=365), min_interest=Decimal("0.01")
-        )
+            interest_symbol=quote_symbol,
+            interest_percentage=Decimal("10"),
+            interest_period=datetime.timedelta(days=365),
+            min_interest=Decimal("0.01"),
+        ),
     )
     exchange = backtesting_exchange.Exchange(
         event_dispatcher,
         initial_balances={quote_symbol: Decimal(1200)},
         lending_strategy=lending_strategy,
-        immediate_order_processing=True
+        immediate_order_processing=True,
     )
     exchange.set_symbol_precision(pair_1.base_symbol, 8)
     exchange.set_symbol_precision(pair_2.base_symbol, 8)
@@ -74,8 +77,14 @@ async def main():
     # The pairs trading strategy.
     p_value_threshold = 0.01
     trading_strategy = pairs_trading.Strategy(
-        event_dispatcher, pair_1, pair_2, window_size=24 * 10, z_score_window_size=24 * 10,
-        p_value_threshold=p_value_threshold, z_score_entry_ge=2.3, z_score_exit_lt=1.5
+        event_dispatcher,
+        pair_1,
+        pair_2,
+        window_size=24 * 10,
+        z_score_window_size=24 * 10,
+        p_value_threshold=p_value_threshold,
+        z_score_entry_ge=2.3,
+        z_score_exit_lt=1.5,
     )
     # Connect the position manager to different types of events.
     trading_strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
@@ -105,9 +114,7 @@ async def main():
     # Log balances.
     balances = await exchange.get_balances()
     for currency, balance in balances.items():
-        logging.info(StructuredMessage(
-            f"{currency} balance", available=balance.available
-        ))
+        logging.info(StructuredMessage(f"{currency} balance", available=balance.available))
 
     chart.show()
 

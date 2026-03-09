@@ -30,8 +30,14 @@ def generate_nonce() -> str:
 
 
 def get_auth_headers(
-        hostname: str, api_key: str, api_secret: str, nonce: str, method: str, path: str,
-        qs_params: Dict[str, str] = {}, data: Dict[str, str] = {}
+    hostname: str,
+    api_key: str,
+    api_secret: str,
+    nonce: str,
+    method: str,
+    path: str,
+    qs_params: Dict[str, str] = {},
+    data: Dict[str, str] = {},
 ) -> Dict[str, str]:
     assert path[0] == "/", "Leading slash is missing from path"
 

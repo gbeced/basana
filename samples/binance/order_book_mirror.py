@@ -37,9 +37,8 @@ class OrderBook:
     while maintaining proper synchronization. It ensures price levels are properly maintained by
     inserting, updating or removing entries based on incoming data.
     """
-    def __init__(
-            self, bids: List[Tuple[Decimal, Decimal]] = [], asks: List[Tuple[Decimal, Decimal]] = []
-    ):
+
+    def __init__(self, bids: List[Tuple[Decimal, Decimal]] = [], asks: List[Tuple[Decimal, Decimal]] = []):
         self.bids = sorted(bids, reverse=True)
         self.asks = sorted(asks)
         self.last_update_id = 0
@@ -55,8 +54,7 @@ class OrderBook:
         :param obook: Partial order book data from Binance exchange.
         """
         ret = OrderBook(
-            bids=[(bid.price, bid.volume) for bid in obook.bids],
-            asks=[(ask.price, ask.volume) for ask in obook.asks]
+            bids=[(bid.price, bid.volume) for bid in obook.bids], asks=[(ask.price, ask.volume) for ask in obook.asks]
         )
         ret.last_update_id = obook.last_update_id
         return ret
@@ -160,11 +158,17 @@ class OrderBookUpdater:
         book depth in shape.
     :param restart_threshold: The threshold below which a re-sync from start is triggered.
     """
+
     def __init__(
-            self, pair: bs.Pair, exchange: binance_exchange.Exchange, max_depth: int = 5000,
-            diff_interval_ms: int = 100, check_interval_ms: int = 5000, check_depth: int = 20,
-            full_depth_threshold: float = 0.8,
-            restart_threshold: float = 0.2,
+        self,
+        pair: bs.Pair,
+        exchange: binance_exchange.Exchange,
+        max_depth: int = 5000,
+        diff_interval_ms: int = 100,
+        check_interval_ms: int = 5000,
+        check_depth: int = 20,
+        full_depth_threshold: float = 0.8,
+        restart_threshold: float = 0.2,
     ):
         assert diff_interval_ms in (100, 1000)
         assert max_depth > 0 and max_depth <= 5000
@@ -186,17 +190,20 @@ class OrderBookUpdater:
         exchange.subscribe_to_order_book_diff_events(pair, self._on_order_book_diff_event, interval=diff_interval_ms)
 
     async def _on_order_book_diff_event(self, diff_event: binance_exchange.OrderBookDiffEvent):
-        logger.info(StructuredMessage(
-            "Order book diff", first_update_id=diff_event.order_book_diff.first_update_id,
-            final_update_id=diff_event.order_book_diff.final_update_id
-        ))
+        logger.info(
+            StructuredMessage(
+                "Order book diff",
+                first_update_id=diff_event.order_book_diff.first_update_id,
+                final_update_id=diff_event.order_book_diff.final_update_id,
+            )
+        )
 
         await self._state.on_order_book_diff_event(self, diff_event)
 
         msg_kwargs = dict(
             bids=len(self.order_book.bids),
             asks=len(self.order_book.asks),
-            last_update_id=self.order_book.last_update_id
+            last_update_id=self.order_book.last_update_id,
         )
         if self.order_book.bids:
             msg_kwargs["bid"] = self.order_book.bids[0][0]
@@ -212,20 +219,25 @@ class OrderBookUpdater:
 
     async def switch_state(self, state: UpdaterState, order_book: Optional[OrderBook] = None):
         async with self._switch_mutex:
-            logger.info(StructuredMessage(
-                "Switch state", current=self._state.__class__.__name__, new=state.__class__.__name__
-            ))
+            logger.info(
+                StructuredMessage("Switch state", current=self._state.__class__.__name__, new=state.__class__.__name__)
+            )
 
             await self._state.on_exit_state(self)
 
             if order_book:
                 assert order_book.last_update_id >= self.order_book.last_update_id
                 self.order_book = order_book
-                logger.info(StructuredMessage(
-                    "New orderbook set", last_update_id=self.order_book.last_update_id,
-                    top_bid=self.order_book.bids[0][0], last_bid=self.order_book.bids[-1][0],
-                    top_ask=self.order_book.asks[0][0], last_ask=self.order_book.asks[-1][0],
-                ))
+                logger.info(
+                    StructuredMessage(
+                        "New orderbook set",
+                        last_update_id=self.order_book.last_update_id,
+                        top_bid=self.order_book.bids[0][0],
+                        last_bid=self.order_book.bids[-1][0],
+                        top_ask=self.order_book.asks[0][0],
+                        last_ask=self.order_book.asks[-1][0],
+                    )
+                )
             self._state = state
 
             await self._state.on_enter_state(self)
@@ -237,7 +249,7 @@ class Initializing(UpdaterState):
         self._fetch_task: Optional[asyncio.Task] = None
 
     async def on_order_book_diff_event(
-            self, updater: OrderBookUpdater, diff_event: binance_exchange.OrderBookDiffEvent
+        self, updater: OrderBookUpdater, diff_event: binance_exchange.OrderBookDiffEvent
     ):
         # Buffer diffs to be processed once the snapshot is fetched.
         self._buffer.append(diff_event)
@@ -288,7 +300,7 @@ class Updating(UpdaterState):
             self._fetch_task = asyncio.create_task(self._fetch_snapshot(updater))
 
     async def on_order_book_diff_event(
-            self, updater: OrderBookUpdater, diff_event: binance_exchange.OrderBookDiffEvent
+        self, updater: OrderBookUpdater, diff_event: binance_exchange.OrderBookDiffEvent
     ):
         try:
             updater.order_book.update_from_diff(diff_event)
@@ -311,8 +323,10 @@ class Updating(UpdaterState):
                 await asyncio.sleep(updater._check_interval_ms / 1000)
 
                 limit = updater._check_depth
-                if len(updater.order_book.bids) <= updater._full_depth_threshold \
-                        or len(updater.order_book.asks) <= updater._full_depth_threshold:
+                if (
+                    len(updater.order_book.bids) <= updater._full_depth_threshold
+                    or len(updater.order_book.asks) <= updater._full_depth_threshold
+                ):
                     limit = updater._max_depth
 
                 snapshot = await updater._exchange.get_order_book(updater._pair, limit=limit)
@@ -332,37 +346,40 @@ class Updating(UpdaterState):
             return "bids" if is_bid else "asks"
 
         def check_or_update(
-                snapshot_values: List[Tuple[Decimal, Decimal]], order_book_values: List[Tuple[Decimal, Decimal]],
-                is_bid: bool
+            snapshot_values: List[Tuple[Decimal, Decimal]],
+            order_book_values: List[Tuple[Decimal, Decimal]],
+            is_bid: bool,
         ):
             ret = True
             if len(snapshot_values) > len(order_book_values):
                 # There is no need to check, just go and update.
-                logger.info(StructuredMessage(
-                    f"Updating {value_desc(is_bid)} using snapshot", order_book=len(order_book_values),
-                    snapshot=len(snapshot_values)
-                ))
+                logger.info(
+                    StructuredMessage(
+                        f"Updating {value_desc(is_bid)} using snapshot",
+                        order_book=len(order_book_values),
+                        snapshot=len(snapshot_values),
+                    )
+                )
                 if is_bid:
                     updater.order_book.update_bids(snapshot_values)
                 else:
                     updater.order_book.update_asks(snapshot_values)
-            elif order_book_values[:updater._check_depth] != snapshot_values[:updater._check_depth]:
-                logger.error(StructuredMessage(
-                    f"{value_desc(is_bid).title()} mismatch", last_update_id=self._snapshot.last_update_id,
-                    order_book=order_book_values[:updater._check_depth],
-                    snapshot=snapshot_values[:updater._check_depth],
-                ))
+            elif order_book_values[: updater._check_depth] != snapshot_values[: updater._check_depth]:
+                logger.error(
+                    StructuredMessage(
+                        f"{value_desc(is_bid).title()} mismatch",
+                        last_update_id=self._snapshot.last_update_id,
+                        order_book=order_book_values[: updater._check_depth],
+                        snapshot=snapshot_values[: updater._check_depth],
+                    )
+                )
                 ret = False
             return ret
 
         if not check_or_update(
-                [(bid.price, bid.volume) for bid in self._snapshot.bids],
-                updater.order_book.bids,
-                True
+            [(bid.price, bid.volume) for bid in self._snapshot.bids], updater.order_book.bids, True
         ) or not check_or_update(
-                [(ask.price, ask.volume) for ask in self._snapshot.asks],
-                updater.order_book.asks,
-                False
+            [(ask.price, ask.volume) for ask in self._snapshot.asks], updater.order_book.asks, False
         ):
             await updater.switch_state(Initializing())
 

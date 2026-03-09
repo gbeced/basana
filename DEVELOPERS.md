@@ -39,7 +39,7 @@ Instead of running those commands manually, a couple of Invoke tasks are provide
 	$ inv create-virtualenv
 	```
 
-1. Execute static checks and testcases 
+1. Execute static checks and testcases
 
 	```
 	$ inv test

@@ -39,7 +39,7 @@ class ExchangeObjectProto(Protocol):
         ...
 
 
-TExchangeObject = TypeVar('TExchangeObject', bound=ExchangeObjectProto)
+TExchangeObject = TypeVar("TExchangeObject", bound=ExchangeObjectProto)
 
 
 class ExchangeObjectContainer(Generic[TExchangeObject]):

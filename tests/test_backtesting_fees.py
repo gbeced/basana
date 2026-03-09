@@ -32,9 +32,7 @@ def test_percentage_fee_with_partial_fills():
         "USD": Decimal("-0.9"),
     }
     assert fee_strategy.calculate_fees(order, balance_updates) == {"USD": Decimal("-0.009")}
-    order.add_fill(
-        Fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.01")}, Decimal(9))
-    )
+    order.add_fill(Fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.01")}, Decimal(9)))
 
     # Fill #2 - A 0.008 fee gets rounded to 0.01
     balance_updates = {
@@ -42,9 +40,7 @@ def test_percentage_fee_with_partial_fills():
         "USD": Decimal("-0.9"),
     }
     assert fee_strategy.calculate_fees(order, balance_updates) == {"USD": Decimal("-0.008")}
-    order.add_fill(
-        Fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.01")}, Decimal(9))
-    )
+    order.add_fill(Fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.01")}, Decimal(9)))
 
     # Fill #3 - Final fill. Total fees, prior to rounding, should be 0.118, but we charged 0.02 already, so the last
     # chunk, prior to rounding, should be 0.098.
@@ -53,9 +49,7 @@ def test_percentage_fee_with_partial_fills():
         "USD": Decimal("-10"),
     }
     assert fee_strategy.calculate_fees(order, balance_updates) == {"USD": Decimal("-0.098")}
-    order.add_fill(
-        Fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.1")}, Decimal(9))
-    )
+    order.add_fill(Fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.1")}, Decimal(9)))
 
 
 def test_percentage_fee_with_minium():

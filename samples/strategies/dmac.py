@@ -33,8 +33,7 @@ class Strategy(bs.TradingSignalSource):
         self._lt_sma.add(value)
 
         # Are MAs ready ?
-        if len(self._st_sma) < 2 or len(self._lt_sma) < 2 \
-                or self._st_sma[-2] is None or self._lt_sma[-2] is None:
+        if len(self._st_sma) < 2 or len(self._lt_sma) < 2 or self._st_sma[-2] is None or self._lt_sma[-2] is None:
             return
 
         # Go long when short-term MA crosses above long-term MA.

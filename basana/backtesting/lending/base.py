@@ -42,9 +42,7 @@ class LoanInfo:
 
 
 class Loan(metaclass=abc.ABCMeta):
-    def __init__(
-            self, id: str, borrowed_symbol: str,  borrowed_amount: Decimal, created_at: datetime.datetime
-    ):
+    def __init__(self, id: str, borrowed_symbol: str, borrowed_amount: Decimal, created_at: datetime.datetime):
         assert borrowed_amount > Decimal(0), f"Invalid amount {borrowed_amount}"
 
         self._id = id

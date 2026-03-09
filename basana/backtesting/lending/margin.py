@@ -40,8 +40,12 @@ class MarginLoanConditions:
 
 class MarginLoan(base.Loan):
     def __init__(
-            self, id: str, borrowed_symbol: str,  borrowed_amount: Decimal, created_at: datetime.datetime,
-            conditions: MarginLoanConditions
+        self,
+        id: str,
+        borrowed_symbol: str,
+        borrowed_amount: Decimal,
+        created_at: datetime.datetime,
+        conditions: MarginLoanConditions,
     ):
         super().__init__(id, borrowed_symbol, borrowed_amount, created_at)
         self._conditions = conditions
@@ -74,9 +78,9 @@ class MarginLoans(base.LendingStrategy):
     :param margin_requirement: Minimum threshold for the value of the collateral relative to the total position.
     :param default_conditions: The default margin loan conditions.
     """
+
     def __init__(
-            self, quote_symbol: str, margin_requirement: Decimal,
-            default_conditions: Optional[MarginLoanConditions] = None
+        self, quote_symbol: str, margin_requirement: Decimal, default_conditions: Optional[MarginLoanConditions] = None
     ):
         assert margin_requirement > 0, "Margin requirement must be greater than zero"
 
@@ -123,12 +127,10 @@ class MarginLoans(base.LendingStrategy):
         """
         assert self._exchange_ctx, "Not yet connected with the exchange"
         acc_balances = self._exchange_ctx.account_balances
-        return self.calculate_margin_level(
-            acc_balances.balances, acc_balances.holds, acc_balances.borrowed
-        )
+        return self.calculate_margin_level(acc_balances.balances, acc_balances.holds, acc_balances.borrowed)
 
     def calculate_margin_level(
-            self, updated_balances: ValueMapDict, updated_holds: ValueMapDict, updated_borrowed: ValueMapDict
+        self, updated_balances: ValueMapDict, updated_holds: ValueMapDict, updated_borrowed: ValueMapDict
     ) -> Decimal:
         assert self._exchange_ctx and self._loan_mgr, "Not yet connected with the exchange"
 
@@ -159,8 +161,13 @@ class CheckMarginLevel(account_balances.UpdateRule):
         self._threshold = Decimal(100)
 
     def check(
-            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap,
-            delta_balances: ValueMap, delta_holds: ValueMap, delta_borrowed: ValueMap
+        self,
+        updated_balances: ValueMap,
+        updated_holds: ValueMap,
+        updated_borrowed: ValueMap,
+        delta_balances: ValueMap,
+        delta_holds: ValueMap,
+        delta_borrowed: ValueMap,
     ):
         # If we're increasing any borrowed amount we need to check the margin level.
         if any(v > 0 for v in delta_borrowed.values()):

@@ -17,6 +17,7 @@
 from decimal import Decimal
 import asyncio
 import logging
+import os
 
 from basana.external.binance import exchange as binance_exchange
 import basana as bs
@@ -33,8 +34,8 @@ async def main():
     position_amount = Decimal(100)
     stop_loss_pct = Decimal(5)
     checkpoint_fname = "binance_bbands_positions.json"
-    api_key = "YOUR_API_KEY"
-    api_secret = "YOUR_API_SECRET"
+    api_key = os.environ["BINANCE_API_KEY"]
+    api_secret = os.environ["BINANCE_API_SECRET"]
 
     exchange = binance_exchange.Exchange(event_dispatcher, api_key=api_key, api_secret=api_secret)
 

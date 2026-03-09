@@ -20,8 +20,7 @@ import dataclasses
 
 import aiohttp
 
-from . import client, helpers, order_book, order_book_diff, trades, spot, cross_margin, isolated_margin, \
-    websocket_mgr
+from . import client, helpers, order_book, order_book_diff, trades, spot, cross_margin, isolated_margin, websocket_mgr
 from basana.core import bar, dispatcher, enums, token_bucket
 from basana.core.pair import Pair, PairInfo
 
@@ -71,9 +70,13 @@ class Exchange:
     """
 
     def __init__(
-            self, dispatcher: dispatcher.EventDispatcher, api_key: Optional[str] = None,
-            api_secret: Optional[str] = None, session: Optional[aiohttp.ClientSession] = None,
-            tb: Optional[token_bucket.TokenBucketLimiter] = None, config_overrides: dict = {}
+        self,
+        dispatcher: dispatcher.EventDispatcher,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        session: Optional[aiohttp.ClientSession] = None,
+        tb: Optional[token_bucket.TokenBucketLimiter] = None,
+        config_overrides: dict = {},
     ):
         self._dispatcher = dispatcher
         self._cli = client.APIClient(
@@ -89,8 +92,12 @@ class Exchange:
         )
 
     def subscribe_to_bar_events(
-            self, pair: Pair, bar_duration: Union[int, str], event_handler: BarEventHandler,
-            skip_first_bar: bool = True, flush_delay: float = 1
+        self,
+        pair: Pair,
+        bar_duration: Union[int, str],
+        event_handler: BarEventHandler,
+        skip_first_bar: bool = True,
+        flush_delay: float = 1,
     ):
         """
         Registers an async callable that will be called when a new bar is available.
@@ -148,7 +155,7 @@ class Exchange:
         self._ws_mgr.subscribe_to_bar_events(pair, interval, event_handler)
 
     def subscribe_to_order_book_events(
-            self, pair: Pair, event_handler: PartialOrderBookEventHandler, depth: int = 10, interval: int = 1000
+        self, pair: Pair, event_handler: PartialOrderBookEventHandler, depth: int = 10, interval: int = 1000
     ):
         """
         Registers an async callable that will be called with the top bids/asks of the order book.
@@ -165,7 +172,7 @@ class Exchange:
         self._ws_mgr.subscribe_to_order_book_events(pair, event_handler, depth=depth, interval=interval)
 
     def subscribe_to_order_book_diff_events(
-            self, pair: Pair, event_handler: OrderBookDiffEventHandler, interval: int = 1000
+        self, pair: Pair, event_handler: OrderBookDiffEventHandler, interval: int = 1000
     ):
         """
         Registers an async callable that will be called with depth updates.
@@ -230,8 +237,7 @@ class Exchange:
         :param limit: The maximum number of levels to return.
         """
         return order_book.PartialOrderBook(
-            pair,
-            await self._cli.get_order_book(helpers.pair_to_symbol(pair), limit=limit)
+            pair, await self._cli.get_order_book(helpers.pair_to_symbol(pair), limit=limit)
         )
 
     @property
@@ -263,7 +269,7 @@ class Exchange:
             ret = PairInfoEx(
                 base_precision=get_precision_from_step_size(lot_size["stepSize"]),
                 quote_precision=get_precision_from_step_size(price_filter["tickSize"]),
-                permissions=symbol_info.get("permissions")
+                permissions=symbol_info.get("permissions"),
             )
             self._symbol_info[symbol] = ret
             self._symbol_to_pair[symbol_info["symbol"]] = Pair(symbol_info["baseAsset"], symbol_info["quoteAsset"])

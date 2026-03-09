@@ -19,11 +19,13 @@ from basana.core import errors
 
 class Error(errors.Error):
     """Base class for backtesting exceptions."""
+
     pass
 
 
 class NotEnoughBalance(Error):
     """Not enough balance."""
+
     pass
 
 

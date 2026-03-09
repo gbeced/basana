@@ -40,28 +40,37 @@ CREATE_ORDER_RESPONSE_16620163621 = {
     "type": "LIMIT",
     "side": "BUY",
     "fills": [],
-    "isIsolated": True
+    "isIsolated": True,
 }
 
 
 def test_transfer(binance_http_api_mock, binance_exchange):
     async def test_main():
         binance_http_api_mock.post(
-            re.compile(r"http://binance.mock/sapi/v1/margin/isolated/transfer\\?.*"), status=200,
-            payload={"tranId": 124739543934, "clientTag": ""}, repeat=True
+            re.compile(r"http://binance.mock/sapi/v1/margin/isolated/transfer\\?.*"),
+            status=200,
+            payload={"tranId": 124739543934, "clientTag": ""},
+            repeat=True,
         )
-        assert (await binance_exchange.isolated_margin_account.transfer_from_spot_account(
-            "USDT", Pair("BTC", "USDT"), Decimal("100")))["tranId"] == 124739543934
-        assert (await binance_exchange.isolated_margin_account.transfer_to_spot_account(
-            "USDT", Pair("BTC", "USDT"), Decimal("100")))["tranId"] == 124739543934
+        assert (
+            await binance_exchange.isolated_margin_account.transfer_from_spot_account(
+                "USDT", Pair("BTC", "USDT"), Decimal("100")
+            )
+        )["tranId"] == 124739543934
+        assert (
+            await binance_exchange.isolated_margin_account.transfer_to_spot_account(
+                "USDT", Pair("BTC", "USDT"), Decimal("100")
+            )
+        )["tranId"] == 124739543934
 
     asyncio.run(test_main())
 
 
 def test_account_balances(binance_http_api_mock, binance_exchange):
     binance_http_api_mock.get(
-        re.compile(r"http://binance.mock/sapi/v1/margin/isolated/account\\?.*"), status=200,
-        payload=helpers.load_json("binance_isolated_margin_account_details.json")
+        re.compile(r"http://binance.mock/sapi/v1/margin/isolated/account\\?.*"),
+        status=200,
+        payload=helpers.load_json("binance_isolated_margin_account_details.json"),
     )
 
     async def test_main():
@@ -79,30 +88,36 @@ def test_account_balances(binance_http_api_mock, binance_exchange):
     asyncio.run(test_main())
 
 
-@pytest.mark.parametrize("create_order_fun, response_payload, expected_attrs, expected_fills", [
-    (
-        lambda e: e.isolated_margin_account.create_limit_order(
-            exchange.OrderOperation.BUY, Pair("BTC", "USDT"), amount=Decimal("0.001"),
-            limit_price=Decimal("14000"), client_order_id="8174E476E48943AE95D005BAFA473792"
+@pytest.mark.parametrize(
+    "create_order_fun, response_payload, expected_attrs, expected_fills",
+    [
+        (
+            lambda e: e.isolated_margin_account.create_limit_order(
+                exchange.OrderOperation.BUY,
+                Pair("BTC", "USDT"),
+                amount=Decimal("0.001"),
+                limit_price=Decimal("14000"),
+                client_order_id="8174E476E48943AE95D005BAFA473792",
+            ),
+            CREATE_ORDER_RESPONSE_16620163621,
+            {
+                "id": "16620163621",
+                "datetime": datetime.datetime(2022, 12, 20, 15, 21, 13, 288000).replace(tzinfo=datetime.timezone.utc),
+                "client_order_id": "8174E476E48943AE95D005BAFA473792",
+                "limit_price": Decimal("14000"),
+                "amount": Decimal("0.001"),
+                "amount_filled": Decimal("0"),
+                "quote_amount_filled": Decimal("0"),
+                "status": "NEW",
+                "time_in_force": "GTC",
+                "is_open": True,
+            },
+            [],
         ),
-        CREATE_ORDER_RESPONSE_16620163621,
-        {
-            "id": "16620163621",
-            "datetime": datetime.datetime(2022, 12, 20, 15, 21, 13, 288000).replace(tzinfo=datetime.timezone.utc),
-            "client_order_id": "8174E476E48943AE95D005BAFA473792",
-            "limit_price": Decimal("14000"),
-            "amount": Decimal("0.001"),
-            "amount_filled": Decimal("0"),
-            "quote_amount_filled": Decimal("0"),
-            "status": "NEW",
-            "time_in_force": "GTC",
-            "is_open": True,
-        },
-        [],
-    ),
-])
+    ],
+)
 def test_create_order(
-        create_order_fun, response_payload, expected_attrs, expected_fills, binance_http_api_mock, binance_exchange
+    create_order_fun, response_payload, expected_attrs, expected_fills, binance_http_api_mock, binance_exchange
 ):
     binance_http_api_mock.post(
         re.compile(r"http://binance.mock/sapi/v1/margin/order\\?.*"), status=200, payload=response_payload

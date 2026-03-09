@@ -45,6 +45,10 @@ class Strategy(bs.TradingSignalSource):
         elif self._values[-2] <= self.bb[-2].ub and self._values[-1] > self.bb[-1].ub:
             self.push(bs.TradingSignal(bar_event.when, bs.Position.SHORT, bar_event.bar.pair))
         # Go neutral when the price touches the middle band.
-        elif self._values[-2] < self.bb[-2].cb and self._values[-1] >= self.bb[-1].cb \
-                or self._values[-2] > self.bb[-2].cb and self._values[-1] <= self.bb[-1].cb:
+        elif (
+            self._values[-2] < self.bb[-2].cb
+            and self._values[-1] >= self.bb[-1].cb
+            or self._values[-2] > self.bb[-2].cb
+            and self._values[-1] <= self.bb[-1].cb
+        ):
             self.push(bs.TradingSignal(bar_event.when, bs.Position.NEUTRAL, bar_event.bar.pair))

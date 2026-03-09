@@ -24,9 +24,7 @@ from basana.backtesting.lending import base as lending_base
 
 
 class LoanManager:
-    def __init__(
-            self, lending_strategy: lending_base.LendingStrategy, exchange_ctx: lending_base.ExchangeContext
-    ):
+    def __init__(self, lending_strategy: lending_base.LendingStrategy, exchange_ctx: lending_base.ExchangeContext):
         self._loans = bt_helpers.ExchangeObjectContainer[lending_base.Loan]()
         self._ctx = exchange_ctx
         self._lending_strategy = lending_strategy
@@ -43,7 +41,7 @@ class LoanManager:
         self._ctx.account_balances.update(
             balance_updates={loan.borrowed_symbol: loan.borrowed_amount},
             borrowed_updates={loan.borrowed_symbol: loan.borrowed_amount},
-            hold_updates=required_collateral
+            hold_updates=required_collateral,
         )
 
         # Save the loan now that balance updates succeeded.
@@ -53,7 +51,7 @@ class LoanManager:
         return self._build_loan_info(loan)
 
     def get_loans(
-            self, borrowed_symbol: Optional[str] = None, is_open: Optional[bool] = None
+        self, borrowed_symbol: Optional[str] = None, is_open: Optional[bool] = None
     ) -> List[lending_base.LoanInfo]:
         loans = self._loans.get_all()
         if borrowed_symbol:
@@ -81,7 +79,7 @@ class LoanManager:
         self._ctx.account_balances.update(
             balance_updates=balance_updates,
             borrowed_updates={loan.borrowed_symbol: -loan.borrowed_amount},
-            hold_updates={symbol: -amount for symbol, amount in collateral.items()}
+            hold_updates={symbol: -amount for symbol, amount in collateral.items()},
         )
 
         # Close the loan now that balance updates succeeded.
@@ -101,7 +99,7 @@ class LoanManager:
         self._ctx.account_balances.update(
             balance_updates=balance_updates,
             borrowed_updates=balance_updates,
-            hold_updates={symbol: -amount for symbol, amount in collateral.items()}
+            hold_updates={symbol: -amount for symbol, amount in collateral.items()},
         )
 
         # Close the loan now that balance updates succeeded.
@@ -119,14 +117,15 @@ class LoanManager:
     def _build_loan_info(self, loan: lending_base.Loan) -> lending_base.LoanInfo:
         outstanding_interest = ValueMap()
         if loan.is_open:
-            outstanding_interest += loan.calculate_interest(
-                self._ctx.dispatcher.now(), self._ctx.prices
-            )
+            outstanding_interest += loan.calculate_interest(self._ctx.dispatcher.now(), self._ctx.prices)
             outstanding_interest.truncate(self._ctx.config)
             outstanding_interest.prune()
 
         return lending_base.LoanInfo(
-            id=loan.id, is_open=loan.is_open, borrowed_symbol=loan.borrowed_symbol,
-            borrowed_amount=loan.borrowed_amount, outstanding_interest=outstanding_interest,
-            paid_interest=copy.copy(loan.paid_interest)
+            id=loan.id,
+            is_open=loan.is_open,
+            borrowed_symbol=loan.borrowed_symbol,
+            borrowed_amount=loan.borrowed_amount,
+            outstanding_interest=outstanding_interest,
+            paid_interest=copy.copy(loan.paid_interest),
         )

@@ -31,7 +31,7 @@ CREATE_ORDER_RESPONSE_3286471275 = {
     "orderId": 3286471275,
     "clientOrderId": "76168451F9EE4C9DAADC16D74B874E4B",
     "transactTime": 1671232394634,
-    "isIsolated": False
+    "isIsolated": False,
 }
 
 ORDER_INFO_3286471275 = {
@@ -52,7 +52,7 @@ ORDER_INFO_3286471275 = {
     "updateTime": 1671232429037,
     "isWorking": False,
     "accountId": 207887936,
-    "isIsolated": False
+    "isIsolated": False,
 }
 
 CREATE_ORDER_RESPONSE_12010477623 = {
@@ -68,17 +68,10 @@ CREATE_ORDER_RESPONSE_12010477623 = {
     "timeInForce": "GTC",
     "type": "MARKET",
     "side": "BUY",
-    "fills": [
-        {
-            "price": "1198.41",
-            "qty": "0.2503",
-            "commission": "0.0002503",
-            "commissionAsset": "ETH"
-        }
-    ],
+    "fills": [{"price": "1198.41", "qty": "0.2503", "commission": "0.0002503", "commissionAsset": "ETH"}],
     "marginBuyBorrowAsset": "USDT",
     "marginBuyBorrowAmount": "299.9548032",
-    "isIsolated": False
+    "isIsolated": False,
 }
 
 
@@ -100,7 +93,7 @@ ORDER_INFO_12010477623 = {
     "time": 1671217574815,
     "timeInForce": "GTC",
     "type": "MARKET",
-    "updateTime": 1671217574815
+    "updateTime": 1671217574815,
 }
 
 
@@ -118,7 +111,7 @@ TRADES_ORDER_12010477623 = [
         "isBuyer": True,
         "isMaker": False,
         "isBestMatch": True,
-        "isIsolated": False
+        "isIsolated": False,
     }
 ]
 
@@ -129,7 +122,7 @@ CREATE_ORDER_RESPONSE_16422505508 = {
     "fills": [
         {"commission": "0", "commissionAsset": "BNB", "price": "17775.62", "qty": "0.00417"},
         {"commission": "0", "commissionAsset": "BNB", "price": "17775.66", "qty": "0.00298"},
-        {"commission": "0", "commissionAsset": "BNB", "price": "17775.66", "qty": "0.00967"}
+        {"commission": "0", "commissionAsset": "BNB", "price": "17775.66", "qty": "0.00967"},
     ],
     "isIsolated": False,
     "marginBuyBorrowAmount": "100.0869656",
@@ -142,7 +135,7 @@ CREATE_ORDER_RESPONSE_16422505508 = {
     "symbol": "BTCUSDT",
     "timeInForce": "GTC",
     "transactTime": 1670986059521,
-    "type": "LIMIT"
+    "type": "LIMIT",
 }
 
 ORDER_INFO_16422505508 = {
@@ -163,7 +156,7 @@ ORDER_INFO_16422505508 = {
     "updateTime": 1670986059521,
     "isWorking": True,
     "accountId": 207887936,
-    "isIsolated": False
+    "isIsolated": False,
 }
 
 TRADES_ORDER_16422505508 = [
@@ -180,7 +173,7 @@ TRADES_ORDER_16422505508 = [
         "isBuyer": True,
         "isMaker": False,
         "isBestMatch": True,
-        "isIsolated": False
+        "isIsolated": False,
     },
     {
         "symbol": "BTCUSDT",
@@ -195,7 +188,7 @@ TRADES_ORDER_16422505508 = [
         "isBuyer": True,
         "isMaker": False,
         "isBestMatch": True,
-        "isIsolated": False
+        "isIsolated": False,
     },
     {
         "symbol": "BTCUSDT",
@@ -210,8 +203,8 @@ TRADES_ORDER_16422505508 = [
         "isBuyer": True,
         "isMaker": False,
         "isBestMatch": True,
-        "isIsolated": False
-    }
+        "isIsolated": False,
+    },
 ]
 
 OCO_ORDER_INFO_79592962 = {
@@ -224,17 +217,9 @@ OCO_ORDER_INFO_79592962 = {
     "symbol": "CHZUSDT",
     "isIsolated": False,
     "orders": [
-        {
-            "symbol": "CHZUSDT",
-            "orderId": 1420705016,
-            "clientOrderId": "MXTA6ncsHoWNyViZ5FQ2Cj"
-        },
-        {
-            "symbol": "CHZUSDT",
-            "orderId": 1420705017,
-            "clientOrderId": "0EfhMRl4mHgY2yqvsJRV7e"
-        }
-    ]
+        {"symbol": "CHZUSDT", "orderId": 1420705016, "clientOrderId": "MXTA6ncsHoWNyViZ5FQ2Cj"},
+        {"symbol": "CHZUSDT", "orderId": 1420705017, "clientOrderId": "0EfhMRl4mHgY2yqvsJRV7e"},
+    ],
 }
 
 CANCEL_ORDER_RESPONSE_16582318135 = {
@@ -250,7 +235,7 @@ CANCEL_ORDER_RESPONSE_16582318135 = {
     "timeInForce": "GTC",
     "type": "LIMIT",
     "side": "BUY",
-    "isIsolated": False
+    "isIsolated": False,
 }
 
 CANCEL_OCO_ORDER_RESPONSE_79680111 = {
@@ -263,16 +248,8 @@ CANCEL_OCO_ORDER_RESPONSE_79680111 = {
     "symbol": "BTCUSDT",
     "isIsolated": False,
     "orders": [
-        {
-            "symbol": "BTCUSDT",
-            "orderId": 16583687189,
-            "clientOrderId": "dyLZCprGrE0we3SAdg1tqP"
-        },
-        {
-            "symbol": "BTCUSDT",
-            "orderId": 16583687190,
-            "clientOrderId": "LhuSdrzXqqtsZsGNFrCRhw"
-        }
+        {"symbol": "BTCUSDT", "orderId": 16583687189, "clientOrderId": "dyLZCprGrE0we3SAdg1tqP"},
+        {"symbol": "BTCUSDT", "orderId": 16583687190, "clientOrderId": "LhuSdrzXqqtsZsGNFrCRhw"},
     ],
     "orderReports": [
         {
@@ -288,7 +265,7 @@ CANCEL_OCO_ORDER_RESPONSE_79680111 = {
             "timeInForce": "GTC",
             "type": "STOP_LOSS_LIMIT",
             "side": "BUY",
-            "stopPrice": "19000.00000000"
+            "stopPrice": "19000.00000000",
         },
         {
             "symbol": "BTCUSDT",
@@ -302,16 +279,17 @@ CANCEL_OCO_ORDER_RESPONSE_79680111 = {
             "status": "CANCELED",
             "timeInForce": "GTC",
             "type": "LIMIT_MAKER",
-            "side": "BUY"
-        }
-    ]
+            "side": "BUY",
+        },
+    ],
 }
 
 
 def test_account_balances(binance_http_api_mock, binance_exchange):
     binance_http_api_mock.get(
-        re.compile(r"http://binance.mock/sapi/v1/margin/account\\?.*"), status=200,
-        payload=helpers.load_json("binance_cross_margin_account_details.json")
+        re.compile(r"http://binance.mock/sapi/v1/margin/account\\?.*"),
+        status=200,
+        payload=helpers.load_json("binance_cross_margin_account_details.json"),
     )
 
     async def test_main():
@@ -325,90 +303,103 @@ def test_account_balances(binance_http_api_mock, binance_exchange):
     asyncio.run(test_main())
 
 
-@pytest.mark.parametrize("create_order_fun, response_payload, expected_attrs, expected_fills", [
-    (
-        lambda e: e.cross_margin_account.create_limit_order(
-            exchange.OrderOperation.BUY, Pair("BTC", "USDT"), amount=Decimal("0.01682"),
-            limit_price=Decimal("17841.08"), side_effect_type="MARGIN_BUY",
-            client_order_id="B28B24EE482A425EA1A07F343FB2F3EE"
+@pytest.mark.parametrize(
+    "create_order_fun, response_payload, expected_attrs, expected_fills",
+    [
+        (
+            lambda e: e.cross_margin_account.create_limit_order(
+                exchange.OrderOperation.BUY,
+                Pair("BTC", "USDT"),
+                amount=Decimal("0.01682"),
+                limit_price=Decimal("17841.08"),
+                side_effect_type="MARGIN_BUY",
+                client_order_id="B28B24EE482A425EA1A07F343FB2F3EE",
+            ),
+            CREATE_ORDER_RESPONSE_16422505508,
+            {
+                "id": "16422505508",
+                "datetime": datetime.datetime(2022, 12, 14, 2, 47, 39, 521000).replace(tzinfo=datetime.timezone.utc),
+                "client_order_id": "B28B24EE482A425EA1A07F343FB2F3EE",
+                "limit_price": Decimal("17841.08"),
+                "amount": Decimal("0.01682"),
+                "amount_filled": Decimal("0.01682"),
+                "quote_amount_filled": Decimal("298.9864344"),
+                "status": "FILLED",
+                "time_in_force": "GTC",
+                "is_open": False,
+            },
+            [
+                {
+                    "price": Decimal("17775.62"),
+                    "amount": Decimal("0.00417"),
+                    "commission": Decimal("0"),
+                    "commission_asset": "BNB",
+                },
+                {
+                    "price": Decimal("17775.66"),
+                    "amount": Decimal("0.00298"),
+                    "commission": Decimal("0"),
+                    "commission_asset": "BNB",
+                },
+                {
+                    "price": Decimal("17775.66"),
+                    "amount": Decimal("0.00967"),
+                    "commission": Decimal("0"),
+                    "commission_asset": "BNB",
+                },
+            ],
         ),
-        CREATE_ORDER_RESPONSE_16422505508,
-        {
-            "id": "16422505508",
-            "datetime": datetime.datetime(2022, 12, 14, 2, 47, 39, 521000).replace(tzinfo=datetime.timezone.utc),
-            "client_order_id": "B28B24EE482A425EA1A07F343FB2F3EE",
-            "limit_price": Decimal("17841.08"),
-            "amount": Decimal("0.01682"),
-            "amount_filled": Decimal("0.01682"),
-            "quote_amount_filled": Decimal("298.9864344"),
-            "status": "FILLED",
-            "time_in_force": "GTC",
-            "is_open": False,
-        },
-        [
+        (
+            lambda e: e.cross_margin_account.create_market_order(
+                exchange.OrderOperation.BUY,
+                Pair("ETH", "USDT"),
+                quote_amount=Decimal("300"),
+                side_effect_type="MARGIN_BUY",
+                client_order_id="E1547A6979EA49A9A849A457BD751D38",
+            ),
+            CREATE_ORDER_RESPONSE_12010477623,
             {
-                "price": Decimal("17775.62"),
-                "amount": Decimal("0.00417"),
-                "commission": Decimal("0"),
-                "commission_asset": "BNB",
-            },
-            {
-                "price": Decimal("17775.66"),
-                "amount": Decimal("0.00298"),
-                "commission": Decimal("0"),
-                "commission_asset": "BNB",
-            },
-            {
-                "price": Decimal("17775.66"),
-                "amount": Decimal("0.00967"),
-                "commission": Decimal("0"),
-                "commission_asset": "BNB",
-            },
-        ],
-    ),
-    (
-        lambda e: e.cross_margin_account.create_market_order(
-            exchange.OrderOperation.BUY, Pair("ETH", "USDT"), quote_amount=Decimal("300"),
-            side_effect_type="MARGIN_BUY",
-            client_order_id="E1547A6979EA49A9A849A457BD751D38"
-        ),
-        CREATE_ORDER_RESPONSE_12010477623,
-        {
-            "id": "12010477623",
-            "datetime": datetime.datetime(2022, 12, 16, 19, 6, 14, 815000).replace(tzinfo=datetime.timezone.utc),
-            "client_order_id": "E1547A6979EA49A9A849A457BD751D38",
-            "limit_price": None,
-            "amount": Decimal("0.2503"),
-            "amount_filled": Decimal("0.2503"),
-            "quote_amount_filled": Decimal("299.962023"),
-            "status": "FILLED",
-            "is_open": False,
-        },
-        [
-            {
-                "price": Decimal("1198.41"),
+                "id": "12010477623",
+                "datetime": datetime.datetime(2022, 12, 16, 19, 6, 14, 815000).replace(tzinfo=datetime.timezone.utc),
+                "client_order_id": "E1547A6979EA49A9A849A457BD751D38",
+                "limit_price": None,
                 "amount": Decimal("0.2503"),
-                "commission": Decimal("0.0002503"),
-                "commission_asset": "ETH",
+                "amount_filled": Decimal("0.2503"),
+                "quote_amount_filled": Decimal("299.962023"),
+                "status": "FILLED",
+                "is_open": False,
             },
-        ],
-    ),
-    (
-        lambda e: e.cross_margin_account.create_stop_limit_order(
-            exchange.OrderOperation.SELL, Pair("DOGE", "USDT"), Decimal("1000"), Decimal("0.05"), Decimal("0.05"),
-            side_effect_type="MARGIN_BUY", client_order_id="76168451F9EE4C9DAADC16D74B874E4B"
+            [
+                {
+                    "price": Decimal("1198.41"),
+                    "amount": Decimal("0.2503"),
+                    "commission": Decimal("0.0002503"),
+                    "commission_asset": "ETH",
+                },
+            ],
         ),
-        CREATE_ORDER_RESPONSE_3286471275,
-        {
-            "id": "3286471275",
-            "datetime": datetime.datetime(2022, 12, 16, 23, 13, 14, 634000).replace(tzinfo=datetime.timezone.utc),
-            "client_order_id": "76168451F9EE4C9DAADC16D74B874E4B",
-        },
-        [],
-    ),
-])
+        (
+            lambda e: e.cross_margin_account.create_stop_limit_order(
+                exchange.OrderOperation.SELL,
+                Pair("DOGE", "USDT"),
+                Decimal("1000"),
+                Decimal("0.05"),
+                Decimal("0.05"),
+                side_effect_type="MARGIN_BUY",
+                client_order_id="76168451F9EE4C9DAADC16D74B874E4B",
+            ),
+            CREATE_ORDER_RESPONSE_3286471275,
+            {
+                "id": "3286471275",
+                "datetime": datetime.datetime(2022, 12, 16, 23, 13, 14, 634000).replace(tzinfo=datetime.timezone.utc),
+                "client_order_id": "76168451F9EE4C9DAADC16D74B874E4B",
+            },
+            [],
+        ),
+    ],
+)
 def test_create_order(
-        create_order_fun, response_payload, expected_attrs, expected_fills, binance_http_api_mock, binance_exchange
+    create_order_fun, response_payload, expected_attrs, expected_fills, binance_http_api_mock, binance_exchange
 ):
     binance_http_api_mock.post(
         re.compile(r"http://binance.mock/sapi/v1/margin/order\\?.*"), status=200, payload=response_payload
@@ -429,7 +420,9 @@ def test_create_order(
     "pair, order_id, client_order_id, order_payload, trades_payload, expected_attrs, expected_first_trade",
     [
         (
-            Pair("BTC", "USDT"), "16422505508", None,
+            Pair("BTC", "USDT"),
+            "16422505508",
+            None,
             ORDER_INFO_16422505508,
             TRADES_ORDER_16422505508,
             {
@@ -458,7 +451,9 @@ def test_create_order(
             },
         ),
         (
-            Pair("ETH", "USDT"), None, "E1547A6979EA49A9A849A457BD751D38",
+            Pair("ETH", "USDT"),
+            None,
+            "E1547A6979EA49A9A849A457BD751D38",
             ORDER_INFO_12010477623,
             TRADES_ORDER_12010477623,
             {
@@ -484,14 +479,21 @@ def test_create_order(
                 "is_buyer": True,
                 "is_maker": False,
                 "is_best_match": True,
-                "is_isolated": False
-            }
+                "is_isolated": False,
+            },
         ),
-    ]
+    ],
 )
 def test_order_info(
-        pair, order_id, client_order_id, order_payload, trades_payload, expected_attrs, expected_first_trade,
-        binance_http_api_mock, binance_exchange
+    pair,
+    order_id,
+    client_order_id,
+    order_payload,
+    trades_payload,
+    expected_attrs,
+    expected_first_trade,
+    binance_http_api_mock,
+    binance_exchange,
 ):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/sapi/v1/margin/order\\?.*"), status=200, payload=order_payload
@@ -536,7 +538,7 @@ def test_order_info(
                     "time": 1676487828466,
                     "timeInForce": "GTC",
                     "type": "LIMIT",
-                    "updateTime": 1676487828466
+                    "updateTime": 1676487828466,
                 }
             ],
             {
@@ -554,11 +556,9 @@ def test_order_info(
                 "type": "LIMIT",
             },
         ),
-    ]
+    ],
 )
-def test_get_open_orders(
-        pair, open_orders_payload, expected_first_open_order, binance_http_api_mock, binance_exchange
-):
+def test_get_open_orders(pair, open_orders_payload, expected_first_open_order, binance_http_api_mock, binance_exchange):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/sapi/v1/margin/openOrders\\?.*"), status=200, payload=open_orders_payload
     )
@@ -570,35 +570,42 @@ def test_get_open_orders(
     asyncio.run(test_main())
 
 
-@pytest.mark.parametrize("pair, order_id, client_order_id, response_payload, expected_attrs", [
-    (
-        Pair("BTC", "USDT"), "16582318135", None,
-        CANCEL_ORDER_RESPONSE_16582318135,
-        {
-            "id": "16582318135",
-            "is_open": False,
-            "order_list_id": None,
-            "limit_price": Decimal(15000),
-            "amount": Decimal("0.001"),
-            "amount_filled": Decimal("0"),
-            "quote_amount_filled": Decimal("0"),
-            "status": "CANCELED",
-            "time_in_force": "GTC",
-            "operation": exchange.OrderOperation.BUY,
-            "type": "LIMIT",
-        }
-    ),
-    (
-        Pair("BTC", "USDT"), None, "FCE43038586A45EBB0DBF8AD0F360E5A",
-        CANCEL_ORDER_RESPONSE_16582318135,
-        {
-            "id": "16582318135",
-            "is_open": False,
-        }
-    )
-])
+@pytest.mark.parametrize(
+    "pair, order_id, client_order_id, response_payload, expected_attrs",
+    [
+        (
+            Pair("BTC", "USDT"),
+            "16582318135",
+            None,
+            CANCEL_ORDER_RESPONSE_16582318135,
+            {
+                "id": "16582318135",
+                "is_open": False,
+                "order_list_id": None,
+                "limit_price": Decimal(15000),
+                "amount": Decimal("0.001"),
+                "amount_filled": Decimal("0"),
+                "quote_amount_filled": Decimal("0"),
+                "status": "CANCELED",
+                "time_in_force": "GTC",
+                "operation": exchange.OrderOperation.BUY,
+                "type": "LIMIT",
+            },
+        ),
+        (
+            Pair("BTC", "USDT"),
+            None,
+            "FCE43038586A45EBB0DBF8AD0F360E5A",
+            CANCEL_ORDER_RESPONSE_16582318135,
+            {
+                "id": "16582318135",
+                "is_open": False,
+            },
+        ),
+    ],
+)
 def test_cancel_order(
-        pair, order_id, client_order_id, response_payload, expected_attrs, binance_http_api_mock, binance_exchange
+    pair, order_id, client_order_id, response_payload, expected_attrs, binance_http_api_mock, binance_exchange
 ):
     binance_http_api_mock.delete(
         re.compile(r"http://binance.mock/sapi/v1/margin/order\\?.*"), status=200, payload=response_payload
@@ -614,72 +621,78 @@ def test_cancel_order(
     asyncio.run(test_main())
 
 
-@pytest.mark.parametrize("create_order_fun, response_payload, expected_attrs", [
-    (
-        lambda e: e.cross_margin_account.create_oco_order(
-            exchange.OrderOperation.SELL, Pair("BTC", "USDT"), Decimal("0.01682"), Decimal("18125.4"),
-            Decimal("17592.3"), stop_limit_price=Decimal("15833.07"), side_effect_type="AUTO_REPAY"
+@pytest.mark.parametrize(
+    "create_order_fun, response_payload, expected_attrs",
+    [
+        (
+            lambda e: e.cross_margin_account.create_oco_order(
+                exchange.OrderOperation.SELL,
+                Pair("BTC", "USDT"),
+                Decimal("0.01682"),
+                Decimal("18125.4"),
+                Decimal("17592.3"),
+                stop_limit_price=Decimal("15833.07"),
+                side_effect_type="AUTO_REPAY",
+            ),
+            {
+                "contingencyType": "OCO",
+                "isIsolated": False,
+                "listClientOrderId": "8FFCC716C91841F199AD1D5DD14752E5",
+                "listOrderStatus": "EXECUTING",
+                "listStatusType": "EXEC_STARTED",
+                "orderListId": 79453975,
+                "orderReports": [
+                    {
+                        "clientOrderId": "AjmD6hDJzPVeS6nmmE1ZDo",
+                        "cummulativeQuoteQty": "0",
+                        "executedQty": "0",
+                        "orderId": 16422653053,
+                        "orderListId": 79453975,
+                        "origQty": "0.01682000",
+                        "price": "15833.07000000",
+                        "side": "SELL",
+                        "status": "NEW",
+                        "stopPrice": "17592.30000000",
+                        "symbol": "BTCUSDT",
+                        "timeInForce": "GTC",
+                        "transactTime": 1670986467587,
+                        "type": "STOP_LOSS_LIMIT",
+                    },
+                    {
+                        "clientOrderId": "O5xo6nf8Ua0HbNMtpyqvv3",
+                        "cummulativeQuoteQty": "0",
+                        "executedQty": "0",
+                        "orderId": 16422653054,
+                        "orderListId": 79453975,
+                        "origQty": "0.01682000",
+                        "price": "18125.40000000",
+                        "side": "SELL",
+                        "status": "NEW",
+                        "symbol": "BTCUSDT",
+                        "timeInForce": "GTC",
+                        "transactTime": 1670986467587,
+                        "type": "LIMIT_MAKER",
+                    },
+                ],
+                "orders": [
+                    {"clientOrderId": "AjmD6hDJzPVeS6nmmE1ZDo", "orderId": 16422653053, "symbol": "BTCUSDT"},
+                    {"clientOrderId": "O5xo6nf8Ua0HbNMtpyqvv3", "orderId": 16422653054, "symbol": "BTCUSDT"},
+                ],
+                "symbol": "BTCUSDT",
+                "transactionTime": 1670986467587,
+            },
+            {
+                "order_list_id": "79453975",
+                "client_order_list_id": "8FFCC716C91841F199AD1D5DD14752E5",
+                "datetime": datetime.datetime(2022, 12, 14, 2, 54, 27, 587000).replace(tzinfo=datetime.timezone.utc),
+                "is_open": True,
+                "limit_order_id": "16422653054",
+                "stop_loss_order_id": "16422653053",
+            },
         ),
-        {
-            "contingencyType": "OCO",
-            "isIsolated": False,
-            "listClientOrderId": "8FFCC716C91841F199AD1D5DD14752E5",
-            "listOrderStatus": "EXECUTING",
-            "listStatusType": "EXEC_STARTED",
-            "orderListId": 79453975,
-            "orderReports": [
-                {
-                    "clientOrderId": "AjmD6hDJzPVeS6nmmE1ZDo",
-                    "cummulativeQuoteQty": "0",
-                    "executedQty": "0",
-                    "orderId": 16422653053,
-                    "orderListId": 79453975,
-                    "origQty": "0.01682000",
-                    "price": "15833.07000000",
-                    "side": "SELL",
-                    "status": "NEW",
-                    "stopPrice": "17592.30000000",
-                    "symbol": "BTCUSDT",
-                    "timeInForce": "GTC",
-                    "transactTime": 1670986467587,
-                    "type": "STOP_LOSS_LIMIT"
-                },
-                {
-                    "clientOrderId": "O5xo6nf8Ua0HbNMtpyqvv3",
-                    "cummulativeQuoteQty": "0",
-                    "executedQty": "0",
-                    "orderId": 16422653054,
-                    "orderListId": 79453975,
-                    "origQty": "0.01682000",
-                    "price": "18125.40000000",
-                    "side": "SELL",
-                    "status": "NEW",
-                    "symbol": "BTCUSDT",
-                    "timeInForce": "GTC",
-                    "transactTime": 1670986467587,
-                    "type": "LIMIT_MAKER"
-                }
-            ],
-            "orders": [
-                {"clientOrderId": "AjmD6hDJzPVeS6nmmE1ZDo", "orderId": 16422653053, "symbol": "BTCUSDT"},
-                {"clientOrderId": "O5xo6nf8Ua0HbNMtpyqvv3", "orderId": 16422653054, "symbol": "BTCUSDT"}
-            ],
-            "symbol": "BTCUSDT",
-            "transactionTime": 1670986467587
-        },
-        {
-            "order_list_id": "79453975",
-            "client_order_list_id": "8FFCC716C91841F199AD1D5DD14752E5",
-            "datetime": datetime.datetime(2022, 12, 14, 2, 54, 27, 587000).replace(tzinfo=datetime.timezone.utc),
-            "is_open": True,
-            "limit_order_id": "16422653054",
-            "stop_loss_order_id": "16422653053",
-        },
-    ),
-])
-def test_create_oco_order(
-        create_order_fun, response_payload, expected_attrs, binance_http_api_mock, binance_exchange
-):
+    ],
+)
+def test_create_oco_order(create_order_fun, response_payload, expected_attrs, binance_http_api_mock, binance_exchange):
     binance_http_api_mock.post(
         re.compile(r"http://binance.mock/sapi/v1/margin/order/oco\\?.*"), status=200, payload=response_payload
     )
@@ -692,28 +705,33 @@ def test_create_oco_order(
     asyncio.run(test_main())
 
 
-@pytest.mark.parametrize("order_list_id, client_order_list_id, response_payload, expected_attrs", [
-    (
-        "79592962", None,
-        OCO_ORDER_INFO_79592962,
-        {
-            "order_list_id": "79592962",
-            "client_order_list_id": "3hwrDggYdWhtiNAzm5bNDf",
-            "is_open": False,
-        }
-    ),
-    (
-        None, "3hwrDggYdWhtiNAzm5bNDf",
-        OCO_ORDER_INFO_79592962,
-        {
-            "order_list_id": "79592962",
-            "client_order_list_id": "3hwrDggYdWhtiNAzm5bNDf",
-            "is_open": False,
-        }
-    ),
-])
+@pytest.mark.parametrize(
+    "order_list_id, client_order_list_id, response_payload, expected_attrs",
+    [
+        (
+            "79592962",
+            None,
+            OCO_ORDER_INFO_79592962,
+            {
+                "order_list_id": "79592962",
+                "client_order_list_id": "3hwrDggYdWhtiNAzm5bNDf",
+                "is_open": False,
+            },
+        ),
+        (
+            None,
+            "3hwrDggYdWhtiNAzm5bNDf",
+            OCO_ORDER_INFO_79592962,
+            {
+                "order_list_id": "79592962",
+                "client_order_list_id": "3hwrDggYdWhtiNAzm5bNDf",
+                "is_open": False,
+            },
+        ),
+    ],
+)
 def test_oco_order_info(
-        order_list_id, client_order_list_id, response_payload, expected_attrs, binance_http_api_mock, binance_exchange
+    order_list_id, client_order_list_id, response_payload, expected_attrs, binance_http_api_mock, binance_exchange
 ):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/sapi/v1/margin/orderList\\?.*"), status=200, payload=response_payload
@@ -729,31 +747,37 @@ def test_oco_order_info(
     asyncio.run(test_main())
 
 
-@pytest.mark.parametrize("pair, order_list_id, client_order_list_id, response_payload, expected_attrs", [
-    (
-        Pair("BTC", "USDT"), "79680111", None,
-        CANCEL_OCO_ORDER_RESPONSE_79680111,
-        {
-            "order_list_id": "79680111",
-            "client_order_list_id": "B3331893C53A4F1487EB78F2E16D4FDD",
-            "datetime": datetime.datetime(2022, 12, 19, 15, 24, 35, 963000).replace(tzinfo=datetime.timezone.utc),
-            "is_open": False,
-        }
-    ),
-    (
-        Pair("BTC", "USDT"), None, "B3331893C53A4F1487EB78F2E16D4FDD",
-        CANCEL_OCO_ORDER_RESPONSE_79680111,
-        {
-            "order_list_id": "79680111",
-            "client_order_list_id": "B3331893C53A4F1487EB78F2E16D4FDD",
-            "datetime": datetime.datetime(2022, 12, 19, 15, 24, 35, 963000).replace(tzinfo=datetime.timezone.utc),
-            "is_open": False,
-        }
-    )
-])
+@pytest.mark.parametrize(
+    "pair, order_list_id, client_order_list_id, response_payload, expected_attrs",
+    [
+        (
+            Pair("BTC", "USDT"),
+            "79680111",
+            None,
+            CANCEL_OCO_ORDER_RESPONSE_79680111,
+            {
+                "order_list_id": "79680111",
+                "client_order_list_id": "B3331893C53A4F1487EB78F2E16D4FDD",
+                "datetime": datetime.datetime(2022, 12, 19, 15, 24, 35, 963000).replace(tzinfo=datetime.timezone.utc),
+                "is_open": False,
+            },
+        ),
+        (
+            Pair("BTC", "USDT"),
+            None,
+            "B3331893C53A4F1487EB78F2E16D4FDD",
+            CANCEL_OCO_ORDER_RESPONSE_79680111,
+            {
+                "order_list_id": "79680111",
+                "client_order_list_id": "B3331893C53A4F1487EB78F2E16D4FDD",
+                "datetime": datetime.datetime(2022, 12, 19, 15, 24, 35, 963000).replace(tzinfo=datetime.timezone.utc),
+                "is_open": False,
+            },
+        ),
+    ],
+)
 def test_cancel_oco_order(
-        pair, order_list_id, client_order_list_id, response_payload, expected_attrs,
-        binance_http_api_mock, binance_exchange
+    pair, order_list_id, client_order_list_id, response_payload, expected_attrs, binance_http_api_mock, binance_exchange
 ):
     binance_http_api_mock.delete(
         re.compile(r"http://binance.mock/sapi/v1/margin/orderList\\?.*"), status=200, payload=response_payload
@@ -772,13 +796,17 @@ def test_cancel_oco_order(
 def test_transfer(binance_http_api_mock, binance_exchange):
     async def test_main():
         binance_http_api_mock.post(
-            re.compile(r"http://binance.mock/sapi/v1/margin/transfer\\?.*"), status=200,
-            payload={"clientTag": "", "tranId": 124735427615}, repeat=True
+            re.compile(r"http://binance.mock/sapi/v1/margin/transfer\\?.*"),
+            status=200,
+            payload={"clientTag": "", "tranId": 124735427615},
+            repeat=True,
         )
 
-        assert (await binance_exchange.cross_margin_account.transfer_from_spot_account(
-            "USDT", Decimal("100")))["tranId"] == 124735427615
-        assert (await binance_exchange.cross_margin_account.transfer_to_spot_account(
-            "USDT", Decimal("100")))["tranId"] == 124735427615
+        assert (await binance_exchange.cross_margin_account.transfer_from_spot_account("USDT", Decimal("100")))[
+            "tranId"
+        ] == 124735427615
+        assert (await binance_exchange.cross_margin_account.transfer_to_spot_account("USDT", Decimal("100")))[
+            "tranId"
+        ] == 124735427615
 
     asyncio.run(test_main())

@@ -173,7 +173,7 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         }.get(json["e"], Event)
         event = event_cls(
             helpers.timestamp_to_datetime(int(json["E"])),  # Event time
-            json
+            json,
         )
         self.push(event)
 

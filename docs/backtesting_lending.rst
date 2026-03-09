@@ -1,6 +1,6 @@
 basana.backtesting.lending
 ==========================
- 
+
 Lending strategies are used by the backtesting exchange to support different lending schemes, or no lending at all.
 
 **Margin calls are not yet implemented.**

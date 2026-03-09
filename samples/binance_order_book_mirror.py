@@ -137,8 +137,8 @@ class OrderBookStatsApp(App):
             stats["spread"] = spread
             stats["mid_price"] = mid_price
 
-            top_bids = self._mirror.order_book.bids[:self._top_n]
-            top_asks = self._mirror.order_book.asks[:self._top_n]
+            top_bids = self._mirror.order_book.bids[: self._top_n]
+            top_asks = self._mirror.order_book.asks[: self._top_n]
             top_bids_depth = sum(bid[1] for bid in top_bids)
             top_asks_depth = sum(ask[1] for ask in top_asks)
             top_bids_vwap = sum(bid[0] * bid[1] for bid in top_bids) / top_bids_depth
@@ -194,7 +194,7 @@ class OrderBookStatsApp(App):
                 row_i = current_rows + i
                 table.add_row(*build_row(row_i), key=str(row_i))
         else:
-            while (len(table.rows) > final_rows):
+            while len(table.rows) > final_rows:
                 table.remove_row(str(len(table.rows) - 1))
 
     def _update_basic_stats(self, stats: dict):
@@ -206,8 +206,11 @@ class OrderBookStatsApp(App):
         values = {}
         values["spread"] = format_stat(stats, "spread", "{:.8f}")
         values["mid_price"] = format_stat(stats, "mid_price", "{:.8f}")
-        values["lag"] = "N/A" if self._mirror.order_book.last_updated is None else \
-            f"{(bs.utc_now() - self._mirror.order_book.last_updated).total_seconds():.3f} s"
+        values["lag"] = (
+            "N/A"
+            if self._mirror.order_book.last_updated is None
+            else f"{(bs.utc_now() - self._mirror.order_book.last_updated).total_seconds():.3f} s"
+        )
 
         self._update_table("#basic_stats", rows, values)
 

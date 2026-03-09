@@ -193,9 +193,7 @@ class OrderInfo:
             "Expired": False,
             "Canceled": False,
         }.get(self._order_status.status)
-        assert is_open is not None, "No mapping for {} order status".format(
-            self._order_status.status
-        )
+        assert is_open is not None, "No mapping for {} order status".format(self._order_status.status)
         return is_open
 
     @property
@@ -323,10 +321,15 @@ class Exchange:
     :param tb: An optional token bucket limiter, in case you want to throttle requests.
     :param config_overrides: An optional dictionary for overriding config settings.
     """
+
     def __init__(
-            self, dispatcher: dispatcher.EventDispatcher, api_key: Optional[str] = None,
-            api_secret: Optional[str] = None, session: Optional[aiohttp.ClientSession] = None,
-            tb: Optional[token_bucket.TokenBucketLimiter] = None, config_overrides: dict = {}
+        self,
+        dispatcher: dispatcher.EventDispatcher,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        session: Optional[aiohttp.ClientSession] = None,
+        tb: Optional[token_bucket.TokenBucketLimiter] = None,
+        config_overrides: dict = {},
     ):
         self._dispatcher = dispatcher
         self._api_key = api_key
@@ -379,8 +382,12 @@ class Exchange:
         return CreatedOrder(created_order)
 
     async def create_market_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, client_order_id: Optional[str] = None,
-            **kwargs: Dict[str, Any]
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        client_order_id: Optional[str] = None,
+        **kwargs: Dict[str, Any],
     ) -> CreatedOrder:
         """Creates a market order.
 
@@ -392,13 +399,18 @@ class Exchange:
         :param client_order_id: A client order id.
         :param kwargs: Additional keyword arguments that will be forwarded.
         """
-        return await self.create_order(requests.MarketOrder(
-            operation, pair, amount, client_order_id=client_order_id, **kwargs
-        ))
+        return await self.create_order(
+            requests.MarketOrder(operation, pair, amount, client_order_id=client_order_id, **kwargs)
+        )
 
     async def create_limit_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        limit_price: Decimal,
+        client_order_id: Optional[str] = None,
+        **kwargs: Dict[str, Any],
     ) -> CreatedOrder:
         """Creates a limit order.
 
@@ -411,13 +423,18 @@ class Exchange:
         :param client_order_id: A client order id.
         :param kwargs: Additional keyword arguments that will be forwarded.
         """
-        return await self.create_order(requests.LimitOrder(
-            operation, pair, amount, limit_price, client_order_id=client_order_id, **kwargs
-        ))
+        return await self.create_order(
+            requests.LimitOrder(operation, pair, amount, limit_price, client_order_id=client_order_id, **kwargs)
+        )
 
     async def create_instant_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, amount_in_counter: bool = False,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        amount_in_counter: bool = False,
+        client_order_id: Optional[str] = None,
+        **kwargs: Dict[str, Any],
     ) -> CreatedOrder:
         """Creates an instant order.
 
@@ -431,9 +448,11 @@ class Exchange:
         :param client_order_id: A client order id.
         :param kwargs: Additional keyword arguments that will be forwarded.
         """
-        return await self.create_order(requests.InstantOrder(
-            operation, pair, amount, amount_in_counter=amount_in_counter, client_order_id=client_order_id, **kwargs
-        ))
+        return await self.create_order(
+            requests.InstantOrder(
+                operation, pair, amount, amount_in_counter=amount_in_counter, client_order_id=client_order_id, **kwargs
+            )
+        )
 
     async def cancel_order(self, order_id: Union[str, int]) -> CanceledOrder:
         """Cancels an order.
@@ -446,7 +465,10 @@ class Exchange:
         return CanceledOrder(canceled_order)
 
     async def get_order_info(
-            self, pair: Pair, order_id: Optional[Union[str, int]] = None, client_order_id: Optional[str] = None,
+        self,
+        pair: Pair,
+        order_id: Optional[Union[str, int]] = None,
+        client_order_id: Optional[str] = None,
     ) -> Optional[OrderInfo]:
         """Returns information about an order.
 
@@ -466,8 +488,10 @@ class Exchange:
         return ret
 
     async def get_order_status(
-            self, order_id: Optional[Union[str, int]] = None, client_order_id: Optional[str] = None,
-            omit_transactions: Optional[bool] = None
+        self,
+        order_id: Optional[Union[str, int]] = None,
+        client_order_id: Optional[str] = None,
+        omit_transactions: Optional[bool] = None,
     ) -> Optional[OrderStatus]:
         if order_id is not None:
             order_id = int(order_id)
@@ -499,8 +523,12 @@ class Exchange:
         return {balance["currency"].upper(): Balance(balance) for balance in balances}
 
     def subscribe_to_bar_events(
-            self, pair: Pair, bar_duration: int, event_handler: BarEventHandler, skip_first_bar: bool = True,
-            flush_delay: float = 1
+        self,
+        pair: Pair,
+        bar_duration: int,
+        event_handler: BarEventHandler,
+        skip_first_bar: bool = True,
+        flush_delay: float = 1,
     ):
         """Registers an async callable that will be called when a new bar is available.
 
@@ -538,8 +566,10 @@ class Exchange:
         """
         channel = order_book.get_channel(pair)
         self._subscribe_to_ws_channel_events(
-            channel, True, lambda ws_cli: order_book.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            channel,
+            True,
+            lambda ws_cli: order_book.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def subscribe_to_public_order_events(self, pair: Pair, event_handler: OrderEventHandler):
@@ -550,8 +580,10 @@ class Exchange:
         """
         channel = orders.get_public_channel(pair)
         self._subscribe_to_ws_channel_events(
-            channel, True, lambda ws_cli: orders.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            channel,
+            True,
+            lambda ws_cli: orders.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def subscribe_to_private_order_events(self, pair: Pair, event_handler: OrderEventHandler):
@@ -562,8 +594,10 @@ class Exchange:
         """
         channel = orders.get_private_channel(pair)
         self._subscribe_to_ws_channel_events(
-            channel, False, lambda ws_cli: orders.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            channel,
+            False,
+            lambda ws_cli: orders.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def subscribe_to_public_trade_events(self, pair: Pair, event_handler: TradeEventHandler):
@@ -574,8 +608,10 @@ class Exchange:
         """
         channel = trades.get_public_channel(pair)
         self._subscribe_to_ws_channel_events(
-            channel, True, lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            channel,
+            True,
+            lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def subscribe_to_private_trade_events(self, pair: Pair, event_handler: TradeEventHandler):
@@ -586,14 +622,18 @@ class Exchange:
         """
         channel = trades.get_private_channel(pair)
         self._subscribe_to_ws_channel_events(
-            channel, False, lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            channel,
+            False,
+            lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def _subscribe_to_ws_channel_events(
-            self, channel: str, is_public: bool,
-            event_src_factory: Callable[[core_ws.WebSocketClient], core_ws.ChannelEventSource],
-            event_handler: dispatcher.EventHandler
+        self,
+        channel: str,
+        is_public: bool,
+        event_src_factory: Callable[[core_ws.WebSocketClient], core_ws.ChannelEventSource],
+        event_handler: dispatcher.EventHandler,
     ):
         # Get/create the event source for the channel.
         ws_cli = self._get_pub_ws_client() if is_public else self._get_priv_ws_client()

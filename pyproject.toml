@@ -52,3 +52,6 @@ exclude = [
 # Add the `line-too-long` rule to the enforced rule set.
 extend-select = ["E501"]
 
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101", "B110"]

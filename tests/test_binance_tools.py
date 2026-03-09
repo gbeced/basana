@@ -46,7 +46,7 @@ def test_download_ohlc(binance_http_api_mock, capsys):
                 194010,
                 "8946.95553500",
                 "64597785.21233434",
-                "0"
+                "0",
             ],
             [
                 1577923200000,
@@ -60,7 +60,7 @@ def test_download_ohlc(binance_http_api_mock, capsys):
                 302667,
                 "15141.61134000",
                 "107060829.07806464",
-                "0"
+                "0",
             ],
             # This one closes in the future and should be skipped.
             [
@@ -75,19 +75,21 @@ def test_download_ohlc(binance_http_api_mock, capsys):
                 194010,
                 "8946.95553500",
                 "64597785.21233434",
-                "0"
+                "0",
             ],
-
-        ]
+        ],
     )
 
     async def test_main():
         await download_bars.main(
             params=["-c", "BTCUSDT", "-p", "1d", "-s", "2020-01-01", "-e", "2020-01-01"],
-            config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+            config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}},
         )
-        assert capsys.readouterr().out == """datetime,open,high,low,close,volume
+        assert (
+            capsys.readouterr().out
+            == """datetime,open,high,low,close,volume
 2020-01-01 00:00:00,7195.24000000,7255.00000000,7175.15000000,7200.85000000,16792.38816500
 """
+        )
 
     asyncio.run(test_main())

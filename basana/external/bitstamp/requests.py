@@ -25,8 +25,12 @@ from basana.core.pair import Pair
 
 class ExchangeOrder(metaclass=abc.ABCMeta):
     def __init__(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, client_order_id: Optional[str] = None,
-            **kwargs: Dict[str, Any]
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        client_order_id: Optional[str] = None,
+        **kwargs: Dict[str, Any],
     ):
         self._operation = operation
         self._pair = pair
@@ -67,15 +71,22 @@ class MarketOrder(ExchangeOrder):
     """
 
     def __init__(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, client_order_id: Optional[str] = None,
-            **kwargs: Dict[str, Any]
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        client_order_id: Optional[str] = None,
+        **kwargs: Dict[str, Any],
     ):
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
 
     async def create_order(self, cli: client.APIClient) -> dict:
         return await cli.create_market_order(
-            self._get_action(), helpers.pair_to_currency_pair(self.pair), self.amount,
-            client_order_id=self._client_order_id, **self._kwargs
+            self._get_action(),
+            helpers.pair_to_currency_pair(self.pair),
+            self.amount,
+            client_order_id=self._client_order_id,
+            **self._kwargs,
         )
 
 
@@ -88,8 +99,13 @@ class LimitOrder(ExchangeOrder):
     """
 
     def __init__(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        limit_price: Decimal,
+        client_order_id: Optional[str] = None,
+        **kwargs: Dict[str, Any],
     ):
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
         self._limit_price = limit_price
@@ -100,21 +116,34 @@ class LimitOrder(ExchangeOrder):
 
     async def create_order(self, cli: client.APIClient) -> dict:
         return await cli.create_limit_order(
-            self._get_action(), helpers.pair_to_currency_pair(self.pair), self.amount, self.limit_price,
-            client_order_id=self._client_order_id, **self._kwargs
+            self._get_action(),
+            helpers.pair_to_currency_pair(self.pair),
+            self.amount,
+            self.limit_price,
+            client_order_id=self._client_order_id,
+            **self._kwargs,
         )
 
 
 class InstantOrder(ExchangeOrder):
     def __init__(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, amount_in_counter: bool = False,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        amount_in_counter: bool = False,
+        client_order_id: Optional[str] = None,
+        **kwargs: Dict[str, Any],
     ):
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
         self._amount_in_counter = amount_in_counter
 
     async def create_order(self, cli: client.APIClient) -> dict:
         return await cli.create_instant_order(
-            self._get_action(), helpers.pair_to_currency_pair(self.pair), self.amount,
-            amount_in_counter=self._amount_in_counter, client_order_id=self._client_order_id, **self._kwargs
+            self._get_action(),
+            helpers.pair_to_currency_pair(self.pair),
+            self.amount,
+            amount_in_counter=self._amount_in_counter,
+            client_order_id=self._client_order_id,
+            **self._kwargs,
         )

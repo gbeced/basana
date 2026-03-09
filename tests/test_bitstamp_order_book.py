@@ -33,30 +33,22 @@ from basana.external.bitstamp import exchange, order_book
 @pytest.fixture()
 def bitstamp_http_api_mock():
     with aioresponses.aioresponses() as m:
-        m.get(re.compile(r'http://bitstamp.mock/api/v2/order_book/btcusd/.*'), status=200, payload={
-            "timestamp": "1662146819",
-            "microtimestamp": "1662146819514365",
-            "bids": [
-                [
-                    "19822",
-                    "0.15000000"
+        m.get(
+            re.compile(r"http://bitstamp.mock/api/v2/order_book/btcusd/.*"),
+            status=200,
+            payload={
+                "timestamp": "1662146819",
+                "microtimestamp": "1662146819514365",
+                "bids": [
+                    ["19822", "0.15000000"],
+                    ["19820", "0.88755147"],
                 ],
-                [
-                    "19820",
-                    "0.88755147"
+                "asks": [
+                    ["19834", "0.81049238"],
+                    ["19835", "0.15000000"],
                 ],
-            ],
-            "asks": [
-                [
-                    "19834",
-                    "0.81049238"
-                ],
-                [
-                    "19835",
-                    "0.15000000"
-                ],
-            ]
-        })
+            },
+        )
 
         yield m
 
@@ -74,33 +66,34 @@ def test_websocket_ok(realtime_dispatcher):
     async def server_main(websocket):
         message = json.loads(await websocket.recv())
         # We expect to receive a subscription request to start.
-        if message == {
-            "event": "bts:subscribe",
-            "data": {"channel": "order_book_btcusd"}
-        }:
+        if message == {"event": "bts:subscribe", "data": {"channel": "order_book_btcusd"}}:
             await websocket.send(json.dumps({"event": "bts:subscription_succeeded"}))
             # Keep on sending order book events while the connection is open.
             while websocket.state == websockets.protocol.State.OPEN:
-                await websocket.send(json.dumps({
-                    "event": "data",
-                    "channel": "order_book_btcusd",
-                    "data": {
-                        "timestamp": "1662146819",
-                        "microtimestamp": "1662146819514365",
-                        "bids": [
-                            [
-                                "20000.01",
-                                "0.00000001",
-                            ]
-                        ],
-                        "asks": [
-                            [
-                                "19999.99",
-                                "0.00000002",
-                            ]
-                        ]
-                    }
-                }))
+                await websocket.send(
+                    json.dumps(
+                        {
+                            "event": "data",
+                            "channel": "order_book_btcusd",
+                            "data": {
+                                "timestamp": "1662146819",
+                                "microtimestamp": "1662146819514365",
+                                "bids": [
+                                    [
+                                        "20000.01",
+                                        "0.00000001",
+                                    ]
+                                ],
+                                "asks": [
+                                    [
+                                        "19999.99",
+                                        "0.00000002",
+                                    ]
+                                ],
+                            },
+                        }
+                    )
+                )
                 await asyncio.sleep(0.1)
 
     async def test_main():
@@ -123,10 +116,13 @@ def test_websocket_ok(realtime_dispatcher):
     assert Decimal(last_ob.asks[0].volume) == Decimal("0.00000002")
 
 
-@pytest.mark.parametrize("server_message", [
-    {},
-    {"event": "xyz"},
-])
+@pytest.mark.parametrize(
+    "server_message",
+    [
+        {},
+        {"event": "xyz"},
+    ],
+)
 def test_unknown_message_in_websocket(server_message, realtime_dispatcher, caplog):
     p = pair.Pair("BTC", "USD")
 
@@ -140,10 +136,7 @@ def test_unknown_message_in_websocket(server_message, realtime_dispatcher, caplo
     async def server_main(websocket):
         # We expect to receive a subscription request to start.
         message = json.loads(await websocket.recv())
-        if message == {
-            "event": "bts:subscribe",
-            "data": {"channel": "order_book_btcusd"}
-        }:
+        if message == {"event": "bts:subscribe", "data": {"channel": "order_book_btcusd"}}:
             await websocket.send(json.dumps({"event": "bts:subscription_succeeded"}))
             await websocket.send(json.dumps(server_message))
         else:
@@ -206,10 +199,13 @@ def test_poll_ok_with_custom_session(bitstamp_http_api_mock, realtime_dispatcher
         async with aiohttp.ClientSession() as session:
             realtime_dispatcher.subscribe(
                 order_book.PollOrderBook(
-                    p, 0.5, group=1, session=session,
-                    config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+                    p,
+                    0.5,
+                    group=1,
+                    session=session,
+                    config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}},
                 ),
-                on_order_book_event
+                on_order_book_event,
             )
 
             await realtime_dispatcher.run()
@@ -225,9 +221,12 @@ def test_poll_ok_with_custom_session(bitstamp_http_api_mock, realtime_dispatcher
     assert last_ob.asks[1].volume == Decimal("0.15000000")
 
 
-@pytest.mark.parametrize("response_status, response_body", [
-    (500, {}),
-])
+@pytest.mark.parametrize(
+    "response_status, response_body",
+    [
+        (500, {}),
+    ],
+)
 def test_unhandled_exception_during_poll(
     response_status, response_body, bitstamp_http_api_mock, realtime_dispatcher, caplog
 ):
@@ -246,8 +245,10 @@ def test_unhandled_exception_during_poll(
     async def test_main():
         async with aiohttp.ClientSession() as session:
             poller = order_book.PollOrderBook(
-                pair.Pair("BTC", "PAX"), 0.5, session=session,
-                config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+                pair.Pair("BTC", "PAX"),
+                0.5,
+                session=session,
+                config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}},
             )
             poller.on_error = lambda error: on_error(poller, error)
             realtime_dispatcher.subscribe(poller, on_order_book_event)

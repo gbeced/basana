@@ -92,6 +92,7 @@ class IsolatedMarginUserDataChannel(websockets.Channel):
 
 class Account(margin.Account):
     """Isolated margin account."""
+
     def __init__(self, cli: margin_client.IsolatedMarginAccount, ws_mgr: websocket_mgr.WebsocketManager):
         self._cli = cli
         self._ws_mgr = ws_mgr
@@ -143,9 +144,7 @@ class Account(margin.Account):
         """
 
         self._ws_mgr.subscribe_to_user_data_events(
-            IsolatedMarginUserDataChannel(pair),
-            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
-            event_handler
+            IsolatedMarginUserDataChannel(pair), lambda ws_cli: user_data.WebSocketEventSource(ws_cli), event_handler
         )
 
     def subscribe_to_order_events(self, pair: Pair, event_handler: OrderEventHandler):
@@ -159,7 +158,5 @@ class Account(margin.Account):
         """
 
         self._ws_mgr.subscribe_to_order_events(
-            IsolatedMarginUserDataChannel(pair),
-            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
-            event_handler
+            IsolatedMarginUserDataChannel(pair), lambda ws_cli: user_data.WebSocketEventSource(ws_cli), event_handler
         )
