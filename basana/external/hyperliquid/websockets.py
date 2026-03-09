@@ -14,8 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Awaitable, Callable, List, Optional
-import json
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 import logging
 
 import aiohttp
@@ -83,6 +82,11 @@ class WebSocketClient(core_ws.WebSocketClient):
             config_overrides=config_overrides,
             heartbeat=get_config_value(config.DEFAULTS, "api.websockets.heartbeat", overrides=config_overrides),
         )
+        self._registered_channels: Dict[str, core_ws.ChannelEventSource] = {}
+
+    def set_channel_event_source(self, channel: str, event_source: core_ws.ChannelEventSource):
+        self._registered_channels[channel] = event_source
+        super().set_channel_event_source(channel, event_source)
 
     async def subscribe_to_channels(self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse):
         for channel in channels:
@@ -98,14 +102,16 @@ class WebSocketClient(core_ws.WebSocketClient):
         if not channel_name or channel_name == "subscriptionResponse":
             return True  # Ack messages — handled, nothing to dispatch
 
-        # Route to the matching ChannelEventSource
-        matched = False
-        for registered_channel, event_source in self._event_sources.items():
-            if self._matches(registered_channel, channel_name, data):
-                await event_source.push_from_message(data)
-                matched = True
+        lookup_key = self._message_to_registered_channel(channel_name, data)
+        if lookup_key is None:
+            return False
 
-        return matched
+        event_source = self._registered_channels.get(lookup_key)
+        if event_source is None:
+            return False
+
+        await event_source.push_from_message(data)
+        return True
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -125,16 +131,29 @@ class WebSocketClient(core_ws.WebSocketClient):
         return None
 
     @staticmethod
-    def _matches(registered_channel: str, ws_channel: str, data: dict) -> bool:
-        """Check if a WebSocket message belongs to a registered channel."""
-        parts = registered_channel.split(":")
-        if parts[0] != ws_channel:
-            return False
+    def _message_to_registered_channel(ws_channel: str, data: dict) -> Optional[str]:
+        """Build the registered channel key from a WebSocket payload."""
+        if ws_channel == "candle":
+            coin = data.get("coin") or data.get("s", "")
+            interval = data.get("interval") or data.get("i")
+            if coin and interval:
+                return _candle_channel(coin, interval)
+            return None
 
-        # For coin-scoped subscriptions, also verify the coin in the payload.
-        if ws_channel in ("candle", "trades", "l2Book") and len(parts) >= 2:
-            payload_coin = data.get("coin") or data.get("s", "")
-            return payload_coin == parts[1]
+        if ws_channel == "trades":
+            coin = data.get("coin") or data.get("s", "")
+            return _trades_channel(coin) if coin else None
 
-        # For user-scoped subscriptions, no extra check needed.
-        return True
+        if ws_channel == "l2Book":
+            coin = data.get("coin") or data.get("s", "")
+            return _l2_book_channel(coin) if coin else None
+
+        if ws_channel == "orderUpdates":
+            user = data.get("user") or data.get("address")
+            return _order_updates_channel(user) if user else None
+
+        if ws_channel == "userFills":
+            user = data.get("user") or data.get("address")
+            return _user_fills_channel(user) if user else None
+
+        return None

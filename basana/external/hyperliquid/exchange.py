@@ -23,7 +23,7 @@ import aiohttp
 
 from basana.core import bar, dispatcher, event
 from basana.core.pair import Pair, PairInfo
-from . import client, helpers, perps, websockets
+from . import client, config, helpers, perps, websockets
 
 
 logger = logging.getLogger(__name__)
@@ -86,6 +86,7 @@ class Exchange:
         If omitted, only public market data endpoints are available.
     :param session: Optional :class:`aiohttp.ClientSession` for connection reuse.
     :param config_overrides: Optional dict for overriding config settings.
+    :param testnet: If ``True``, use Hyperliquid testnet defaults unless overridden.
     """
 
     def __init__(
@@ -94,9 +95,20 @@ class Exchange:
         private_key: Optional[str] = None,
         session: Optional[aiohttp.ClientSession] = None,
         config_overrides: Optional[dict] = None,
+        testnet: bool = False,
     ):
         if config_overrides is None:
             config_overrides = {}
+        if testnet:
+            merged_overrides = {
+                "api": {
+                    "http": dict(config.TESTNET_DEFAULTS["api"]["http"]),
+                    "websockets": dict(config.TESTNET_DEFAULTS["api"]["websockets"]),
+                }
+            }
+            for section, values in config_overrides.get("api", {}).items():
+                merged_overrides["api"].setdefault(section, {}).update(values)
+            config_overrides = merged_overrides
         self._dispatcher = dispatcher
         self._cli = client.APIClient(private_key=private_key, config_overrides=config_overrides)
         self._ws = websockets.WebSocketClient(session=session, config_overrides=config_overrides)
@@ -188,6 +200,8 @@ class Exchange:
                     sz_decimals=asset.get("szDecimals", 8),
                     max_leverage=asset.get("maxLeverage", 50),
                 )
+        if coin not in self._asset_info:
+            raise Error(f"Unknown coin: {coin}")
         return self._asset_info[coin]
 
     async def list_coins(self) -> List[str]:

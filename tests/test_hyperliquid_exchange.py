@@ -27,27 +27,30 @@ from basana.external.hyperliquid.exchange import Exchange, Error, AssetInfo
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture()
 def mock_api_client():
     with patch("basana.external.hyperliquid.exchange.client.APIClient") as MockClient:
         instance = MockClient.return_value
-        instance.get_all_mids = AsyncMock(return_value={
-            "ETH": "2100.0", "BTC": "70000.0", "SOL": "150.0"
-        })
-        instance.get_l2_snapshot = AsyncMock(return_value={
-            "coin": "ETH",
-            "levels": [
-                [{"px": "2099.5", "sz": "2.0", "n": 1}],
-                [{"px": "2100.5", "sz": "1.5", "n": 1}],
-            ],
-        })
-        instance.get_meta = AsyncMock(return_value={
-            "universe": [
-                {"name": "BTC", "szDecimals": 5, "maxLeverage": 50},
-                {"name": "ETH", "szDecimals": 4, "maxLeverage": 25},
-                {"name": "SOL", "szDecimals": 2, "maxLeverage": 20},
-            ]
-        })
+        instance.get_all_mids = AsyncMock(return_value={"ETH": "2100.0", "BTC": "70000.0", "SOL": "150.0"})
+        instance.get_l2_snapshot = AsyncMock(
+            return_value={
+                "coin": "ETH",
+                "levels": [
+                    [{"px": "2099.5", "sz": "2.0", "n": 1}],
+                    [{"px": "2100.5", "sz": "1.5", "n": 1}],
+                ],
+            }
+        )
+        instance.get_meta = AsyncMock(
+            return_value={
+                "universe": [
+                    {"name": "BTC", "szDecimals": 5, "maxLeverage": 50},
+                    {"name": "ETH", "szDecimals": 4, "maxLeverage": 25},
+                    {"name": "SOL", "szDecimals": 2, "maxLeverage": 20},
+                ]
+            }
+        )
         yield instance
 
 
@@ -68,6 +71,7 @@ def exchange(mock_api_client, mock_ws_client):
 # ---------------------------------------------------------------------------
 # Market data
 # ---------------------------------------------------------------------------
+
 
 class TestMarketData:
     def test_get_mid_price(self, exchange):
@@ -101,6 +105,11 @@ class TestMarketData:
         asyncio.run(exchange.get_pair_info("ETH"))
         mock_api_client.get_meta.assert_called_once()
 
+    def test_get_pair_info_unknown_coin_raises(self, exchange, mock_api_client):
+        with pytest.raises(Error, match="Unknown coin"):
+            asyncio.run(exchange.get_pair_info("NOTACOIN"))
+        assert mock_api_client.get_meta.await_count == 1
+
     def test_list_coins(self, exchange):
         coins = asyncio.run(exchange.list_coins())
         assert "BTC" in coins and "ETH" in coins and "SOL" in coins
@@ -110,6 +119,7 @@ class TestMarketData:
 # ---------------------------------------------------------------------------
 # WebSocket subscriptions
 # ---------------------------------------------------------------------------
+
 
 class TestSubscriptions:
     def test_subscribe_to_bar_events(self, exchange, mock_ws_client):
@@ -138,6 +148,7 @@ class TestSubscriptions:
 # Bar event construction
 # ---------------------------------------------------------------------------
 
+
 class TestBarEventSource:
     def test_candle_to_bar_event(self):
         from basana.external.hyperliquid.exchange import BarEventSource
@@ -149,17 +160,20 @@ class TestBarEventSource:
         source = BarEventSource(pair=pair, producer=producer)
 
         events = []
+
         async def run():
-            await source.push_from_message({
-                "t": 1709500000000,
-                "T": 1709503600000,
-                "o": "2100.0",
-                "h": "2150.0",
-                "l": "2090.0",
-                "c": "2130.0",
-                "v": "500.5",
-                "coin": "ETH",
-            })
+            await source.push_from_message(
+                {
+                    "t": 1709500000000,
+                    "T": 1709503600000,
+                    "o": "2100.0",
+                    "h": "2150.0",
+                    "l": "2090.0",
+                    "c": "2130.0",
+                    "v": "500.5",
+                    "coin": "ETH",
+                }
+            )
             while True:
                 event = source.pop()
                 if event is None:
@@ -184,13 +198,29 @@ class TestBarEventSource:
         asyncio.run(source.push_from_message({"invalid": "data"}))
 
 
+class TestWebSocketRouting:
+    def test_candle_interval_is_part_of_route_key(self):
+        from basana.external.hyperliquid import websockets
+
+        assert (
+            websockets.WebSocketClient._message_to_registered_channel("candle", {"coin": "ETH", "interval": "1h"})
+            == "candle:ETH:1h"
+        )
+        assert (
+            websockets.WebSocketClient._message_to_registered_channel("candle", {"coin": "ETH", "interval": "5m"})
+            == "candle:ETH:5m"
+        )
+
+
 # ---------------------------------------------------------------------------
 # Lifecycle
 # ---------------------------------------------------------------------------
 
+
 class TestLifecycle:
     def test_perps_account_accessible(self, exchange):
         from basana.external.hyperliquid.perps import Account
+
         assert isinstance(exchange.perps_account, Account)
 
 
