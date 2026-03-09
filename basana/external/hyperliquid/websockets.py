@@ -73,8 +73,10 @@ class WebSocketClient(core_ws.WebSocketClient):
     def __init__(
         self,
         session: Optional[aiohttp.ClientSession] = None,
-        config_overrides: dict = {},
+        config_overrides: Optional[dict] = None,
     ):
+        if config_overrides is None:
+            config_overrides = {}
         super().__init__(
             get_config_value(config.DEFAULTS, "api.websockets.base_url", overrides=config_overrides),
             session=session,

@@ -90,12 +90,14 @@ class Exchange:
         dispatcher: dispatcher.EventDispatcher,
         private_key: Optional[str] = None,
         session: Optional[aiohttp.ClientSession] = None,
-        config_overrides: dict = {},
+        config_overrides: Optional[dict] = None,
     ):
+        if config_overrides is None:
+            config_overrides = {}
         self._dispatcher = dispatcher
         self._cli = client.APIClient(private_key=private_key, config_overrides=config_overrides)
         self._ws = websockets.WebSocketClient(session=session, config_overrides=config_overrides)
-        self._perps = perps.Account(self._cli, self._ws)
+        self._perps = perps.Account(self._cli, self._ws, dispatcher)
         self._asset_info: Dict[str, AssetInfo] = {}
 
     # ------------------------------------------------------------------

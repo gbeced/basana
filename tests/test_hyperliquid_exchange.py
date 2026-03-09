@@ -192,3 +192,20 @@ class TestLifecycle:
     def test_perps_account_accessible(self, exchange):
         from basana.external.hyperliquid.perps import Account
         assert isinstance(exchange.perps_account, Account)
+
+
+class TestPerpsAccount:
+    def test_subscribe_to_fill_events_registers_handler(self, mock_api_client, mock_ws_client):
+        d = bs.realtime_dispatcher()
+        d.subscribe = MagicMock()
+        mock_api_client.address = "0xDEADBEEF"
+        mock_ws_client.get_channel_event_source.return_value = None
+        exchange = Exchange(dispatcher=d, private_key="0xdeadbeef")
+        handler = AsyncMock()
+
+        exchange.perps_account.subscribe_to_fill_events(handler)
+
+        mock_ws_client.set_channel_event_source.assert_called_once()
+        d.subscribe.assert_called_once()
+        subscribe_args = d.subscribe.call_args[0]
+        assert subscribe_args[1] is handler

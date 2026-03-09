@@ -19,6 +19,7 @@ from typing import Any, Awaitable, Callable, List, Optional
 import dataclasses
 import logging
 
+from basana.core import dispatcher
 from basana.core.enums import OrderOperation
 from . import client, websockets
 
@@ -71,9 +72,15 @@ class Account:
     :param ws_client: The WebSocket client.
     """
 
-    def __init__(self, api_client: client.APIClient, ws_client: websockets.WebSocketClient):
+    def __init__(
+        self,
+        api_client: client.APIClient,
+        ws_client: websockets.WebSocketClient,
+        event_dispatcher: dispatcher.EventDispatcher,
+    ):
         self._cli = api_client
         self._ws = ws_client
+        self._dispatcher = event_dispatcher
 
     # ------------------------------------------------------------------
     # Account state
@@ -133,7 +140,7 @@ class Account:
         """
         is_buy = operation == OrderOperation.BUY
         result = await self._cli.market_open(coin, is_buy, float(size), slippage)
-        return self._parse_order_result(result, coin)
+        return self._parse_order_result(result, coin, is_buy=is_buy)
 
     async def market_close(self, coin: str, size: Optional[Decimal] = None, slippage: float = 0.01) -> OrderInfo:
         """Close a position at market price.
@@ -163,7 +170,7 @@ class Account:
         """
         is_buy = operation == OrderOperation.BUY
         result = await self._cli.limit_order(coin, is_buy, float(size), float(limit_price), reduce_only)
-        return self._parse_order_result(result, coin)
+        return self._parse_order_result(result, coin, is_buy=is_buy)
 
     async def cancel_order(self, coin: str, oid: int) -> None:
         """Cancel order ``oid`` for ``coin``."""
@@ -191,22 +198,33 @@ class Account:
             raise client.Error("Private key required to subscribe to fill events")
 
         channel = websockets._user_fills_channel(self._cli.address)
-        event_source = websockets.RawEventSource(producer=self._ws)
-        self._ws.set_channel_event_source(channel, event_source)
+        event_source = self._ws.get_channel_event_source(channel)
+        if event_source is None:
+            event_source = websockets.RawEventSource(producer=self._ws)
+            self._ws.set_channel_event_source(channel, event_source)
+        self._dispatcher.subscribe(event_source, handler)
 
     # ------------------------------------------------------------------
     # Internal helpers
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _parse_order_result(result: dict, coin: str) -> OrderInfo:
+    def _parse_order_result(result: dict, coin: str, is_buy: Optional[bool] = None) -> OrderInfo:
         statuses = result.get("response", {}).get("data", {}).get("statuses", [{}])
         s = statuses[0] if statuses else {}
         filled = s.get("filled", {})
+        if is_buy is None:
+            side = filled.get("side") or s.get("side")
+            if side == "B":
+                is_buy = True
+            elif side == "A":
+                is_buy = False
+            else:
+                is_buy = False
         return OrderInfo(
             oid=filled.get("oid", 0),
             coin=coin,
-            is_buy=True,
+            is_buy=is_buy,
             size=Decimal(str(filled.get("totalSz", "0"))),
             limit_price=None,
             filled=Decimal(str(filled.get("totalSz", "0"))),

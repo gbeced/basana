@@ -15,10 +15,12 @@
 # limitations under the License.
 
 import asyncio
+from decimal import Decimal
 from unittest.mock import MagicMock, patch, AsyncMock
 import pytest
 
 from basana.external.hyperliquid.client.rest import APIClient, Error
+from basana.external.hyperliquid.perps import Account
 
 
 # ---------------------------------------------------------------------------
@@ -163,3 +165,35 @@ class TestAuthenticatedEndpoints:
     def test_address_none_without_key(self, mock_info):
         cli = APIClient()
         assert cli.address is None
+
+
+class TestOrderResultParsing:
+    def test_parse_order_result_preserves_buy_side(self):
+        order = Account._parse_order_result(
+            {
+                "response": {
+                    "data": {
+                        "statuses": [{"filled": {"oid": 7, "totalSz": "0.5", "side": "B"}}]
+                    }
+                }
+            },
+            "ETH",
+            is_buy=True,
+        )
+        assert order.is_buy is True
+        assert order.filled == Decimal("0.5")
+
+    def test_parse_order_result_preserves_sell_side(self):
+        order = Account._parse_order_result(
+            {
+                "response": {
+                    "data": {
+                        "statuses": [{"filled": {"oid": 8, "totalSz": "0.25", "side": "A"}}]
+                    }
+                }
+            },
+            "ETH",
+            is_buy=False,
+        )
+        assert order.is_buy is False
+        assert order.filled == Decimal("0.25")

@@ -50,8 +50,10 @@ class APIClient:
     def __init__(
         self,
         private_key: Optional[str] = None,
-        config_overrides: dict = {},
+        config_overrides: Optional[dict] = None,
     ):
+        if config_overrides is None:
+            config_overrides = {}
         base_url = get_config_value(config.DEFAULTS, "api.http.base_url", overrides=config_overrides).rstrip("/")
         self._info = Info(base_url, skip_ws=True)
         self._wallet: Optional[Any] = None
@@ -206,5 +208,5 @@ class APIClient:
     @staticmethod
     async def _run(fn, *args) -> Any:
         """Run a blocking SDK call in the default thread pool executor."""
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         return await loop.run_in_executor(None, functools.partial(fn, *args))

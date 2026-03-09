@@ -22,6 +22,13 @@
 $ pip install basana[charts]
 ```
 
+If you want to use the Hyperliquid connector as well, install the additional
+exchange dependencies:
+
+```
+$ pip install hyperliquid-python-sdk eth-account
+```
+
 The examples use [TALIpp](https://github.com/nardew/talipp) for the technical indicators, pandas, statsmodels and also [Textual](https://textual.textualize.io/) if you want to run the Binance order book mirror.
 
 ```
