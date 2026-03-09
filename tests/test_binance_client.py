@@ -29,14 +29,17 @@ def binance_http_api_mock():
         yield m
 
 
-@pytest.mark.parametrize("status_code, response_body, expected", [
-    (403, {}, "403 Forbidden"),
-    (
-        400,
-        {"code": -1022, "msg": "Signature for this request is not valid."},
-        "Signature for this request is not valid."
-    ),
-])
+@pytest.mark.parametrize(
+    "status_code, response_body, expected",
+    [
+        (403, {}, "403 Forbidden"),
+        (
+            400,
+            {"code": -1022, "msg": "Signature for this request is not valid."},
+            "Signature for this request is not valid.",
+        ),
+    ],
+)
 def test_error_parsing(status_code, response_body, expected, binance_http_api_mock):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/api/v3/account\\?.*"), status=status_code, payload=response_body

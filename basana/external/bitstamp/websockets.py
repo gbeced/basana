@@ -35,8 +35,9 @@ class WebSocketClient(core_ws.WebSocketClient):
     def __init__(self, session: Optional[aiohttp.ClientSession] = None, config_overrides: dict = {}):
         super().__init__(
             get_config_value(config.DEFAULTS, "api.websockets.base_url", overrides=config_overrides),
-            session=session, config_overrides=config_overrides,
-            heartbeat=get_config_value(config.DEFAULTS, "api.websockets.heartbeat", overrides=config_overrides)
+            session=session,
+            config_overrides=config_overrides,
+            heartbeat=get_config_value(config.DEFAULTS, "api.websockets.heartbeat", overrides=config_overrides),
         )
 
     async def handle_message(self, message: dict) -> bool:
@@ -51,14 +52,16 @@ class WebSocketClient(core_ws.WebSocketClient):
                 "bts:subscription_succeeded": self._on_bts_subscription_succeeded,
                 "bts:error": self.on_error,
                 "bts:subscription_failed": self.on_error,
-            }.get(event)
+            }.get(event),
         )
         if message_handler:
             coro = message_handler(message)
         # Is it a channel message ?
-        elif event in CHANNEL_EVENTS \
-                and (channel := message.get("channel")) \
-                and (event_source := self.get_channel_event_source(channel)):
+        elif (
+            event in CHANNEL_EVENTS
+            and (channel := message.get("channel"))
+            and (event_source := self.get_channel_event_source(channel))
+        ):
             coro = event_source.push_from_message(message)
 
         ret = False
@@ -81,21 +84,21 @@ class PublicWebSocketClient(WebSocketClient):
 
     async def subscribe_to_channels(self, channels: List[str], ws_cli: aiohttp.ClientWebSocketResponse):
         logger.debug(logs.StructuredMessage("Subscribing", src=self, channels=channels))
-        await asyncio.gather(*[
-            ws_cli.send_str(json.dumps({
-                "event": "bts:subscribe",
-                "data": {
-                    "channel": channel
-                }
-            }))
-            for channel in channels
-        ])
+        await asyncio.gather(
+            *[
+                ws_cli.send_str(json.dumps({"event": "bts:subscribe", "data": {"channel": channel}}))
+                for channel in channels
+            ]
+        )
 
 
 class PrivateWebSocketClient(WebSocketClient):
     def __init__(
-            self, api_key: str, api_secret: str, session: Optional[aiohttp.ClientSession] = None,
-            config_overrides: dict = {}
+        self,
+        api_key: str,
+        api_secret: str,
+        session: Optional[aiohttp.ClientSession] = None,
+        config_overrides: dict = {},
     ):
         super().__init__(session=session, config_overrides=config_overrides)
         self._client = client.APIClient(api_key, api_secret, session=session, config_overrides=config_overrides)
@@ -105,13 +108,19 @@ class PrivateWebSocketClient(WebSocketClient):
         logger.debug(logs.StructuredMessage("Authenticating", src=self))
         websockets_token = await self._client.get_websocket_auth_token()
 
-        await asyncio.gather(*[
-            ws_cli.send_str(json.dumps({
-                "event": "bts:subscribe",
-                "data": {
-                    "auth": websockets_token["token"],
-                    "channel": "{}-{}".format(channel, websockets_token["user_id"])
-                }
-            }))
-            for channel in channels
-        ])
+        await asyncio.gather(
+            *[
+                ws_cli.send_str(
+                    json.dumps(
+                        {
+                            "event": "bts:subscribe",
+                            "data": {
+                                "auth": websockets_token["token"],
+                                "channel": "{}-{}".format(channel, websockets_token["user_id"]),
+                            },
+                        }
+                    )
+                )
+                for channel in channels
+            ]
+        )

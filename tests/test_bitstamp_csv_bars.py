@@ -25,10 +25,13 @@ from basana.core.pair import Pair
 from basana.external.bitstamp.csv import bars as csv_bars
 
 
-@pytest.mark.parametrize("filename", [
-    "bitstamp_btcusd_day_2015.csv",
-    "bitstamp_btcusd_day_2015.csv.utf16",
-])
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "bitstamp_btcusd_day_2015.csv",
+        "bitstamp_btcusd_day_2015.csv.utf16",
+    ],
+)
 def test_daily_bars_from_csv(filename, backtesting_dispatcher):
     bars = []
     events = []

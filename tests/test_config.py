@@ -26,17 +26,20 @@ CONFIG_VALUES = {
         },
         "websockets": {
             "base_url": "wss://ws.bitstamp.net/",
-        }
+        },
     }
 }
 
 
-@pytest.mark.parametrize("path, default, overrides, expected", [
-    ("api.http", None, {}, {"base_url": "https://www.bitstamp.net/"}),
-    ("api.http.base_url", "http://google.com/", {}, "https://www.bitstamp.net/"),
-    ("api.websockets.timeout", 10, {}, 10),
-    ("api.timeout", 10, {}, 10),
-    ("api.timeout", 10, {"api": {"timeout": 50}}, 50),
-])
+@pytest.mark.parametrize(
+    "path, default, overrides, expected",
+    [
+        ("api.http", None, {}, {"base_url": "https://www.bitstamp.net/"}),
+        ("api.http.base_url", "http://google.com/", {}, "https://www.bitstamp.net/"),
+        ("api.websockets.timeout", 10, {}, 10),
+        ("api.timeout", 10, {}, 10),
+        ("api.timeout", 10, {"api": {"timeout": 50}}, 50),
+    ],
+)
 def test_get_config_value(path, default, overrides, expected):
     assert get_config_value(CONFIG_VALUES, path, default=default, overrides=overrides) == expected

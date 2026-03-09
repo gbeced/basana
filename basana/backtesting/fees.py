@@ -30,9 +30,7 @@ class FeeStrategy(metaclass=abc.ABCMeta):
     """
 
     @abc.abstractmethod
-    def calculate_fees(
-            self, order: orders.Order, balance_updates: Dict[str, Decimal]
-    ) -> Dict[str, Decimal]:
+    def calculate_fees(self, order: orders.Order, balance_updates: Dict[str, Decimal]) -> Dict[str, Decimal]:
         raise NotImplementedError()
 
 

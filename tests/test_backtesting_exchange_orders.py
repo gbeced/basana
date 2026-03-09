@@ -24,8 +24,7 @@ import pytest
 
 from .helpers import abs_data_path
 from .common import orcl_pair, aapl_pair, orcl_pair_info, btc_pair, btc_pair_info
-from .backtesting_exchange_orders_test_data import \
-    test_order_requests_data, test_invalid_requests_data
+from .backtesting_exchange_orders_test_data import test_order_requests_data, test_invalid_requests_data
 from basana.backtesting import errors, exchange, fees, requests
 from basana.core import bar, dt, event, helpers
 from basana.core.enums import OrderOperation
@@ -41,7 +40,7 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
             "BTC": Decimal("2"),
             "ETH": Decimal("0"),
             "USD": Decimal("50000"),
-        }
+        },
     )
     order_events = []
     bar_events = []
@@ -94,16 +93,23 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
         e.subscribe_to_order_events(on_order_updated)
 
         e.add_bar_source(
-            event.FifoQueueEventSource(events=[
-                bar.BarEvent(
-                    dt.local_datetime(2001, 1, 3),
-                    bar.Bar(
-                        dt.local_datetime(2001, 1, 2), btc_pair,
-                        Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal(100),
-                        datetime.timedelta(days=1)
-                    )
-                ),
-            ])
+            event.FifoQueueEventSource(
+                events=[
+                    bar.BarEvent(
+                        dt.local_datetime(2001, 1, 3),
+                        bar.Bar(
+                            dt.local_datetime(2001, 1, 2),
+                            btc_pair,
+                            Decimal(5),
+                            Decimal(10),
+                            Decimal(1),
+                            Decimal(5),
+                            Decimal(100),
+                            datetime.timedelta(days=1),
+                        ),
+                    ),
+                ]
+            )
         )
 
         await backtesting_dispatcher.run()
@@ -117,10 +123,7 @@ def test_create_get_and_cancel_order(backtesting_dispatcher):
 
 
 def test_order_updates_have_priority(backtesting_dispatcher):
-    e = exchange.Exchange(
-        backtesting_dispatcher,
-        {"USD": Decimal("50000")}
-    )
+    e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal("50000")})
     order_events = []
     bar_events = []
     all_events = []
@@ -138,16 +141,23 @@ def test_order_updates_have_priority(backtesting_dispatcher):
         e.subscribe_to_order_events(on_order_updated)
 
         e.add_bar_source(
-            event.FifoQueueEventSource(events=[
-                bar.BarEvent(
-                    dt.local_datetime(2001, 1, 3),
-                    bar.Bar(
-                        dt.local_datetime(2001, 1, 2), btc_pair,
-                        Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal(100),
-                        datetime.timedelta(days=1)
-                    )
-                ),
-            ])
+            event.FifoQueueEventSource(
+                events=[
+                    bar.BarEvent(
+                        dt.local_datetime(2001, 1, 3),
+                        bar.Bar(
+                            dt.local_datetime(2001, 1, 2),
+                            btc_pair,
+                            Decimal(5),
+                            Decimal(10),
+                            Decimal(1),
+                            Decimal(5),
+                            Decimal(100),
+                            datetime.timedelta(days=1),
+                        ),
+                    ),
+                ]
+            )
         )
 
         await e.create_limit_order(OrderOperation.BUY, btc_pair, Decimal(1), Decimal(10))
@@ -179,7 +189,7 @@ def test_open_orders(backtesting_dispatcher):
                 "BTC": Decimal("2"),
                 "ETH": Decimal("0"),
                 "USD": Decimal("50000"),
-            }
+            },
         )
 
         open_orders = await e.get_open_orders()
@@ -211,7 +221,7 @@ def test_cancel_inexistent_order(backtesting_dispatcher):
                 "BTC": Decimal("0"),
                 "ETH": Decimal("0"),
                 "USD": Decimal("1000"),
-            }
+            },
         )
         with pytest.raises(exchange.Error):
             await e.cancel_order("1234")
@@ -225,7 +235,7 @@ def test_order_requests(order_plan, immediate_order_processing, backtesting_disp
         backtesting_dispatcher,
         {"USD": Decimal("1e6")},
         fee_strategy=fees.Percentage(percentage=Decimal("0.25")),
-        immediate_order_processing=immediate_order_processing
+        immediate_order_processing=immediate_order_processing,
     )
     expected = {}
     order_events = defaultdict(list)
@@ -248,48 +258,70 @@ def test_order_requests(order_plan, immediate_order_processing, backtesting_disp
         e.add_bar_source(bars.CSVBarSource(orcl_pair, abs_data_path("orcl-2000-yahoo-sorted.csv")))
 
         # AAPL bars.
-        src = event.FifoQueueEventSource(events=[
-            bar.BarEvent(
-                dt.local_datetime(2001, 1, 3),
-                bar.Bar(
-                    dt.local_datetime(2001, 1, 2), aapl_pair,
-                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100"),
-                    datetime.timedelta(days=1)
-                )
-            ),
-            bar.BarEvent(
-                dt.local_datetime(2001, 1, 4),
-                bar.Bar(
-                    dt.local_datetime(2001, 1, 3), aapl_pair,
-                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100"),
-                    datetime.timedelta(days=1)
-                )
-            ),
-            bar.BarEvent(
-                dt.local_datetime(2001, 1, 5),
-                bar.Bar(
-                    dt.local_datetime(2001, 1, 4), aapl_pair,
-                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100"),
-                    datetime.timedelta(days=1)
-                )
-            ),
-            bar.BarEvent(
-                dt.local_datetime(2001, 1, 6),
-                bar.Bar(
-                    dt.local_datetime(2001, 1, 5), aapl_pair,
-                    Decimal(5), Decimal(10), Decimal(1), Decimal(5), Decimal("100"),
-                    datetime.timedelta(days=1)
-                )
-            ),
-            # bar.BarEvent(
-            #     dt.local_datetime(2001, 1, 7),
-            #     bar.Bar(
-            #         dt.local_datetime(2001, 1, 6), aapl_p,
-            #         Decimal(500), Decimal(1000), Decimal(100), Decimal(500), Decimal("10000"),
-            #         datetime.timedelta(days=1)
-            #     )
-            # ),
-        ])
+        src = event.FifoQueueEventSource(
+            events=[
+                bar.BarEvent(
+                    dt.local_datetime(2001, 1, 3),
+                    bar.Bar(
+                        dt.local_datetime(2001, 1, 2),
+                        aapl_pair,
+                        Decimal(5),
+                        Decimal(10),
+                        Decimal(1),
+                        Decimal(5),
+                        Decimal("100"),
+                        datetime.timedelta(days=1),
+                    ),
+                ),
+                bar.BarEvent(
+                    dt.local_datetime(2001, 1, 4),
+                    bar.Bar(
+                        dt.local_datetime(2001, 1, 3),
+                        aapl_pair,
+                        Decimal(5),
+                        Decimal(10),
+                        Decimal(1),
+                        Decimal(5),
+                        Decimal("100"),
+                        datetime.timedelta(days=1),
+                    ),
+                ),
+                bar.BarEvent(
+                    dt.local_datetime(2001, 1, 5),
+                    bar.Bar(
+                        dt.local_datetime(2001, 1, 4),
+                        aapl_pair,
+                        Decimal(5),
+                        Decimal(10),
+                        Decimal(1),
+                        Decimal(5),
+                        Decimal("100"),
+                        datetime.timedelta(days=1),
+                    ),
+                ),
+                bar.BarEvent(
+                    dt.local_datetime(2001, 1, 6),
+                    bar.Bar(
+                        dt.local_datetime(2001, 1, 5),
+                        aapl_pair,
+                        Decimal(5),
+                        Decimal(10),
+                        Decimal(1),
+                        Decimal(5),
+                        Decimal("100"),
+                        datetime.timedelta(days=1),
+                    ),
+                ),
+                # bar.BarEvent(
+                #     dt.local_datetime(2001, 1, 7),
+                #     bar.Bar(
+                #         dt.local_datetime(2001, 1, 6), aapl_p,
+                #         Decimal(500), Decimal(1000), Decimal(100), Decimal(500), Decimal("10000"),
+                #         datetime.timedelta(days=1)
+                #     )
+                # ),
+            ]
+        )
         e.add_bar_source(src)
 
         e.subscribe_to_bar_events(orcl_pair, on_bar)
@@ -336,7 +368,7 @@ def test_invalid_requests(order_request, backtesting_dispatcher):
         {
             "USD": Decimal("1e6"),
         },
-        fee_strategy=fees.Percentage(percentage=Decimal("0.25"))
+        fee_strategy=fees.Percentage(percentage=Decimal("0.25")),
     )
     e.set_pair_info(btc_pair, btc_pair_info)
 
@@ -351,26 +383,27 @@ def test_invalid_requests(order_request, backtesting_dispatcher):
     asyncio.run(impl())
 
 
-@pytest.mark.parametrize("order_request", [
-    requests.MarketOrder(OrderOperation.SELL, orcl_pair, orcl_pair_info, Decimal(1)),
-    requests.LimitOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1000), Decimal("1")),
-    requests.LimitOrder(OrderOperation.SELL, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1")),
-    requests.StopOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1000), Decimal("1")),
-    requests.StopOrder(OrderOperation.SELL, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1")),
-    requests.StopLimitOrder(
-        OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1000), Decimal("1"), Decimal("1")
-    ),
-    requests.StopLimitOrder(
-        OrderOperation.SELL, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1"), Decimal("1")
-    ),
-])
+@pytest.mark.parametrize(
+    "order_request",
+    [
+        requests.MarketOrder(OrderOperation.SELL, orcl_pair, orcl_pair_info, Decimal(1)),
+        requests.LimitOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1000), Decimal("1")),
+        requests.LimitOrder(OrderOperation.SELL, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1")),
+        requests.StopOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1000), Decimal("1")),
+        requests.StopOrder(OrderOperation.SELL, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1")),
+        requests.StopLimitOrder(
+            OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1000), Decimal("1"), Decimal("1")
+        ),
+        requests.StopLimitOrder(OrderOperation.SELL, orcl_pair, orcl_pair_info, Decimal(1), Decimal("1"), Decimal("1")),
+    ],
+)
 def test_not_enough_balance(order_request, backtesting_dispatcher):
     e = exchange.Exchange(
         backtesting_dispatcher,
         {
             "USD": Decimal("1e3"),
         },
-        fee_strategy=fees.Percentage(percentage=Decimal("0.25"))
+        fee_strategy=fees.Percentage(percentage=Decimal("0.25")),
     )
     e.set_pair_info(order_request.pair, orcl_pair_info)
 
@@ -388,24 +421,38 @@ def test_not_enough_balance(order_request, backtesting_dispatcher):
 def test_small_fill_is_ignored_after_rounding(backtesting_dispatcher):
     e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal("1e6")})
 
-    bs = event.FifoQueueEventSource(events=[
-        # This one should be ignored since quote amount should be removed after rounding.
-        bar.BarEvent(
-            dt.local_datetime(2000, 1, 3, 23, 59, 59),
-            bar.Bar(
-                dt.local_datetime(2000, 1, 3), btc_pair, Decimal(1), Decimal(1), Decimal(1), Decimal(1),
-                Decimal("0.01"), datetime.timedelta(days=1)
-            )
-        ),
-        # This one should be used during fill.
-        bar.BarEvent(
-            dt.local_datetime(2000, 1, 4, 23, 59, 59),
-            bar.Bar(
-                dt.local_datetime(2000, 1, 4), btc_pair, Decimal(2), Decimal(2), Decimal(2), Decimal(2), Decimal(10),
-                datetime.timedelta(days=1)
-            )
-        )
-    ])
+    bs = event.FifoQueueEventSource(
+        events=[
+            # This one should be ignored since quote amount should be removed after rounding.
+            bar.BarEvent(
+                dt.local_datetime(2000, 1, 3, 23, 59, 59),
+                bar.Bar(
+                    dt.local_datetime(2000, 1, 3),
+                    btc_pair,
+                    Decimal(1),
+                    Decimal(1),
+                    Decimal(1),
+                    Decimal(1),
+                    Decimal("0.01"),
+                    datetime.timedelta(days=1),
+                ),
+            ),
+            # This one should be used during fill.
+            bar.BarEvent(
+                dt.local_datetime(2000, 1, 4, 23, 59, 59),
+                bar.Bar(
+                    dt.local_datetime(2000, 1, 4),
+                    btc_pair,
+                    Decimal(2),
+                    Decimal(2),
+                    Decimal(2),
+                    Decimal(2),
+                    Decimal(10),
+                    datetime.timedelta(days=1),
+                ),
+            ),
+        ]
+    )
     e.add_bar_source(bs)
     e.set_pair_info(btc_pair, btc_pair_info)
 
@@ -432,34 +479,39 @@ def test_small_fill_is_ignored_after_rounding(backtesting_dispatcher):
 
 
 def test_liquidity_is_exhausted_and_order_is_canceled(backtesting_dispatcher):
-    e = exchange.Exchange(
-        backtesting_dispatcher,
-        {
-            "USD": Decimal("1e12")
-        }
-    )
+    e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal("1e12")})
 
     async def impl():
-        bs = event.FifoQueueEventSource(events=[
-            bar.BarEvent(
-                dt.local_datetime(2000, 1, 3, 23, 59, 59),
-                bar.Bar(
-                    dt.local_datetime(2000, 1, 3), orcl_pair,
-                    Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"),
-                    Decimal("98122000"),
-                    datetime.timedelta(days=1)
-                )
-            ),
-            bar.BarEvent(
-                dt.local_datetime(2000, 1, 7, 23, 59, 59),
-                bar.Bar(
-                    dt.local_datetime(2000, 1, 7), orcl_pair,
-                    Decimal("95.00"), Decimal("103.50"), Decimal("93.56"), Decimal("103.37"),
-                    Decimal("91775600"),
-                    datetime.timedelta(days=1)
-                )
-            ),
-        ])
+        bs = event.FifoQueueEventSource(
+            events=[
+                bar.BarEvent(
+                    dt.local_datetime(2000, 1, 3, 23, 59, 59),
+                    bar.Bar(
+                        dt.local_datetime(2000, 1, 3),
+                        orcl_pair,
+                        Decimal("124.62"),
+                        Decimal("125.19"),
+                        Decimal("111.62"),
+                        Decimal("118.12"),
+                        Decimal("98122000"),
+                        datetime.timedelta(days=1),
+                    ),
+                ),
+                bar.BarEvent(
+                    dt.local_datetime(2000, 1, 7, 23, 59, 59),
+                    bar.Bar(
+                        dt.local_datetime(2000, 1, 7),
+                        orcl_pair,
+                        Decimal("95.00"),
+                        Decimal("103.50"),
+                        Decimal("93.56"),
+                        Decimal("103.37"),
+                        Decimal("91775600"),
+                        datetime.timedelta(days=1),
+                    ),
+                ),
+            ]
+        )
         e.add_bar_source(bs)
 
         # Should get filled in the first bar.
@@ -495,12 +547,7 @@ def test_liquidity_is_exhausted_and_order_is_canceled(backtesting_dispatcher):
 
 def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
     async def impl():
-        e = exchange.Exchange(
-            backtesting_dispatcher,
-            {
-                "USD": Decimal(1000)
-            }
-        )
+        e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal(1000)})
 
         created_order_1 = await e.create_order(
             requests.LimitOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal(750))
@@ -509,17 +556,17 @@ def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
         assert (await e.get_balance("USD")).available == Decimal(250)
         assert (await e.get_balance("USD")).hold == Decimal(750)
 
-        created_order_2 = await e.create_order(requests.LimitOrder(
-            OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal(200)
-        ))
+        created_order_2 = await e.create_order(
+            requests.LimitOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal(1), Decimal(200))
+        )
         assert (await e.get_balance("ORCL")).available == Decimal(0)
         assert (await e.get_balance("USD")).available == Decimal(50)
         assert (await e.get_balance("USD")).hold == Decimal(950)
 
         with pytest.raises(exchange.Error):
-            await e.create_order(requests.LimitOrder(
-                OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal("1"), Decimal(760)
-            ))
+            await e.create_order(
+                requests.LimitOrder(OrderOperation.BUY, orcl_pair, orcl_pair_info, Decimal("1"), Decimal(760))
+            )
 
         await e.cancel_order(created_order_2.id)
         assert (await e.get_balance("ORCL")).available == Decimal(0)

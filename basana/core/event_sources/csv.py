@@ -32,13 +32,13 @@ from basana.core import event
 
 
 @contextlib.contextmanager
-def open_file_with_detected_encoding(filename, default_encoding='utf-8'):
-    with open(filename, 'rb') as file:
+def open_file_with_detected_encoding(filename, default_encoding="utf-8"):
+    with open(filename, "rb") as file:
         raw = file.read(4)  # Read enough bytes to detect BOMs
 
     boms = [
-        (codecs.BOM_UTF32_LE, 'utf-32-le'),
-        (codecs.BOM_UTF32_BE, 'utf-32-be'),
+        (codecs.BOM_UTF32_LE, "utf-32-le"),
+        (codecs.BOM_UTF32_BE, "utf-32-be"),
         (codecs.BOM_UTF16_LE, "utf-16-le"),
         (codecs.BOM_UTF16_BE, "utf-16-be"),
         (codecs.BOM_UTF8, "utf-8-sig"),
@@ -52,7 +52,7 @@ def open_file_with_detected_encoding(filename, default_encoding='utf-8'):
             break
 
     # Re-open the file with the detected encoding and skip the bom.
-    f = open(filename, 'r', encoding=encoding)
+    f = open(filename, "r", encoding=encoding)
     if offset:
         f.seek(offset)
     yield f

@@ -45,35 +45,38 @@ def test_bars_from_trades(realtime_dispatcher):
             # Keep on sending trade events while the connection is open.
             while websocket.state == websockets.protocol.State.OPEN:
                 timestamp = time.time()
-                await websocket.send(json.dumps({
-                    "event": "trade",
-                    "channel": channel,
-                    "data": {
-                        "id": 246612672,
-                        "timestamp": str(int(timestamp)),
-                        "amount": 1,
-                        "amount_str": "1",
-                        "price": 1000,
-                        "price_str": "1000",
-                        "type": 0,
-                        "microtimestamp": str(int(timestamp * 1e6)),
-                        "buy_order_id": 1530834271539201,
-                        "sell_order_id": 1530834150440960
-                    }
-                }))
+                await websocket.send(
+                    json.dumps(
+                        {
+                            "event": "trade",
+                            "channel": channel,
+                            "data": {
+                                "id": 246612672,
+                                "timestamp": str(int(timestamp)),
+                                "amount": 1,
+                                "amount_str": "1",
+                                "price": 1000,
+                                "price_str": "1000",
+                                "type": 0,
+                                "microtimestamp": str(int(timestamp * 1e6)),
+                                "buy_order_id": 1530834271539201,
+                                "sell_order_id": 1530834150440960,
+                            },
+                        }
+                    )
+                )
                 await asyncio.sleep(0.4)
 
     async def test_main():
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
             e = exchange.Exchange(
-                realtime_dispatcher, "key", "secret",
+                realtime_dispatcher,
+                "key",
+                "secret",
                 config_overrides={
-                    "api": {
-                        "http": {"base_url": "http://bitstamp.mock/"},
-                        "websockets": {"base_url": ws_uri}
-                    }
-                }
+                    "api": {"http": {"base_url": "http://bitstamp.mock/"}, "websockets": {"base_url": ws_uri}}
+                },
             )
             e.subscribe_to_bar_events(p, 1, on_bar_event)
 

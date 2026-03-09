@@ -34,7 +34,7 @@ from basana.core import pair, event, bar
 
 
 def adjust_ohlc(
-        open: Decimal, high: Decimal, low: Decimal, close: Decimal, adj_close: Decimal
+    open: Decimal, high: Decimal, low: Decimal, close: Decimal, adj_close: Decimal
 ) -> Tuple[Decimal, Decimal, Decimal, Decimal]:
     adj_factor = adj_close / close
     open *= adj_factor
@@ -44,9 +44,9 @@ def adjust_ohlc(
     return open, high, low, close
 
 
-def sanitize_ohlc(open: Decimal, high: Decimal, low: Decimal, close: Decimal) -> Tuple[
-    Decimal, Decimal, Decimal, Decimal
-]:
+def sanitize_ohlc(
+    open: Decimal, high: Decimal, low: Decimal, close: Decimal
+) -> Tuple[Decimal, Decimal, Decimal, Decimal]:
     if low > open:
         low = open
     if low > close:
@@ -60,8 +60,11 @@ def sanitize_ohlc(open: Decimal, high: Decimal, low: Decimal, close: Decimal) ->
 
 class RowParser(csv.RowParser):
     def __init__(
-            self, pair: pair.Pair, adjust_ohlc: bool = False, tzinfo: datetime.tzinfo = tz.tzlocal(),
-            timedelta: datetime.timedelta = datetime.timedelta(hours=24)
+        self,
+        pair: pair.Pair,
+        adjust_ohlc: bool = False,
+        tzinfo: datetime.tzinfo = tz.tzlocal(),
+        timedelta: datetime.timedelta = datetime.timedelta(hours=24),
     ):
         self.pair = pair
         self.tzinfo = tzinfo
@@ -72,7 +75,10 @@ class RowParser(csv.RowParser):
     def parse_row(self, row_dict: dict) -> Sequence[event.Event]:
         dt = datetime.datetime.strptime(row_dict["Date"], "%Y-%m-%d").replace(tzinfo=self.tzinfo)
         open, high, low, close = (
-            Decimal(row_dict["Open"]), Decimal(row_dict["High"]), Decimal(row_dict["Low"]), Decimal(row_dict["Close"])
+            Decimal(row_dict["Open"]),
+            Decimal(row_dict["High"]),
+            Decimal(row_dict["Low"]),
+            Decimal(row_dict["Close"]),
         )
         if self.sanitize:
             open, high, low, close = sanitize_ohlc(open, high, low, close)
@@ -82,17 +88,21 @@ class RowParser(csv.RowParser):
         return [
             bar.BarEvent(
                 dt + self.timedelta,
-                bar.Bar(dt, self.pair, open, high, low, close, Decimal(row_dict["Volume"]), self.timedelta)
+                bar.Bar(dt, self.pair, open, high, low, close, Decimal(row_dict["Volume"]), self.timedelta),
             )
         ]
 
 
 class CSVBarSource(csv.EventSource):
     def __init__(
-            self, pair: pair.Pair, csv_path: str, adjust_ohlc: bool = False, sort: bool = True,
-            tzinfo: datetime.tzinfo = tz.tzlocal(),
-            timedelta: datetime.timedelta = datetime.timedelta(hours=24),
-            dict_reader_kwargs: dict = {}
+        self,
+        pair: pair.Pair,
+        csv_path: str,
+        adjust_ohlc: bool = False,
+        sort: bool = True,
+        tzinfo: datetime.tzinfo = tz.tzlocal(),
+        timedelta: datetime.timedelta = datetime.timedelta(hours=24),
+        dict_reader_kwargs: dict = {},
     ):
         self.row_parser = RowParser(pair, adjust_ohlc=adjust_ohlc, tzinfo=tzinfo, timedelta=timedelta)
         super().__init__(csv_path, self.row_parser, sort=sort, dict_reader_kwargs=dict_reader_kwargs)

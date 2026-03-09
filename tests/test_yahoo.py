@@ -88,12 +88,12 @@ def test_multiple_sources(backtesting_dispatcher):
         events.append(event)
 
     src_1 = bars.CSVBarSource(
-        pair.Pair("ORCL", "USD"), helpers.abs_data_path("orcl-2000-yahoo-sorted.csv"), sort=False,
-        tzinfo=datetime.timezone.utc
+        pair.Pair("ORCL", "USD"),
+        helpers.abs_data_path("orcl-2000-yahoo-sorted.csv"),
+        sort=False,
+        tzinfo=datetime.timezone.utc,
     )
-    src_2 = bars.CSVBarSource(
-        pair.Pair("ORCL", "USD"), helpers.abs_data_path("orcl-2001-yahoo.csv"), adjust_ohlc=True
-    )
+    src_2 = bars.CSVBarSource(pair.Pair("ORCL", "USD"), helpers.abs_data_path("orcl-2001-yahoo.csv"), adjust_ohlc=True)
 
     backtesting_dispatcher.subscribe(src_1, add_bar)
     backtesting_dispatcher.subscribe(src_2, add_bar)

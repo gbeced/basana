@@ -38,6 +38,7 @@ class OrderBookDiff:
     An order book diff as described in
     https://developers.binance.com/docs/binance-spot-api-docs/web-socket-streams#diff-depth-stream
     """
+
     def __init__(self, pair: Pair, json: dict):
         assert json["e"] == "depthUpdate", "Invalid event type: {}".format(json["e"])
 
@@ -59,16 +60,12 @@ class OrderBookDiff:
     @property
     def bids(self) -> List[Entry]:
         """Bids to be updated."""
-        return [
-            Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["b"]
-        ]
+        return [Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["b"]]
 
     @property
     def asks(self) -> List[Entry]:
         """Asks to be updated."""
-        return [
-            Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["a"]
-        ]
+        return [Entry(price=Decimal(entry[0]), volume=Decimal(entry[1])) for entry in self.json["a"]]
 
 
 class OrderBookDiffEvent(event.Event):
@@ -78,6 +75,7 @@ class OrderBookDiffEvent(event.Event):
     :param when: The datetime when the event occurred. It must have timezone information set.
     :param order_book_diff: The order book diff.
     """
+
     def __init__(self, when: datetime.datetime, order_book_diff: OrderBookDiff):
         super().__init__(when)
         #: The order book diff.
@@ -93,10 +91,12 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
     async def push_from_message(self, message: dict):
         event = message["data"]
         diff = OrderBookDiff(self._pair, event)
-        self.push(OrderBookDiffEvent(
-            helpers.timestamp_to_datetime(int(event["E"])),  # Event time
-            diff
-        ))
+        self.push(
+            OrderBookDiffEvent(
+                helpers.timestamp_to_datetime(int(event["E"])),  # Event time
+                diff,
+            )
+        )
 
 
 def get_channel(pair: Pair, interval: int) -> str:

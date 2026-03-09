@@ -21,8 +21,19 @@ import dataclasses
 import logging
 import uuid
 
-from basana.backtesting import account_balances, config, errors, fees, lending, loan_mgr, liquidity, \
-    orders, order_mgr, prices, requests
+from basana.backtesting import (
+    account_balances,
+    config,
+    errors,
+    fees,
+    lending,
+    loan_mgr,
+    liquidity,
+    orders,
+    order_mgr,
+    prices,
+    requests,
+)
 from basana.core import bar, dispatcher, enums, event, logs
 from basana.core.pair import Pair, PairInfo
 from basana.backtesting.lending import base as lending_base
@@ -95,16 +106,17 @@ class Exchange:
     :param immediate_order_processing: If True, orders will be processed immediately after being added,
         using the closing price of the last bar available. If False, orders will be processed in the next bar event.
     """
+
     def __init__(
-            self,
-            dispatcher: dispatcher.BacktestingDispatcher,
-            initial_balances: Dict[str, Decimal],
-            liquidity_strategy_factory: LiquidityStrategyFactory = liquidity.VolumeShareImpact,
-            fee_strategy: fees.FeeStrategy = fees.NoFee(),
-            default_pair_info: Optional[PairInfo] = PairInfo(base_precision=0, quote_precision=2),
-            bid_ask_spread: Decimal = Decimal("0.5"),
-            lending_strategy: lending.LendingStrategy = lending.NoLoans(),
-            immediate_order_processing: bool = False
+        self,
+        dispatcher: dispatcher.BacktestingDispatcher,
+        initial_balances: Dict[str, Decimal],
+        liquidity_strategy_factory: LiquidityStrategyFactory = liquidity.VolumeShareImpact,
+        fee_strategy: fees.FeeStrategy = fees.NoFee(),
+        default_pair_info: Optional[PairInfo] = PairInfo(base_precision=0, quote_precision=2),
+        bid_ask_spread: Decimal = Decimal("0.5"),
+        lending_strategy: lending.LendingStrategy = lending.NoLoans(),
+        immediate_order_processing: bool = False,
     ):
         self._dispatcher = dispatcher
         self._balances = account_balances.AccountBalances(initial_balances)
@@ -114,19 +126,20 @@ class Exchange:
         self._loan_mgr = loan_mgr.LoanManager(
             lending_strategy,
             lending_base.ExchangeContext(
-                dispatcher=dispatcher,
-                account_balances=self._balances,
-                prices=self._prices,
-                config=self._config
-            )
+                dispatcher=dispatcher, account_balances=self._balances, prices=self._prices, config=self._config
+            ),
         )
         self._order_mgr = order_mgr.OrderManager(
             order_mgr.ExchangeContext(
-                dispatcher=dispatcher, account_balances=self._balances, prices=self._prices,
-                fee_strategy=fee_strategy, liquidity_strategy_factory=liquidity_strategy_factory,
-                loan_mgr=self._loan_mgr, config=self._config
+                dispatcher=dispatcher,
+                account_balances=self._balances,
+                prices=self._prices,
+                fee_strategy=fee_strategy,
+                liquidity_strategy_factory=liquidity_strategy_factory,
+                loan_mgr=self._loan_mgr,
+                config=self._config,
             ),
-            immediate_order_processing=immediate_order_processing
+            immediate_order_processing=immediate_order_processing,
         )
 
     async def get_balance(self, symbol: str) -> Balance:
@@ -167,16 +180,28 @@ class Exchange:
         logger.debug(logs.StructuredMessage("Request accepted", order_id=order.id))
         order_info = order.get_order_info()
         return CreatedOrder(
-            id=order_info.id, pair=order_info.pair, is_open=order_info.is_open, operation=order_info.operation,
-            amount=order_info.amount, amount_filled=order_info.amount_filled,
-            amount_remaining=order_info.amount_remaining, quote_amount_filled=order_info.quote_amount_filled,
-            fees=order_info.fees, limit_price=order_info.limit_price, stop_price=order_info.stop_price,
-            loan_ids=order_info.loan_ids, fills=order_info.fills,
+            id=order_info.id,
+            pair=order_info.pair,
+            is_open=order_info.is_open,
+            operation=order_info.operation,
+            amount=order_info.amount,
+            amount_filled=order_info.amount_filled,
+            amount_remaining=order_info.amount_remaining,
+            quote_amount_filled=order_info.quote_amount_filled,
+            fees=order_info.fees,
+            limit_price=order_info.limit_price,
+            stop_price=order_info.stop_price,
+            loan_ids=order_info.loan_ids,
+            fills=order_info.fills,
         )
 
     async def create_market_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, auto_borrow: bool = False,
-            auto_repay: bool = False
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        auto_borrow: bool = False,
+        auto_repay: bool = False,
     ) -> CreatedOrder:
         """
         Creates a market order.
@@ -195,13 +220,18 @@ class Exchange:
         :param auto_repay: Automatically repay open loans once the order gets filled.
         """
         pair_info = self._get_pair_info(pair)
-        return await self.create_order(requests.MarketOrder(
-            operation, pair, pair_info, amount, auto_borrow=auto_borrow, auto_repay=auto_repay
-        ))
+        return await self.create_order(
+            requests.MarketOrder(operation, pair, pair_info, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
+        )
 
     async def create_limit_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            auto_borrow: bool = False, auto_repay: bool = False
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        limit_price: Decimal,
+        auto_borrow: bool = False,
+        auto_repay: bool = False,
     ) -> CreatedOrder:
         """
         Creates a limit order.
@@ -220,13 +250,20 @@ class Exchange:
         :param auto_repay: Automatically repay open loans once the order gets filled.
         """
         pair_info = self._get_pair_info(pair)
-        return await self.create_order(requests.LimitOrder(
-            operation, pair, pair_info, amount, limit_price, auto_borrow=auto_borrow, auto_repay=auto_repay
-        ))
+        return await self.create_order(
+            requests.LimitOrder(
+                operation, pair, pair_info, amount, limit_price, auto_borrow=auto_borrow, auto_repay=auto_repay
+            )
+        )
 
     async def create_stop_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
-            auto_borrow: bool = False, auto_repay: bool = False
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        stop_price: Decimal,
+        auto_borrow: bool = False,
+        auto_repay: bool = False,
     ) -> CreatedOrder:
         """
         Creates a stop order.
@@ -250,13 +287,21 @@ class Exchange:
         :param auto_repay: Automatically repay open loans once the order gets filled.
         """
         pair_info = self._get_pair_info(pair)
-        return await self.create_order(requests.StopOrder(
-            operation, pair, pair_info, amount, stop_price, auto_borrow=auto_borrow, auto_repay=auto_repay
-        ))
+        return await self.create_order(
+            requests.StopOrder(
+                operation, pair, pair_info, amount, stop_price, auto_borrow=auto_borrow, auto_repay=auto_repay
+            )
+        )
 
     async def create_stop_limit_order(
-            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal, limit_price: Decimal,
-            auto_borrow: bool = False, auto_repay: bool = False
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        amount: Decimal,
+        stop_price: Decimal,
+        limit_price: Decimal,
+        auto_borrow: bool = False,
+        auto_repay: bool = False,
     ) -> CreatedOrder:
         """
         Creates a stop limit order.
@@ -276,9 +321,18 @@ class Exchange:
         :param auto_repay: Automatically repay open loans once the order gets filled.
         """
         pair_info = self._get_pair_info(pair)
-        return await self.create_order(requests.StopLimitOrder(
-            operation, pair, pair_info, amount, stop_price, limit_price, auto_borrow=auto_borrow, auto_repay=auto_repay
-        ))
+        return await self.create_order(
+            requests.StopLimitOrder(
+                operation,
+                pair,
+                pair_info,
+                amount,
+                stop_price,
+                limit_price,
+                auto_borrow=auto_borrow,
+                auto_repay=auto_repay,
+            )
+        )
 
     async def cancel_order(self, order_id: str) -> CanceledOrder:
         """
@@ -312,12 +366,7 @@ class Exchange:
             returned.
         """
         return [
-            OpenOrder(
-                id=order.id,
-                operation=order.operation,
-                amount=order.amount,
-                amount_filled=order.amount_filled
-            )
+            OpenOrder(id=order.id, operation=order.operation, amount=order.amount, amount_filled=order.amount_filled)
             for order in self._order_mgr.get_open_orders()
             if pair is None or order.pair == pair
         ]
@@ -403,7 +452,7 @@ class Exchange:
         return self._loan_mgr.create_loan(symbol, amount)
 
     async def get_loans(
-            self, borrowed_symbol: Optional[str] = None, is_open: Optional[bool] = None
+        self, borrowed_symbol: Optional[str] = None, is_open: Optional[bool] = None
     ) -> List[lending.LoanInfo]:
         """
         Returns loans filtered by various conditions.
@@ -456,6 +505,4 @@ class Exchange:
         available = self._balances.get_available_balance(symbol)
         hold = self._balances.get_balance_on_hold(symbol)
         borrowed = self._balances.get_borrowed_balance(symbol)
-        return Balance(
-            available=available, hold=hold, borrowed=borrowed
-        )
+        return Balance(available=available, hold=hold, borrowed=borrowed)

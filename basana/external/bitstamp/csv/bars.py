@@ -25,8 +25,7 @@ from basana.external.common.csv.bars import RowParser
 
 
 period_to_timedelta = {
-    period_str: datetime.timedelta(seconds=period_secs)
-    for period_str, period_secs in period_to_step.items()
+    period_str: datetime.timedelta(seconds=period_secs) for period_str, period_secs in period_to_step.items()
 }
 
 
@@ -40,9 +39,13 @@ class BarPeriod(enum.Enum):
 
 class BarSource(csv.EventSource):
     def __init__(
-            self, pair: pair.Pair, csv_path: str, period: Union[str, BarPeriod],
-            sort: bool = False, tzinfo: datetime.tzinfo = datetime.timezone.utc,
-            dict_reader_kwargs: dict = {}
+        self,
+        pair: pair.Pair,
+        csv_path: str,
+        period: Union[str, BarPeriod],
+        sort: bool = False,
+        tzinfo: datetime.tzinfo = datetime.timezone.utc,
+        dict_reader_kwargs: dict = {},
     ):
         # TODO: Deprecate at v2.
         if isinstance(period, BarPeriod):

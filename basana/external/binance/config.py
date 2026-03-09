@@ -38,6 +38,6 @@ DEFAULTS = {
                     "heartbeat": 15 * 60,
                 },
             },
-        }
+        },
     }
 }

@@ -27,9 +27,14 @@ def test_infinite_liquidity():
     strat = liquidity.InfiniteLiquidity()
     strat.on_bar(
         bar.Bar(
-            dt.utc_now(), pair.Pair("BTC", "USD"),
-            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal("0.00000001"),
-            datetime.timedelta(seconds=1)
+            dt.utc_now(),
+            pair.Pair("BTC", "USD"),
+            Decimal("50000"),
+            Decimal("70000"),
+            Decimal("49900"),
+            Decimal("69999.07"),
+            Decimal("0.00000001"),
+            datetime.timedelta(seconds=1),
         )
     )
 
@@ -49,9 +54,14 @@ def test_volume_share_impact():
     strat = liquidity.VolumeShareImpact()
     strat.on_bar(
         bar.Bar(
-            dt.utc_now(), pair.Pair("BTC", "USD"),
-            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal("10000"),
-            datetime.timedelta(seconds=1)
+            dt.utc_now(),
+            pair.Pair("BTC", "USD"),
+            Decimal("50000"),
+            Decimal("70000"),
+            Decimal("49900"),
+            Decimal("69999.07"),
+            Decimal("10000"),
+            datetime.timedelta(seconds=1),
         )
     )
 
@@ -82,9 +92,14 @@ def test_volume_share_impact_without_liquidity():
     strat = liquidity.VolumeShareImpact()
     strat.on_bar(
         bar.Bar(
-            dt.utc_now(), pair.Pair("BTC", "USD"),
-            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal(0),
-            datetime.timedelta(seconds=1)
+            dt.utc_now(),
+            pair.Pair("BTC", "USD"),
+            Decimal("50000"),
+            Decimal("70000"),
+            Decimal("49900"),
+            Decimal("69999.07"),
+            Decimal(0),
+            datetime.timedelta(seconds=1),
         )
     )
 
@@ -106,9 +121,14 @@ def test_volume_share_impact_with_zero_price_impact():
     strat = liquidity.VolumeShareImpact(price_impact=Decimal(0))
     strat.on_bar(
         bar.Bar(
-            dt.utc_now(), pair.Pair("BTC", "USD"),
-            Decimal("50000"), Decimal("70000"), Decimal("49900"), Decimal("69999.07"), Decimal("100"),
-            datetime.timedelta(seconds=1)
+            dt.utc_now(),
+            pair.Pair("BTC", "USD"),
+            Decimal("50000"),
+            Decimal("70000"),
+            Decimal("49900"),
+            Decimal("69999.07"),
+            Decimal("100"),
+            datetime.timedelta(seconds=1),
         )
     )
 

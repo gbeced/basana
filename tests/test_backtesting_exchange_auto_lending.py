@@ -28,21 +28,15 @@ from basana.core.enums import OrderOperation
 from basana.core.pair import Pair, PairInfo
 
 
-def build_bar_source(
-        pair: Pair,
-        bar_duration: datetime.timedelta,
-        prices: List[Tuple[datetime.datetime, Decimal]]
-):
+def build_bar_source(pair: Pair, bar_duration: datetime.timedelta, prices: List[Tuple[datetime.datetime, Decimal]]):
     bs = event.FifoQueueEventSource()
     for bar_begin, price in prices:
-        bs.push(bar.BarEvent(
-            bar_begin + bar_duration,
-            bar.Bar(
-                bar_begin, pair,
-                price, price, price, price, Decimal("1e7"),
-                bar_duration
+        bs.push(
+            bar.BarEvent(
+                bar_begin + bar_duration,
+                bar.Bar(bar_begin, pair, price, price, price, price, Decimal("1e7"), bar_duration),
             )
-        ))
+        )
     return bs
 
 
@@ -51,65 +45,62 @@ def build_bar_source(
     [
         # Limit order buy.
         (
-            {
-                "BTC": Decimal(0),
-                "USD": Decimal("1000") + Decimal("12.5") + Decimal("1.09")
-            },
-            dt.local_datetime(2000, 1, 2), Decimal(1000),
-            dt.local_datetime(2000, 1, 3), Decimal(2000),
+            {"BTC": Decimal(0), "USD": Decimal("1000") + Decimal("12.5") + Decimal("1.09")},
+            dt.local_datetime(2000, 1, 2),
+            Decimal(1000),
+            dt.local_datetime(2000, 1, 3),
+            Decimal(2000),
             Decimal("5"),
-            {
-                "BTC": Decimal(0),
-                "USD": Decimal("1000") + Decimal("5000") - Decimal("25") - Decimal("1.1")
-            },
+            {"BTC": Decimal(0), "USD": Decimal("1000") + Decimal("5000") - Decimal("25") - Decimal("1.1")},
         ),
         # Limit order sell.
         (
-            {
-                "BTC": Decimal(0),
-                "USD": Decimal(1000)
-            },
-            dt.local_datetime(2000, 1, 4), Decimal(3000),
-            dt.local_datetime(2000, 1, 6), Decimal(1000),
+            {"BTC": Decimal(0), "USD": Decimal(1000)},
+            dt.local_datetime(2000, 1, 4),
+            Decimal(3000),
+            dt.local_datetime(2000, 1, 6),
+            Decimal(1000),
             Decimal("-1"),
             {
                 "BTC": Decimal(0),
-                "USD": Decimal("1000") + Decimal("2000") - Decimal("7.5") - Decimal("2.5") - Decimal("1")
+                "USD": Decimal("1000") + Decimal("2000") - Decimal("7.5") - Decimal("2.5") - Decimal("1"),
             },
         ),
         # Market order buy.
         (
-            {
-                "BTC": Decimal(0),
-                "USD": Decimal("1000") + Decimal("12.5") + Decimal("1.09")
-            },
-            dt.local_datetime(2000, 1, 2), None,
-            dt.local_datetime(2000, 1, 3), None,
+            {"BTC": Decimal(0), "USD": Decimal("1000") + Decimal("12.5") + Decimal("1.09")},
+            dt.local_datetime(2000, 1, 2),
+            None,
+            dt.local_datetime(2000, 1, 3),
+            None,
             Decimal("5"),
-            {
-                "BTC": Decimal(0),
-                "USD": Decimal("1000") + Decimal("5000") - Decimal("25") - Decimal("1.1")
-            },
+            {"BTC": Decimal(0), "USD": Decimal("1000") + Decimal("5000") - Decimal("25") - Decimal("1.1")},
         ),
         # Market order sell.
         (
-            {
-                "BTC": Decimal(0),
-                "USD": Decimal(1000)
-            },
-            dt.local_datetime(2000, 1, 4), None,
-            dt.local_datetime(2000, 1, 6), None,
+            {"BTC": Decimal(0), "USD": Decimal(1000)},
+            dt.local_datetime(2000, 1, 4),
+            None,
+            dt.local_datetime(2000, 1, 6),
+            None,
             Decimal("-1"),
             {
                 "BTC": Decimal(0),
-                "USD": Decimal("1000") + Decimal("2000") - Decimal("7.5") - Decimal("2.5") - Decimal("1")
+                "USD": Decimal("1000") + Decimal("2000") - Decimal("7.5") - Decimal("2.5") - Decimal("1"),
             },
         ),
-    ]
+    ],
 )
 def test_entry_and_exit_ok(
-        initial_balances, entry_dt, entry_limit_price, exit_dt, exit_limit_price, amount, final_balances,
-        backtesting_dispatcher, caplog
+    initial_balances,
+    entry_dt,
+    entry_limit_price,
+    exit_dt,
+    exit_limit_price,
+    amount,
+    final_balances,
+    backtesting_dispatcher,
+    caplog,
 ):
     caplog.set_level(0)
     pair = Pair("BTC", "USD")
@@ -117,16 +108,20 @@ def test_entry_and_exit_ok(
     exit_order = None
     # Should be able to open a position up to 5 times our initial balance.
     lending_strategy = margin.MarginLoans(
-        "USD", Decimal("0.2"),
+        "USD",
+        Decimal("0.2"),
         default_conditions=margin.MarginLoanConditions(
-            interest_symbol="USD", interest_percentage=Decimal(10), interest_period=datetime.timedelta(days=365),
+            interest_symbol="USD",
+            interest_percentage=Decimal(10),
+            interest_period=datetime.timedelta(days=365),
             min_interest=Decimal(1),
-        )
+        ),
     )
     e = exchange.Exchange(
-        backtesting_dispatcher, initial_balances,
+        backtesting_dispatcher,
+        initial_balances,
         fee_strategy=fees.Percentage(percentage=Decimal("0.25")),
-        lending_strategy=lending_strategy
+        lending_strategy=lending_strategy,
     )
 
     async def enter_position():
@@ -163,7 +158,8 @@ def test_entry_and_exit_ok(
 
         # Load bars
         bs = build_bar_source(
-            pair, datetime.timedelta(days=1),
+            pair,
+            datetime.timedelta(days=1),
             [
                 (dt.local_datetime(2000, 1, 1), Decimal(1000)),
                 (dt.local_datetime(2000, 1, 2), Decimal(1000)),
@@ -172,7 +168,7 @@ def test_entry_and_exit_ok(
                 (dt.local_datetime(2000, 1, 5), Decimal(2000)),
                 (dt.local_datetime(2000, 1, 6), Decimal(1000)),
                 (dt.local_datetime(2000, 1, 7), Decimal(800)),
-            ]
+            ],
         )
         e.add_bar_source(bs)
         await backtesting_dispatcher.run()
@@ -208,16 +204,20 @@ def test_rollback_if_borrowing_fails(backtesting_dispatcher, caplog):
 
     # Should be able to borrow up to our initial balance.
     lending_strategy = margin.MarginLoans(
-        "USD", Decimal("0.5"),
+        "USD",
+        Decimal("0.5"),
         default_conditions=margin.MarginLoanConditions(
-            interest_symbol="USD", interest_percentage=Decimal(10), interest_period=datetime.timedelta(days=365),
-            min_interest=Decimal(1)
-        )
+            interest_symbol="USD",
+            interest_percentage=Decimal(10),
+            interest_period=datetime.timedelta(days=365),
+            min_interest=Decimal(1),
+        ),
     )
     e = exchange.Exchange(
-        backtesting_dispatcher, {"ETH": Decimal(1)},
+        backtesting_dispatcher,
+        {"ETH": Decimal(1)},
         fee_strategy=fees.Percentage(percentage=Decimal("0.25"), min_fee=Decimal("2001")),
-        lending_strategy=lending_strategy
+        lending_strategy=lending_strategy,
     )
 
     async def enter_position():
@@ -245,20 +245,22 @@ def test_rollback_if_borrowing_fails(backtesting_dispatcher, caplog):
         # Load BTC bars.
         e.add_bar_source(
             build_bar_source(
-                pair, datetime.timedelta(days=1),
+                pair,
+                datetime.timedelta(days=1),
                 [
                     (dt.local_datetime(2000, 1, 2), Decimal(1000)),
                     (dt.local_datetime(2000, 1, 3), Decimal(1000)),
-                ]
+                ],
             )
         )
         # This is just to get prices for ETH.
         e.add_bar_source(
             build_bar_source(
-                Pair("ETH", "USD"), datetime.timedelta(days=1),
+                Pair("ETH", "USD"),
+                datetime.timedelta(days=1),
                 [
                     (dt.local_datetime(2000, 1, 2), Decimal(1000)),
-                ]
+                ],
             )
         )
 
@@ -295,16 +297,20 @@ def test_repay_fails(backtesting_dispatcher, caplog):
     exit_order = None
     # Should be able to borrow up to our initial balance.
     lending_strategy = margin.MarginLoans(
-        "USD", Decimal("0.5"),
+        "USD",
+        Decimal("0.5"),
         default_conditions=margin.MarginLoanConditions(
-            interest_symbol="USD", interest_percentage=Decimal(10), interest_period=datetime.timedelta(days=365),
-            min_interest=Decimal(1)
-        )
+            interest_symbol="USD",
+            interest_percentage=Decimal(10),
+            interest_period=datetime.timedelta(days=365),
+            min_interest=Decimal(1),
+        ),
     )
     e = exchange.Exchange(
-        backtesting_dispatcher, {"BTC": Decimal(0), "USD": Decimal(1000)},
+        backtesting_dispatcher,
+        {"BTC": Decimal(0), "USD": Decimal(1000)},
         fee_strategy=fees.NoFee(),
-        lending_strategy=lending_strategy
+        lending_strategy=lending_strategy,
     )
     amount = Decimal("1.8")
 
@@ -332,12 +338,13 @@ def test_repay_fails(backtesting_dispatcher, caplog):
 
         # Load bars
         bs = build_bar_source(
-            pair, datetime.timedelta(days=1),
+            pair,
+            datetime.timedelta(days=1),
             [
                 (dt.local_datetime(2000, 1, 1), Decimal(1000)),
                 (dt.local_datetime(2000, 1, 2), Decimal(1000)),
                 (dt.local_datetime(2000, 1, 3), Decimal(10)),
-            ]
+            ],
         )
         e.add_bar_source(bs)
         await backtesting_dispatcher.run()

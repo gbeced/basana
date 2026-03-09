@@ -61,6 +61,7 @@ class CrossMarginUserDataChannel(websockets.Channel):
 
 class Account(margin.Account):
     """Cross margin account."""
+
     def __init__(self, cli: margin_client.CrossMarginAccount, ws_mgr: websocket_mgr.WebsocketManager):
         self._cli = cli
         self._ws_mgr = ws_mgr
@@ -104,9 +105,7 @@ class Account(margin.Account):
         """
 
         self._ws_mgr.subscribe_to_user_data_events(
-            CrossMarginUserDataChannel(),
-            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
-            event_handler
+            CrossMarginUserDataChannel(), lambda ws_cli: user_data.WebSocketEventSource(ws_cli), event_handler
         )
 
     def subscribe_to_order_events(self, event_handler: OrderEventHandler):
@@ -119,7 +118,5 @@ class Account(margin.Account):
         """
 
         self._ws_mgr.subscribe_to_order_events(
-            CrossMarginUserDataChannel(),
-            lambda ws_cli: user_data.WebSocketEventSource(ws_cli),
-            event_handler
+            CrossMarginUserDataChannel(), lambda ws_cli: user_data.WebSocketEventSource(ws_cli), event_handler
         )

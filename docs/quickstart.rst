@@ -57,7 +57,7 @@ There are two types of events taking place in this example:
 
 When a new bar is received by the strategy, a technical indicator will be fed using the bar's closing price. If the technical indicator
 is ready, the strategy will check the values to determine if a switch in position should take place, and in that case a trading signal
-will be pushed. 
+will be pushed.
 
 When the trading signal is received by the position manager, a buy or sell market order will be submitted to the exchange in order to open
 or close a position.

@@ -30,6 +30,9 @@ def binance_http_api_mock():
 @pytest.fixture()
 def binance_exchange(realtime_dispatcher):
     return exchange.Exchange(
-        realtime_dispatcher, "api_key", "api_secret", tb=token_bucket.TokenBucketLimiter(10, 1, 0),
-        config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+        realtime_dispatcher,
+        "api_key",
+        "api_secret",
+        tb=token_bucket.TokenBucketLimiter(10, 1, 0),
+        config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}},
     )

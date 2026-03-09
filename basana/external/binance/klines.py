@@ -30,8 +30,14 @@ class Bar(bar.Bar):
         start = helpers.timestamp_to_datetime(int(json["t"]))
         close = helpers.timestamp_to_datetime(int(json["T"]))
         super().__init__(
-            start, pair, Decimal(json["o"]), Decimal(json["h"]),
-            Decimal(json["l"]), Decimal(json["c"]), Decimal(json["v"]), close - start
+            start,
+            pair,
+            Decimal(json["o"]),
+            Decimal(json["h"]),
+            Decimal(json["l"]),
+            Decimal(json["c"]),
+            Decimal(json["v"]),
+            close - start,
         )
         self.pair: Pair = pair
         self.json: dict = json
@@ -49,10 +55,12 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         # Wait for the last update to the kline.
         if kline["x"] is False:
             return
-        self.push(bar.BarEvent(
-            helpers.timestamp_to_datetime(int(kline_event["E"])),  # Event time
-            Bar(self._pair, kline)
-        ))
+        self.push(
+            bar.BarEvent(
+                helpers.timestamp_to_datetime(int(kline_event["E"])),  # Event time
+                Bar(self._pair, kline),
+            )
+        )
 
 
 def get_channel(pair: Pair, interval: str) -> str:
