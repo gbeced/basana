@@ -57,15 +57,18 @@ class BarEventSource(websockets.RawEventSource):
 
     async def push_from_message(self, message: dict):
         try:
+            begin = helpers.timestamp_to_datetime(int(message["t"]))
             when = helpers.timestamp_to_datetime(int(message["T"]))
+            duration = when - begin
             b = bar.Bar(
-                when,
+                begin,
                 self._pair,
                 Decimal(str(message["o"])),
                 Decimal(str(message["h"])),
                 Decimal(str(message["l"])),
                 Decimal(str(message["c"])),
                 Decimal(str(message["v"])),
+                duration,
             )
             self.push(bar.BarEvent(when, b))
         except (KeyError, ValueError) as e:
