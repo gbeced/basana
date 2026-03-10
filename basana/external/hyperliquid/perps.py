@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Any, Awaitable, Callable, List, Optional
+from typing import Any, Awaitable, Callable, List, Optional, cast
 import dataclasses
 import logging
 
@@ -202,7 +202,7 @@ class Account:
         if event_source is None:
             event_source = websockets.RawEventSource(producer=self._ws)
             self._ws.set_channel_event_source(channel, event_source)
-        self._dispatcher.subscribe(event_source, handler)
+        self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, handler))
 
     # ------------------------------------------------------------------
     # Internal helpers

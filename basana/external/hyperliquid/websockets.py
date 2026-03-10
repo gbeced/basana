@@ -15,6 +15,7 @@
 # limitations under the License.
 
 from typing import Any, Awaitable, Callable, Dict, List, Optional
+import datetime
 import logging
 
 import aiohttp
@@ -49,6 +50,14 @@ def _user_fills_channel(address: str) -> str:
     return f"userFills:{address}"
 
 
+class RawEvent(event.Event):
+    """A raw Hyperliquid websocket payload wrapped as a Basana event."""
+
+    def __init__(self, message: dict):
+        super().__init__(datetime.datetime.now(datetime.timezone.utc))
+        self.message = message
+
+
 class RawEventSource(core_ws.ChannelEventSource):
     """Passes raw WebSocket message dicts through as events.
 
@@ -59,7 +68,7 @@ class RawEventSource(core_ws.ChannelEventSource):
         super().__init__(producer=producer)
 
     async def push_from_message(self, message: dict):
-        self.push(message)
+        self.push(RawEvent(message))
 
 
 class WebSocketClient(core_ws.WebSocketClient):

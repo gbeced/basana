@@ -14,14 +14,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 import asyncio
 import functools
 import logging
 
 import eth_account
-from hyperliquid.info import Info
-from hyperliquid.exchange import Exchange as HLExchange
+from hyperliquid.info import Info  # type: ignore[import-untyped]
+from hyperliquid.exchange import Exchange as HLExchange  # type: ignore[import-untyped]
 
 from basana.core.config import get_config_value
 from basana.external.hyperliquid import config
@@ -100,22 +100,26 @@ class APIClient:
     async def get_user_state(self) -> dict:
         """Return account state: balances, open positions, margin summary."""
         self._require_auth()
-        return await self._run(self._info.user_state, self._wallet.address)
+        wallet = cast(Any, self._wallet)
+        return await self._run(self._info.user_state, wallet.address)
 
     async def get_open_orders(self) -> List[dict]:
         """Return all open orders for this account."""
         self._require_auth()
-        return await self._run(self._info.open_orders, self._wallet.address)
+        wallet = cast(Any, self._wallet)
+        return await self._run(self._info.open_orders, wallet.address)
 
     async def get_order_status(self, oid: int) -> dict:
         """Return the status of order ``oid``."""
         self._require_auth()
-        return await self._run(self._info.query_order_by_oid, self._wallet.address, oid)
+        wallet = cast(Any, self._wallet)
+        return await self._run(self._info.query_order_by_oid, wallet.address, oid)
 
     async def get_user_fills(self, start_time: int) -> List[dict]:
         """Return trade fills since ``start_time`` (milliseconds)."""
         self._require_auth()
-        return await self._run(self._info.user_fills_by_time, self._wallet.address, start_time)
+        wallet = cast(Any, self._wallet)
+        return await self._run(self._info.user_fills_by_time, wallet.address, start_time)
 
     # ------------------------------------------------------------------
     # Trading (requires private key)
@@ -130,7 +134,8 @@ class APIClient:
         :param slippage: Maximum acceptable slippage (default 1 %).
         """
         self._require_auth()
-        result = await self._run(self._exchange.market_open, coin, is_buy, sz, None, slippage)
+        exchange = cast(Any, self._exchange)
+        result = await self._run(exchange.market_open, coin, is_buy, sz, None, slippage)
         self._check_result(result)
         return result
 
@@ -142,7 +147,8 @@ class APIClient:
         :param slippage: Maximum acceptable slippage (default 1 %).
         """
         self._require_auth()
-        result = await self._run(self._exchange.market_close, coin, sz, None, slippage)
+        exchange = cast(Any, self._exchange)
+        result = await self._run(exchange.market_close, coin, sz, None, slippage)
         self._check_result(result)
         return result
 
@@ -163,15 +169,17 @@ class APIClient:
         :param reduce_only: If ``True``, the order can only reduce an existing position.
         """
         self._require_auth()
+        exchange = cast(Any, self._exchange)
         order_type = {"limit": {"tif": "Gtc"}}
-        result = await self._run(self._exchange.order, coin, is_buy, sz, limit_px, order_type, reduce_only)
+        result = await self._run(exchange.order, coin, is_buy, sz, limit_px, order_type, reduce_only)
         self._check_result(result)
         return result
 
     async def cancel_order(self, coin: str, oid: int) -> dict:
         """Cancel order ``oid`` for ``coin``."""
         self._require_auth()
-        result = await self._run(self._exchange.cancel, coin, oid)
+        exchange = cast(Any, self._exchange)
+        result = await self._run(exchange.cancel, coin, oid)
         self._check_result(result)
         return result
 
@@ -183,7 +191,8 @@ class APIClient:
         :param is_cross: ``True`` for cross margin, ``False`` for isolated.
         """
         self._require_auth()
-        result = await self._run(self._exchange.update_leverage, leverage, coin, is_cross)
+        exchange = cast(Any, self._exchange)
+        result = await self._run(exchange.update_leverage, leverage, coin, is_cross)
         self._check_result(result)
         return result
 
