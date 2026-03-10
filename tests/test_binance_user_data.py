@@ -70,7 +70,7 @@ EXECUTION_REPORT_MSG = {
         "w": False,
         "x": "TRADE",
         "z": "0.00010000",
-    }
+    },
 }
 
 OTHER_MSG = {
@@ -79,12 +79,12 @@ OTHER_MSG = {
         "B": [
             {"a": "BTC", "f": "0.00020639", "l": "0.00000000"},
             {"a": "BNB", "f": "0.00000324", "l": "0.00000000"},
-            {"a": "USDT", "f": "2495.07648830", "l": "0.00000000"}
+            {"a": "USDT", "f": "2495.07648830", "l": "0.00000000"},
         ],
         "E": 1735070948134,
         "e": "outboundAccountPosition",
-        "u": 1735070948133
-    }
+        "u": 1735070948133,
+    },
 }
 
 LISTEN_KEY_EXPIRED_MSG = {
@@ -93,15 +93,18 @@ LISTEN_KEY_EXPIRED_MSG = {
         "e": "listenKeyExpired",
         "E": "1699596037418",
         "listenKey": "OfYGbUzi3PraNagEkdKuFwUHn48brFsItTdsuiIXrucEvD0rhRXZ7I6URWfE8YE8",
-    }
+    },
 }
 
 
-@pytest.mark.parametrize("account_attr, user_data_stream_url", [
-    ("spot_account", "http://binance.mock/api/v3/userDataStream"),
-    ("cross_margin_account", "http://binance.mock/sapi/v1/userDataStream"),
-    ("isolated_margin_account", "http://binance.mock/sapi/v1/userDataStream/isolated"),
-])
+@pytest.mark.parametrize(
+    "account_attr, user_data_stream_url",
+    [
+        ("spot_account", "http://binance.mock/api/v3/userDataStream"),
+        ("cross_margin_account", "http://binance.mock/sapi/v1/userDataStream"),
+        ("isolated_margin_account", "http://binance.mock/sapi/v1/userDataStream/isolated"),
+    ],
+)
 def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatcher, binance_http_api_mock, caplog):
     caplog.set_level(logging.DEBUG)
     order_update_event = None
@@ -154,10 +157,7 @@ def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatcher, b
 
     async def test_main():
         for meth in [binance_http_api_mock.post, binance_http_api_mock.put]:
-            meth(
-                re.compile(fr"{user_data_stream_url}.*"),
-                status=200, payload={"listenKey": listen_key}, repeat=True
-            )
+            meth(re.compile(rf"{user_data_stream_url}.*"), status=200, payload={"listenKey": listen_key}, repeat=True)
 
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())

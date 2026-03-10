@@ -22,14 +22,17 @@ import pytest
 from basana.backtesting.value_map import ValueMap
 
 
-@pytest.mark.parametrize("lhs, rhs, expected_result", [
-    ({}, {}, {}),
-    (
-        {"BTC": Decimal("1.1"), "USD": Decimal("1")},
-        {"BTC": Decimal("1.1"), "ETH": Decimal("3")},
-        {"BTC": Decimal("2.2"), "USD": Decimal("1"), "ETH": Decimal("3")},
-    ),
-])
+@pytest.mark.parametrize(
+    "lhs, rhs, expected_result",
+    [
+        ({}, {}, {}),
+        (
+            {"BTC": Decimal("1.1"), "USD": Decimal("1")},
+            {"BTC": Decimal("1.1"), "ETH": Decimal("3")},
+            {"BTC": Decimal("2.2"), "USD": Decimal("1"), "ETH": Decimal("3")},
+        ),
+    ],
+)
 def test_add(lhs, rhs, expected_result):
     assert (ValueMap(lhs) + rhs) == expected_result
     assert (lhs + ValueMap(rhs)) == expected_result
@@ -39,14 +42,17 @@ def test_add(lhs, rhs, expected_result):
     assert res == expected_result
 
 
-@pytest.mark.parametrize("lhs, rhs, expected_result", [
-    ({}, {}, {}),
-    (
-        {"BTC": Decimal("1.1"), "USD": Decimal("1")},
-        {"BTC": Decimal("1.1"), "ETH": Decimal("3")},
-        {"BTC": Decimal("0"), "USD": Decimal("1"), "ETH": Decimal("-3")},
-    ),
-])
+@pytest.mark.parametrize(
+    "lhs, rhs, expected_result",
+    [
+        ({}, {}, {}),
+        (
+            {"BTC": Decimal("1.1"), "USD": Decimal("1")},
+            {"BTC": Decimal("1.1"), "ETH": Decimal("3")},
+            {"BTC": Decimal("0"), "USD": Decimal("1"), "ETH": Decimal("-3")},
+        ),
+    ],
+)
 def test_sub(lhs, rhs, expected_result):
     assert (ValueMap(lhs) - rhs) == expected_result
     assert (lhs - ValueMap(rhs)) == expected_result
@@ -56,14 +62,17 @@ def test_sub(lhs, rhs, expected_result):
     assert res == expected_result
 
 
-@pytest.mark.parametrize("lhs, rhs, expected_result", [
-    ({}, {}, {}),
-    (
-        {"BTC": Decimal("-1.1"), "USD": Decimal("1")},
-        {"BTC": Decimal("3"), "ETH": Decimal("3")},
-        {"BTC": Decimal("-3.3"), "USD": Decimal("0"), "ETH": Decimal("0")},
-    ),
-])
+@pytest.mark.parametrize(
+    "lhs, rhs, expected_result",
+    [
+        ({}, {}, {}),
+        (
+            {"BTC": Decimal("-1.1"), "USD": Decimal("1")},
+            {"BTC": Decimal("3"), "ETH": Decimal("3")},
+            {"BTC": Decimal("-3.3"), "USD": Decimal("0"), "ETH": Decimal("0")},
+        ),
+    ],
+)
 def test_mul(lhs, rhs, expected_result):
     assert (ValueMap(lhs) * rhs) == expected_result
     assert (lhs * ValueMap(rhs)) == expected_result
@@ -73,25 +82,27 @@ def test_mul(lhs, rhs, expected_result):
     assert res == expected_result
 
 
-@pytest.mark.parametrize("lhs, rhs, expected_result", [
-    ({}, {}, {}),
-    (
-        {"BTC": Decimal("-3")},
-        {"BTC": Decimal("2"), "ETH": Decimal("3")},
-        {"BTC": Decimal("-1.5"), "ETH": Decimal("0")},
-    ),
-    (
-        {},
-        {"BTC": Decimal("0"), "ETH": Decimal("3")},
-        {"BTC": Decimal("0"), "ETH": Decimal("0")},
-    ),
-    (
-        {"BTC": Decimal("0")},
-        {"BTC": Decimal("0"), "ETH": Decimal("3")},
-        {"BTC": Decimal("0"), "ETH": Decimal("0")},
-    ),
-
-])
+@pytest.mark.parametrize(
+    "lhs, rhs, expected_result",
+    [
+        ({}, {}, {}),
+        (
+            {"BTC": Decimal("-3")},
+            {"BTC": Decimal("2"), "ETH": Decimal("3")},
+            {"BTC": Decimal("-1.5"), "ETH": Decimal("0")},
+        ),
+        (
+            {},
+            {"BTC": Decimal("0"), "ETH": Decimal("3")},
+            {"BTC": Decimal("0"), "ETH": Decimal("0")},
+        ),
+        (
+            {"BTC": Decimal("0")},
+            {"BTC": Decimal("0"), "ETH": Decimal("3")},
+            {"BTC": Decimal("0"), "ETH": Decimal("0")},
+        ),
+    ],
+)
 def test_div(lhs, rhs, expected_result):
     # div
     assert (ValueMap(lhs) / rhs) == expected_result
@@ -103,16 +114,13 @@ def test_div(lhs, rhs, expected_result):
     assert res == expected_result
 
 
-@pytest.mark.parametrize("lhs, rhs", [
-    (
-        {"BTC": Decimal(1)},
-        {}
-    ),
-    (
-        {"ETH": Decimal(1)},
-        {"ETH": Decimal(0)}
-    ),
-])
+@pytest.mark.parametrize(
+    "lhs, rhs",
+    [
+        ({"BTC": Decimal(1)}, {}),
+        ({"ETH": Decimal(1)}, {"ETH": Decimal(0)}),
+    ],
+)
 def test_zero_div_error(lhs, rhs):
     # div
     with pytest.raises(ZeroDivisionError):
@@ -127,11 +135,13 @@ def test_zero_div_error(lhs, rhs):
 
 
 def test_prune():
-    values = ValueMap({
-        "BTC": Decimal(1),
-        "USD": Decimal(1),
-        "ETH": Decimal(1),
-    })
+    values = ValueMap(
+        {
+            "BTC": Decimal(1),
+            "USD": Decimal(1),
+            "ETH": Decimal(1),
+        }
+    )
 
     values.prune()
     assert values == {

@@ -12,8 +12,8 @@ The framework has 3 main components:
 
 * The core, where basic abstractions like events, event sources and the event dispatcher live.
 * A backtesting exchange that you can use to validate your strategies before using real money.
-* External integrations, where you'll find support for live trading at `Binance <https://www.binance.com/>`_ and
-  `Bitstamp <https://www.bitstamp.net/>`_ crypto currency exchanges.
+* External integrations, where you'll find support for live trading at `Binance <https://www.binance.com/>`_,
+  `Bitstamp <https://www.bitstamp.net/>`_ and `Hyperliquid <https://hyperliquid.xyz/>`_ crypto currency exchanges.
 
 Basana doesn't ship with technical indicators. The `examples at GitHub <https://github.com/gbeced/basana/tree/master/samples>`_
 take advantage of `TALIpp <https://github.com/nardew/talipp>`_ which is a good fit for event driven and real time applications,

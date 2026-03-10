@@ -37,6 +37,7 @@ class Error(Exception):
     :param resp: The response.
     :param json_response: The response body, if it was a JSON.
     """
+
     def __init__(self, msg: str, code: Optional[int], resp: aiohttp.ClientResponse, json_response: Optional[Any]):
         super().__init__(msg)
         #: The error message.
@@ -65,12 +66,16 @@ def raise_for_error(resp: aiohttp.ClientResponse, json_response):
 
 class BaseClient:
     def __init__(
-            self, api_key: Optional[str] = None, api_secret: Optional[str] = None,
-            session: Optional[aiohttp.ClientSession] = None, tb: Optional[token_bucket.TokenBucketLimiter] = None,
-            config_overrides: dict = {}
+        self,
+        api_key: Optional[str] = None,
+        api_secret: Optional[str] = None,
+        session: Optional[aiohttp.ClientSession] = None,
+        tb: Optional[token_bucket.TokenBucketLimiter] = None,
+        config_overrides: dict = {},
     ):
-        assert not ((api_key is None) ^ (api_secret is None)), \
+        assert not ((api_key is None) ^ (api_secret is None)), (
             "Both api_key and api_secret should be set, or none of them"
+        )
 
         self._api_key = api_key
         self._api_secret = api_secret
@@ -79,8 +84,13 @@ class BaseClient:
         self._config_overrides = config_overrides
 
     async def make_request(
-            self, method: str, path: str, send_key: bool = False, send_sig: bool = False,
-            qs_params: Dict[str, Any] = {}, data: Dict[str, Any] = {}
+        self,
+        method: str,
+        path: str,
+        send_key: bool = False,
+        send_sig: bool = False,
+        qs_params: Dict[str, Any] = {},
+        data: Dict[str, Any] = {},
     ) -> Any:
         if self._tb and (sleep_time := self._tb.consume()):
             await asyncio.sleep(sleep_time)

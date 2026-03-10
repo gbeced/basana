@@ -103,9 +103,9 @@ class OrderManager:
             # The order got accepted.
             self._orders.add(order)
         except errors.NotEnoughBalance as e:
-            logger.debug(logs.StructuredMessage(
-                "Not enough balance to accept order", order=order.get_debug_info(), error=str(e)
-            ))
+            logger.debug(
+                logs.StructuredMessage("Not enough balance to accept order", order=order.get_debug_info(), error=str(e))
+            )
             raise
 
         # If immediate order processing is enabled we process the order using the last bar available.
@@ -115,16 +115,23 @@ class OrderManager:
             try:
                 last_bar = self._ctx.prices.get_last_bar(order.pair)
             except errors.NotFound:
-                logger.debug(logs.StructuredMessage(
-                    "No price available for immediate order processing", order=order.get_debug_info()
-                ))
+                logger.debug(
+                    logs.StructuredMessage(
+                        "No price available for immediate order processing", order=order.get_debug_info()
+                    )
+                )
                 push_order_update = not self._order_not_filled(order)
             else:
                 now = self._ctx.dispatcher.now()
                 bar = Bar(
-                    begin=now, pair=order.pair,
-                    open=last_bar.close, high=last_bar.close, low=last_bar.close, close=last_bar.close,
-                    volume=last_bar.volume, duration=datetime.timedelta(milliseconds=1)
+                    begin=now,
+                    pair=order.pair,
+                    open=last_bar.close,
+                    high=last_bar.close,
+                    low=last_bar.close,
+                    close=last_bar.close,
+                    volume=last_bar.volume,
+                    duration=datetime.timedelta(milliseconds=1),
                 )
                 liquidity_strategy = self._liquidity_strategies[order.pair]
                 # If the order is not updated during processing, we push an update for the order that is being added.
@@ -190,23 +197,23 @@ class OrderManager:
             symbol: self._ctx.account_balances.get_available_balance(symbol) - required_amount
             for symbol, required_amount in required_balances.items()
         }
-        balances_short = {
-            symbol: -amount for symbol, amount in post_hold.items() if amount < Decimal(0)
-        }
+        balances_short = {symbol: -amount for symbol, amount in post_hold.items() if amount < Decimal(0)}
 
         loan_ids: List[str] = []
         try:
             # Create a loan for every balance that we're short on.
             for symbol, amount in balances_short.items():
-                logger.debug(logs.StructuredMessage(
-                    "Borrowing for order", order_id=order.id, symbol=symbol, amount=amount
-                ))
+                logger.debug(
+                    logs.StructuredMessage("Borrowing for order", order_id=order.id, symbol=symbol, amount=amount)
+                )
                 loan = self._ctx.loan_mgr.create_loan(symbol, amount)
                 loan_ids.append(loan.id)
         except Exception as e:
-            logger.debug(logs.StructuredMessage(
-                "Failed to borrow", order_id=order.id, symbol=symbol, amount=amount, error=str(e)
-            ))
+            logger.debug(
+                logs.StructuredMessage(
+                    "Failed to borrow", order_id=order.id, symbol=symbol, amount=amount, error=str(e)
+                )
+            )
             # If there are any errors borrowing money we'll rollback everything before propagating the exception.
             for loan_id in loan_ids:
                 logger.debug(logs.StructuredMessage("Canceling loan", order_id=order.id, loan_id=loan_id))
@@ -224,8 +231,7 @@ class OrderManager:
             credit_symbol = order.pair.quote_symbol
 
         candidate_loans = [
-            loan for loan in self._ctx.loan_mgr.get_loans(is_open=True)
-            if loan.borrowed_symbol == credit_symbol
+            loan for loan in self._ctx.loan_mgr.get_loans(is_open=True) if loan.borrowed_symbol == credit_symbol
         ]
         # Try to cancel bigger loans first.
         candidate_loans.sort(key=lambda loan: loan.borrowed_amount, reverse=True)
@@ -263,15 +269,16 @@ class OrderManager:
             ret = True
         return ret
 
-    def _process_order(
-            self, order: Order, bar: Bar, liquidity_strategy: liquidity.LiquidityStrategy
-    ) -> bool:
+    def _process_order(self, order: Order, bar: Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> bool:
 
         # Try to fill the order.
-        logger.debug(logs.StructuredMessage(
-            "Processing order", order=order.get_debug_info(),
-            bar={"open": bar.open, "high": bar.high, "low": bar.low, "close": bar.close, "volume": bar.volume}
-        ))
+        logger.debug(
+            logs.StructuredMessage(
+                "Processing order",
+                order=order.get_debug_info(),
+                bar={"open": bar.open, "high": bar.high, "low": bar.low, "close": bar.close, "volume": bar.volume},
+            )
+        )
         fill = order.try_fill(bar, liquidity_strategy)
         if fill is None:
             return self._order_not_filled(order)
@@ -279,11 +286,14 @@ class OrderManager:
         # Round fill data.
         balance_updates = ValueMap(fill.balance_updates)
         balance_updates.prune()
-        logger.debug(logs.StructuredMessage(
-            "Order fill details before fees", order_id=order.id, fill_price=fill.fill_price,
-            balance_updates=balance_updates
-            
-        ))
+        logger.debug(
+            logs.StructuredMessage(
+                "Order fill details before fees",
+                order_id=order.id,
+                fill_price=fill.fill_price,
+                balance_updates=balance_updates,
+            )
+        )
         # Base and quote symbols must be present in the balance updates, otherwise the order can't be filled.
         if order.pair.base_symbol not in balance_updates or order.pair.quote_symbol not in balance_updates:
             return self._order_not_filled(order)
@@ -304,18 +314,20 @@ class OrderManager:
             # Update the order and release any pending balance on hold if the order is now closed.
             fill.fees = fees
             order.add_fill(fill)
-            logger.debug(logs.StructuredMessage(
-                "Order updated", order_id=order.id, final_updates=final_updates, order_state=order.state
-            ))
+            logger.debug(
+                logs.StructuredMessage(
+                    "Order updated", order_id=order.id, final_updates=final_updates, order_state=order.state
+                )
+            )
             if not order.is_open:
                 self._order_closed(order)
             self._push_order_update(order)
             ret = True
 
         except errors.NotEnoughBalance as e:
-            logger.debug(logs.StructuredMessage(
-                "Balance short processing order", order=order.get_debug_info(), error=str(e)
-            ))
+            logger.debug(
+                logs.StructuredMessage("Balance short processing order", order=order.get_debug_info(), error=str(e))
+            )
             ret = self._order_not_filled(order)
         return ret
 
@@ -330,9 +342,7 @@ class OrderManager:
 
         # Build a dictionary of balance updates suitable for calculating fees.
         base_sign = helpers.get_base_sign_for_operation(order.operation)
-        estimated_balance_updates = ValueMap({
-            order.pair.base_symbol: order.amount * base_sign
-        })
+        estimated_balance_updates = ValueMap({order.pair.base_symbol: order.amount * base_sign})
         if estimated_fill_price:
             estimated_balance_updates[order.pair.quote_symbol] = order.amount * estimated_fill_price * -base_sign
         round_balance_updates(order, estimated_balance_updates)
@@ -345,10 +355,9 @@ class OrderManager:
         estimated_balance_updates += fees
 
         # Return only negative balance updates as required balances.
-        return ValueMap({
-            symbol: -amount for symbol, amount in estimated_balance_updates.items()
-            if amount < Decimal(0)
-        })
+        return ValueMap(
+            {symbol: -amount for symbol, amount in estimated_balance_updates.items() if amount < Decimal(0)}
+        )
 
     def _push_order_update(self, order: Order):
         # Checking dispatcher.now_available is necessary to avoid calling dispatcher.now() when no events have been
@@ -384,4 +393,3 @@ def round_fees(order: Order, fees: ValueMap):
             fees[symbol] = core_helpers.round_decimal(amount, precision, rounding=decimal.ROUND_UP)
 
     fees.prune()
-

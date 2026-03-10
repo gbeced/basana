@@ -26,16 +26,26 @@ from basana.backtesting.value_map import ValueMap, ValueMapDict
 class UpdateRule(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def check(
-            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap,
-            delta_balances: ValueMap, delta_holds: ValueMap, delta_borrowed: ValueMap
+        self,
+        updated_balances: ValueMap,
+        updated_holds: ValueMap,
+        updated_borrowed: ValueMap,
+        delta_balances: ValueMap,
+        delta_holds: ValueMap,
+        delta_borrowed: ValueMap,
     ):
         raise NotImplementedError()
 
 
 class NonZero(UpdateRule):
     def check(
-            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap,
-            delta_balances: ValueMap, delta_holds: ValueMap, delta_borrowed: ValueMap
+        self,
+        updated_balances: ValueMap,
+        updated_holds: ValueMap,
+        updated_borrowed: ValueMap,
+        delta_balances: ValueMap,
+        delta_holds: ValueMap,
+        delta_borrowed: ValueMap,
     ):
         # balance >= 0
         for symbol, value in updated_balances.items():
@@ -54,8 +64,13 @@ class NonZero(UpdateRule):
 class ValidHold(UpdateRule):
     # * hold <= balance
     def check(
-            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap,
-            delta_balances: ValueMap, delta_holds: ValueMap, delta_borrowed: ValueMap
+        self,
+        updated_balances: ValueMap,
+        updated_holds: ValueMap,
+        updated_borrowed: ValueMap,
+        delta_balances: ValueMap,
+        delta_holds: ValueMap,
+        delta_borrowed: ValueMap,
     ):
         symbols = set(itertools.chain(updated_holds.keys(), updated_balances.keys()))
         for symbol in symbols:
@@ -67,24 +82,16 @@ class ValidHold(UpdateRule):
 
 class AccountBalances:
     def __init__(self, initial_balances: ValueMapDict):
-        self.balances = ValueMap({
-            symbol: balance for symbol, balance in initial_balances.items() if balance >= 0
-        })
+        self.balances = ValueMap({symbol: balance for symbol, balance in initial_balances.items() if balance >= 0})
         self.holds = ValueMap()
-        self.borrowed = ValueMap({
-            symbol: -balance for symbol, balance in initial_balances.items() if balance < 0
-        })
-        self._update_rules: List[UpdateRule] = [
-            NonZero(),
-            ValidHold()
-        ]
+        self.borrowed = ValueMap({symbol: -balance for symbol, balance in initial_balances.items() if balance < 0})
+        self._update_rules: List[UpdateRule] = [NonZero(), ValidHold()]
 
     def push_update_rule(self, update_rule: UpdateRule):
         self._update_rules.append(update_rule)
 
     def update(
-            self, balance_updates: ValueMapDict = {}, hold_updates: ValueMapDict = {},
-            borrowed_updates: ValueMapDict = {}
+        self, balance_updates: ValueMapDict = {}, hold_updates: ValueMapDict = {}, borrowed_updates: ValueMapDict = {}
     ):
         updated_balances = self.balances + balance_updates
         updated_holds = self.holds + hold_updates
@@ -92,8 +99,12 @@ class AccountBalances:
 
         for rule in self._update_rules:
             rule.check(
-                updated_balances, updated_holds, updated_borrowed,
-                ValueMap(balance_updates), ValueMap(hold_updates), ValueMap(borrowed_updates)
+                updated_balances,
+                updated_holds,
+                updated_borrowed,
+                ValueMap(balance_updates),
+                ValueMap(hold_updates),
+                ValueMap(borrowed_updates),
             )
 
         # Update if no error ocurred.

@@ -51,14 +51,13 @@ class TradingSignal(BaseTradingSignal):
     """
 
     def __init__(
-            self, when: datetime.datetime, op_or_pos: Union[enums.OrderOperation, enums.Position], pair: pair.Pair
+        self, when: datetime.datetime, op_or_pos: Union[enums.OrderOperation, enums.Position], pair: pair.Pair
     ):
         super().__init__(when)
 
         if isinstance(op_or_pos, enums.OrderOperation):
             helpers.deprecation_warning(
-                "Support for bs.OrderOperation in trading signals will be removed soon."
-                " Switch to bs.Position"
+                "Support for bs.OrderOperation in trading signals will be removed soon. Switch to bs.Position"
             )
             op_or_pos = {
                 enums.OrderOperation.BUY: enums.Position.LONG,
@@ -110,8 +109,10 @@ class TradingSignalSource(event.FifoQueueEventSource):
     """
 
     def __init__(
-            self, dispatcher: dispatcher.EventDispatcher, producer: Optional[event.Producer] = None,
-            events: List[event.Event] = []
+        self,
+        dispatcher: dispatcher.EventDispatcher,
+        producer: Optional[event.Producer] = None,
+        events: List[event.Event] = [],
     ):
         super().__init__(producer=producer, events=events)
         self._dispatcher = dispatcher

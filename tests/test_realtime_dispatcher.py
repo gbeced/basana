@@ -77,9 +77,12 @@ class FailingProducer(event.Producer):
 def test_producers_and_events(realtime_dispatcher):
     shared_producer = Producer()
     event_sources = [
-        event.FifoQueueEventSource(), event.FifoQueueEventSource(),
-        event.FifoQueueEventSource(producer=Producer()), event.FifoQueueEventSource(producer=Producer()),
-        event.FifoQueueEventSource(producer=shared_producer), event.FifoQueueEventSource(producer=shared_producer),
+        event.FifoQueueEventSource(),
+        event.FifoQueueEventSource(),
+        event.FifoQueueEventSource(producer=Producer()),
+        event.FifoQueueEventSource(producer=Producer()),
+        event.FifoQueueEventSource(producer=shared_producer),
+        event.FifoQueueEventSource(producer=shared_producer),
     ]
     events = []
 
@@ -109,11 +112,14 @@ def test_producers_and_events(realtime_dispatcher):
     asyncio.run(asyncio.wait_for(test_main(), 2))
 
 
-@pytest.mark.parametrize("failing_producer, other_initialized, other_ran, other_stopped, other_finalized", [
-    (FailingProducer(True, False, False), True, False, False, True),
-    (FailingProducer(False, True, False), True, True, True, True),
-    (FailingProducer(False, True, True), True, True, True, True),
-])
+@pytest.mark.parametrize(
+    "failing_producer, other_initialized, other_ran, other_stopped, other_finalized",
+    [
+        (FailingProducer(True, False, False), True, False, False, True),
+        (FailingProducer(False, True, False), True, True, True, True),
+        (FailingProducer(False, True, True), True, True, True, True),
+    ],
+)
 def test_exceptions_in_producers(
     failing_producer, other_initialized, other_ran, other_stopped, other_finalized, realtime_dispatcher
 ):
@@ -121,8 +127,10 @@ def test_exceptions_in_producers(
     event_sources = [
         event.FifoQueueEventSource(producer=failing_producer),
         event.FifoQueueEventSource(),
-        event.FifoQueueEventSource(producer=Producer()), event.FifoQueueEventSource(producer=Producer()),
-        event.FifoQueueEventSource(producer=shared_producer), event.FifoQueueEventSource(producer=shared_producer),
+        event.FifoQueueEventSource(producer=Producer()),
+        event.FifoQueueEventSource(producer=Producer()),
+        event.FifoQueueEventSource(producer=shared_producer),
+        event.FifoQueueEventSource(producer=shared_producer),
     ]
     events = []
 
@@ -155,7 +163,7 @@ def test_out_of_order_events_are_skipped(realtime_dispatcher):
     event_dts = [
         now,
         now - datetime.timedelta(hours=1),  # This one should be skipped.
-        now + datetime.timedelta(milliseconds=250)
+        now + datetime.timedelta(milliseconds=250),
     ]
 
     async def stop_dispatcher():
@@ -179,11 +187,14 @@ def test_out_of_order_events_are_skipped(realtime_dispatcher):
     asyncio.run(asyncio.wait_for(test_main(), 2))
 
 
-@pytest.mark.parametrize("delta_seconds", [
-    0.5,
-    1,
-    -0.5,
-])
+@pytest.mark.parametrize(
+    "delta_seconds",
+    [
+        0.5,
+        1,
+        -0.5,
+    ],
+)
 def test_realtime_scheduler(delta_seconds, realtime_dispatcher):
     async def scheduled_job():
         realtime_dispatcher.stop()
@@ -207,10 +218,12 @@ def test_stop_dispatcher_when_idle(realtime_dispatcher):
     async def on_idle():
         realtime_dispatcher.stop()
 
-    src = event.FifoQueueEventSource(events=[
-        event.Event(datetime.datetime(2000, 1, 1).replace(tzinfo=datetime.timezone.utc)),
-        event.Event(datetime.datetime(2000, 1, 2).replace(tzinfo=datetime.timezone.utc)),
-    ])
+    src = event.FifoQueueEventSource(
+        events=[
+            event.Event(datetime.datetime(2000, 1, 1).replace(tzinfo=datetime.timezone.utc)),
+            event.Event(datetime.datetime(2000, 1, 2).replace(tzinfo=datetime.timezone.utc)),
+        ]
+    )
     realtime_dispatcher.subscribe(src, on_event)
     realtime_dispatcher.subscribe_idle(on_idle)
     asyncio.run(realtime_dispatcher.run())

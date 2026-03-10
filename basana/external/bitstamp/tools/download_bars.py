@@ -56,9 +56,9 @@ class OHLC:
 
 
 def parse_date(date: str):
-    return datetime.datetime.combine(
-        datetime.date.fromisoformat(date), datetime.time()
-    ).replace(tzinfo=datetime.timezone.utc)
+    return datetime.datetime.combine(datetime.date.fromisoformat(date), datetime.time()).replace(
+        tzinfo=datetime.timezone.utc
+    )
 
 
 def to_bitstamp_currency_pair(currency_pair: str):
@@ -77,24 +77,20 @@ class CSVWriter:
             self._header_written = True
 
         dt_col = datetime.datetime.fromtimestamp(ohlc.open_timestamp, tz=datetime.timezone.utc)
-        print(",".join([
-            str(dt_col.replace(tzinfo=None)),
-            ohlc.open, ohlc.high, ohlc.low, ohlc.close, ohlc.volume
-        ]), file=self._output_file)
+        print(
+            ",".join([str(dt_col.replace(tzinfo=None)), ohlc.open, ohlc.high, ohlc.low, ohlc.close, ohlc.volume]),
+            file=self._output_file,
+        )
 
 
 async def main(params: Optional[List[str]] = None, config_overrides: dict = {}):
     parser = argparse.ArgumentParser()
     parser.add_argument("-c", "--currency-pair", help="The currency pair.", required=True)
-    parser.add_argument(
-        "-p", "--period", help="The period for the bars.", choices=period_to_step.keys(), required=True
-    )
+    parser.add_argument("-p", "--period", help="The period for the bars.", choices=period_to_step.keys(), required=True)
     parser.add_argument(
         "-s", "--start", help="The starting date YYYY-MM-DD format. Included in the range.", required=True
     )
-    parser.add_argument(
-        "-e", "--end", help="The ending date YYYY-MM-DD format. Included in the range.", required=True
-    )
+    parser.add_argument("-e", "--end", help="The ending date YYYY-MM-DD format. Included in the range.", required=True)
     parser.add_argument("-o", "--output", help="The output file.", required=False, default=None)
     args = parser.parse_args(args=params)
 

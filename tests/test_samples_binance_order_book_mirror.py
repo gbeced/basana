@@ -20,33 +20,35 @@ from samples.binance.order_book_mirror import OrderBook
 import pytest
 
 
-@pytest.mark.parametrize("updates, expected_bids, expected_asks", [
-    ([], [], []),
-    (
-        [
-            (102000, 1, True),
-            (102000, "0.005", True),
-            (101900, 1, True),
-            (103000, 1, True),
-            (103000, 0, True),
-            (103000, 7, True),
-
-            (103900, 2, False),
-            (104000, 1, False),
-            (103500, 4, False),
-        ],
-        [
-            (103000, 7),
-            (102000, "0.005"),
-            (101900, 1),
-        ],
-        [
-            (103500, 4),
-            (103900, 2),
-            (104000, 1),
-        ],
-    ),
-])
+@pytest.mark.parametrize(
+    "updates, expected_bids, expected_asks",
+    [
+        ([], [], []),
+        (
+            [
+                (102000, 1, True),
+                (102000, "0.005", True),
+                (101900, 1, True),
+                (103000, 1, True),
+                (103000, 0, True),
+                (103000, 7, True),
+                (103900, 2, False),
+                (104000, 1, False),
+                (103500, 4, False),
+            ],
+            [
+                (103000, 7),
+                (102000, "0.005"),
+                (101900, 1),
+            ],
+            [
+                (103500, 4),
+                (103900, 2),
+                (104000, 1),
+            ],
+        ),
+    ],
+)
 def test_order_book(updates, expected_bids, expected_asks):
     order_book = OrderBook()
     for price, amount, is_bid in updates:

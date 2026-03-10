@@ -49,8 +49,10 @@ def test_subscription_order_per_source(backtesting_dispatcher):
 
         handler_count = 100
         for i in range(handler_count):
+
             async def handler(e, i=i):
                 priorities.append(i)
+
             backtesting_dispatcher.subscribe(src, handler)
 
         await backtesting_dispatcher.run()
@@ -87,25 +89,29 @@ def test_sniffers(backtesting_dispatcher):
     asyncio.run(test_main())
 
 
-@pytest.mark.parametrize("schedule_dates", [
+@pytest.mark.parametrize(
+    "schedule_dates",
     [
-        datetime.datetime(2000, 1, 1, 0, 0, 1),
+        [
+            datetime.datetime(2000, 1, 1, 0, 0, 1),
+        ],
+        [
+            datetime.datetime(1999, 1, 1, 0, 0, 0),
+            datetime.datetime(2000, 1, 2, 0, 0, 0),
+            datetime.datetime(2001, 1, 2, 0, 0, 0),
+            datetime.datetime(2002, 1, 1, 0, 0, 0),
+            dt.local_now(),
+            dt.utc_now(),
+        ],
     ],
-    [
-        datetime.datetime(1999, 1, 1, 0, 0, 0),
-        datetime.datetime(2000, 1, 2, 0, 0, 0),
-        datetime.datetime(2001, 1, 2, 0, 0, 0),
-        datetime.datetime(2002, 1, 1, 0, 0, 0),
-        dt.local_now(),
-        dt.utc_now(),
-    ],
-])
+)
 def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
     datetimes = []
 
     def scheduled_job_factory(when):
         async def scheduled_job():
             datetimes.append(when)
+
         return scheduled_job
 
     async def proces_event(event):
@@ -154,11 +160,13 @@ def test_handler_exceptions_dont_stop_the_dispatcher(backtesting_dispatcher):
         raise Exception("Scheduler handler error")
 
     async def test_main():
-        src = event.FifoQueueEventSource(events=[
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-        ])
+        src = event.FifoQueueEventSource(
+            events=[
+                event.Event(dt.utc_now()),
+                event.Event(dt.utc_now()),
+                event.Event(dt.utc_now()),
+            ]
+        )
 
         backtesting_dispatcher.subscribe_all(event_handler, front_run=True)
         backtesting_dispatcher.subscribe(src, event_handler)
@@ -187,11 +195,13 @@ def test_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher):
         raise Exception("Event handler error")
 
     async def test_main():
-        src = event.FifoQueueEventSource(events=[
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-        ])
+        src = event.FifoQueueEventSource(
+            events=[
+                event.Event(dt.utc_now()),
+                event.Event(dt.utc_now()),
+                event.Event(dt.utc_now()),
+            ]
+        )
 
         backtesting_dispatcher.subscribe(src, event_handler)
         backtesting_dispatcher.subscribe(src, event_handler_2)
@@ -220,11 +230,13 @@ def test_scheduler_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher
         raise Exception("Scheduler handler error")
 
     async def test_main():
-        src = event.FifoQueueEventSource(events=[
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-        ])
+        src = event.FifoQueueEventSource(
+            events=[
+                event.Event(dt.utc_now()),
+                event.Event(dt.utc_now()),
+                event.Event(dt.utc_now()),
+            ]
+        )
 
         backtesting_dispatcher.subscribe(src, event_handler)
         backtesting_dispatcher.schedule(dt.utc_now(), scheduler_handler)
@@ -255,9 +267,11 @@ def test_recursive_schedule_bug(backtesting_dispatcher):
         backtesting_dispatcher.schedule(next_dt, scheduled_job)
 
     async def test_main():
-        src = event.FifoQueueEventSource(events=[
-            event.Event(datetime.datetime(2024, 1, 1).replace(tzinfo=datetime.timezone.utc)),
-        ])
+        src = event.FifoQueueEventSource(
+            events=[
+                event.Event(datetime.datetime(2024, 1, 1).replace(tzinfo=datetime.timezone.utc)),
+            ]
+        )
         backtesting_dispatcher.subscribe(src, proces_event)
         await backtesting_dispatcher.run()
         assert jobs_processed == 1

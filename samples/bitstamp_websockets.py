@@ -24,30 +24,36 @@ import basana as bs
 async def on_bar_event(bar_event: bs.BarEvent):
     logging.info(
         "Bar event: pair=%s open=%s high=%s low=%s close=%s volume=%s",
-        bar_event.bar.pair, bar_event.bar.open, bar_event.bar.high, bar_event.bar.low, bar_event.bar.close,
-        bar_event.bar.volume
+        bar_event.bar.pair,
+        bar_event.bar.open,
+        bar_event.bar.high,
+        bar_event.bar.low,
+        bar_event.bar.close,
+        bar_event.bar.volume,
     )
 
 
 async def on_order_book_event(order_book_event: bitstamp_exchange.OrderBookEvent):
     logging.info(
         "Order book event: pair=%s bid=%s ask=%s",
-        order_book_event.order_book.pair, order_book_event.order_book.bids[0].price,
-        order_book_event.order_book.asks[0].price
+        order_book_event.order_book.pair,
+        order_book_event.order_book.bids[0].price,
+        order_book_event.order_book.asks[0].price,
     )
 
 
 async def on_trade_event(trade_event: bitstamp_exchange.TradeEvent):
     logging.info(
         "Trade event: pair=%s price=%s amount=%s",
-        trade_event.trade.pair, trade_event.trade.price, trade_event.trade.amount
+        trade_event.trade.pair,
+        trade_event.trade.price,
+        trade_event.trade.amount,
     )
 
 
 async def on_order_event(event: bitstamp_exchange.OrderEvent):
     logging.info(
-        "Order event: id=%s amount_filled=%s json=%s",
-        event.order.id, event.order.amount_filled, event.order.json
+        "Order event: id=%s amount_filled=%s json=%s", event.order.id, event.order.amount_filled, event.order.json
     )
 
 

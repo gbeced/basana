@@ -48,9 +48,15 @@ def test_prices():
         BarEvent(
             now,
             Bar(
-                now, pair, Decimal(10), Decimal(10), Decimal(10), Decimal(10), Decimal(10),
-                datetime.timedelta(seconds=1)
-            )
+                now,
+                pair,
+                Decimal(10),
+                Decimal(10),
+                Decimal(10),
+                Decimal(10),
+                Decimal(10),
+                datetime.timedelta(seconds=1),
+            ),
         )
     )
 
@@ -79,34 +85,52 @@ def test_convert_value_map():
         BarEvent(
             now,
             Bar(
-                now, btc_usdt, Decimal(50000), Decimal(50000), Decimal(50000), Decimal(50000), Decimal(50000),
-                datetime.timedelta(seconds=1)
-            )
+                now,
+                btc_usdt,
+                Decimal(50000),
+                Decimal(50000),
+                Decimal(50000),
+                Decimal(50000),
+                Decimal(50000),
+                datetime.timedelta(seconds=1),
+            ),
         )
     )
     p.on_bar_event(
         BarEvent(
             now,
             Bar(
-                now, eth_usdt, Decimal(3000), Decimal(3000), Decimal(3000), Decimal(3000), Decimal(3000),
-                datetime.timedelta(seconds=1)
-            )
+                now,
+                eth_usdt,
+                Decimal(3000),
+                Decimal(3000),
+                Decimal(3000),
+                Decimal(3000),
+                Decimal(3000),
+                datetime.timedelta(seconds=1),
+            ),
         )
     )
     p.on_bar_event(
         BarEvent(
             now,
             Bar(
-                now, eth_btc, Decimal("0.06"), Decimal("0.06"), Decimal("0.06"), Decimal("0.06"), Decimal("0.06"),
-                datetime.timedelta(seconds=1)
-            )
+                now,
+                eth_btc,
+                Decimal("0.06"),
+                Decimal("0.06"),
+                Decimal("0.06"),
+                Decimal("0.06"),
+                Decimal("0.06"),
+                datetime.timedelta(seconds=1),
+            ),
         )
     )
 
     # Test converting a value map to USDT
     values = {
-        "BTC": Decimal("2.0"),      # 2 BTC
-        "ETH": Decimal("10.0"),     # 10 ETH
+        "BTC": Decimal("2.0"),  # 2 BTC
+        "ETH": Decimal("10.0"),  # 10 ETH
         "USDT": Decimal("1000.0"),  # 1000 USDT
     }
 

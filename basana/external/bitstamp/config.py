@@ -23,6 +23,6 @@ DEFAULTS = {
         "websockets": {
             "base_url": "wss://ws.bitstamp.net/",
             "heartbeat": 30,
-        }
+        },
     }
 }

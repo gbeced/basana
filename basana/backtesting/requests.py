@@ -25,8 +25,13 @@ from basana.core.pair import Pair, PairInfo
 
 class ExchangeOrder(metaclass=abc.ABCMeta):
     def __init__(
-            self, operation: OrderOperation, pair: Pair, pair_info: PairInfo,
-            amount: Decimal, auto_borrow: bool = False, auto_repay: bool = False
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        pair_info: PairInfo,
+        amount: Decimal,
+        auto_borrow: bool = False,
+        auto_repay: bool = False,
     ):
         self._operation = operation
         self._pair = pair
@@ -85,8 +90,13 @@ class MarketOrder(ExchangeOrder):
 
     def create_order(self, id: str) -> orders.Order:
         return orders.MarketOrder(
-            id, self.operation, self.pair, self.pair_info, self.amount, auto_borrow=self.auto_borrow,
-            auto_repay=self.auto_repay
+            id,
+            self.operation,
+            self.pair,
+            self.pair_info,
+            self.amount,
+            auto_borrow=self.auto_borrow,
+            auto_repay=self.auto_repay,
         )
 
 
@@ -99,8 +109,14 @@ class LimitOrder(ExchangeOrder):
     """
 
     def __init__(
-            self, operation: OrderOperation, pair: Pair, pair_info: PairInfo, amount: Decimal, limit_price: Decimal,
-            auto_borrow: bool = False, auto_repay: bool = False
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        pair_info: PairInfo,
+        amount: Decimal,
+        limit_price: Decimal,
+        auto_borrow: bool = False,
+        auto_repay: bool = False,
     ):
         super().__init__(operation, pair, pair_info, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._limit_price = limit_price
@@ -120,8 +136,14 @@ class LimitOrder(ExchangeOrder):
 
     def create_order(self, id: str) -> orders.Order:
         return orders.LimitOrder(
-            id, self.operation, self.pair, self.pair_info, self.amount, self._limit_price,
-            auto_borrow=self.auto_borrow, auto_repay=self.auto_repay
+            id,
+            self.operation,
+            self.pair,
+            self.pair_info,
+            self.amount,
+            self._limit_price,
+            auto_borrow=self.auto_borrow,
+            auto_repay=self.auto_repay,
         )
 
 
@@ -138,8 +160,14 @@ class StopOrder(ExchangeOrder):
     """
 
     def __init__(
-            self, operation: OrderOperation, pair: Pair, pair_info: PairInfo, amount: Decimal, stop_price: Decimal,
-            auto_borrow: bool = False, auto_repay: bool = False
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        pair_info: PairInfo,
+        amount: Decimal,
+        stop_price: Decimal,
+        auto_borrow: bool = False,
+        auto_repay: bool = False,
     ):
         super().__init__(operation, pair, pair_info, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
@@ -159,8 +187,14 @@ class StopOrder(ExchangeOrder):
 
     def create_order(self, id: str) -> orders.Order:
         return orders.StopOrder(
-            id, self.operation, self.pair, self.pair_info, self.amount, self._stop_price,
-            auto_borrow=self.auto_borrow, auto_repay=self.auto_repay
+            id,
+            self.operation,
+            self.pair,
+            self.pair_info,
+            self.amount,
+            self._stop_price,
+            auto_borrow=self.auto_borrow,
+            auto_repay=self.auto_repay,
         )
 
 
@@ -175,8 +209,15 @@ class StopLimitOrder(ExchangeOrder):
     """
 
     def __init__(
-            self, operation: OrderOperation, pair: Pair, pair_info: PairInfo, amount: Decimal, stop_price: Decimal,
-            limit_price: Decimal, auto_borrow: bool = False, auto_repay: bool = False
+        self,
+        operation: OrderOperation,
+        pair: Pair,
+        pair_info: PairInfo,
+        amount: Decimal,
+        stop_price: Decimal,
+        limit_price: Decimal,
+        auto_borrow: bool = False,
+        auto_repay: bool = False,
     ):
         super().__init__(operation, pair, pair_info, amount, auto_borrow=auto_borrow, auto_repay=auto_repay)
         self._stop_price = stop_price
@@ -204,6 +245,13 @@ class StopLimitOrder(ExchangeOrder):
 
     def create_order(self, id: str) -> orders.Order:
         return orders.StopLimitOrder(
-            id, self.operation, self.pair, self.pair_info, self.amount, self._stop_price, self._limit_price,
-            auto_borrow=self.auto_borrow, auto_repay=self.auto_repay
+            id,
+            self.operation,
+            self.pair,
+            self.pair_info,
+            self.amount,
+            self._stop_price,
+            self._limit_price,
+            auto_borrow=self.auto_borrow,
+            auto_repay=self.auto_repay,
         )

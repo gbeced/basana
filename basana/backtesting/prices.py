@@ -27,6 +27,7 @@ class Prices:
     """
     This class provides access to the last known prices of pairs.
     """
+
     def __init__(self, bid_ask_spread_pct: Decimal, config: config.Config):
         assert bid_ask_spread_pct > Decimal(0)
 
@@ -45,8 +46,7 @@ class Prices:
         last_price = last_bar.close
         pair_info = self._config.get_pair_info(pair)
         half_spread = core_helpers.truncate_decimal(
-            (last_price * self._bid_ask_spread_pct / Decimal("100")) / Decimal(2),
-            pair_info.quote_precision
+            (last_price * self._bid_ask_spread_pct / Decimal("100")) / Decimal(2), pair_info.quote_precision
         )
         bid = last_price - half_spread
         ask = last_price + half_spread
@@ -69,8 +69,8 @@ class Prices:
             return Decimal(0)
 
         for pair, price_fun in [
-                (Pair(from_symbol, to_symbol), lambda price: price),
-                (Pair(to_symbol, from_symbol), lambda price: Decimal(1) / price),
+            (Pair(from_symbol, to_symbol), lambda price: price),
+            (Pair(to_symbol, from_symbol), lambda price: Decimal(1) / price),
         ]:
             last_bar = self._last_bars.get(pair)
             if last_bar:

@@ -40,6 +40,7 @@ class DataPointFromSequence:
 
     :param seq: The sequence that will be used to get the value.
     """
+
     def __init__(self, seq: Sequence[Any]):
         self._seq = seq
 
@@ -102,10 +103,16 @@ class PairLineChart(LineChart):
             close_values = list(self._close_values.get_x_y())
             figure.add_trace(
                 go.Candlestick(
-                    x=open_values[0], open=open_values[1], high=high_values[1], low=low_values[1],
-                    close=close_values[1], name=str(self._pair), xperiodalignment="start"
+                    x=open_values[0],
+                    open=open_values[1],
+                    high=high_values[1],
+                    low=low_values[1],
+                    close=close_values[1],
+                    name=str(self._pair),
+                    xperiodalignment="start",
                 ),
-                row=row, col=1
+                row=row,
+                col=1,
             )
         else:
             # Add a trace just with the closing values.
@@ -117,10 +124,14 @@ class PairLineChart(LineChart):
             x, y = self._get_order_fills(OrderOperation.BUY).get_x_y()
             figure.add_trace(
                 go.Scatter(
-                    x=x, y=y, name="Buy", mode="markers",
-                    marker=dict(symbol="arrow-up", color="green", size=self.buy_marker_size)
+                    x=x,
+                    y=y,
+                    name="Buy",
+                    mode="markers",
+                    marker=dict(symbol="arrow-up", color="green", size=self.buy_marker_size),
                 ),
-                row=row, col=1
+                row=row,
+                col=1,
             )
 
         # Add a trace with sell prices.
@@ -128,10 +139,14 @@ class PairLineChart(LineChart):
             x, y = self._get_order_fills(OrderOperation.SELL).get_x_y()
             figure.add_trace(
                 go.Scatter(
-                    x=x, y=y, name="Sell", mode="markers",
-                    marker=dict(symbol="arrow-down", color="red", size=self.sell_marker_size)
+                    x=x,
+                    y=y,
+                    name="Sell",
+                    mode="markers",
+                    marker=dict(symbol="arrow-down", color="red", size=self.sell_marker_size),
                 ),
-                row=row, col=1
+                row=row,
+                col=1,
             )
 
         # Add one trace per indicator.
@@ -154,8 +169,7 @@ class PairLineChart(LineChart):
     def _get_order_fills(self, op: OrderOperation) -> TimeSeries:
         ret = TimeSeries()
         orders = filter(
-            lambda order: order.pair == self._pair and order.operation == op,
-            self._exchange._get_all_orders()
+            lambda order: order.pair == self._pair and order.operation == op, self._exchange._get_all_orders()
         )
         pair_info = self._exchange._get_pair_info(self._pair)
         for order in orders:
@@ -286,6 +300,7 @@ class LineCharts:
 
     :param exchange: The backtesting exchange.
     """
+
     def __init__(self, exchange: Exchange):
         self._exchange = exchange
         self._balance_charts: Dict[str, AccountBalanceLineChart] = collections.OrderedDict()
@@ -360,8 +375,12 @@ class LineCharts:
             fig.show()
 
     def save(
-            self, path: str, width: Optional[int] = None, height: Optional[int] = None,
-            scale: Optional[Union[int, float]] = None, show_legend: bool = True
+        self,
+        path: str,
+        width: Optional[int] = None,
+        height: Optional[int] = None,
+        scale: Optional[Union[int, float]] = None,
+        show_legend: bool = True,
     ):
         """Saves the chart to a file.
 
@@ -396,7 +415,7 @@ class LineCharts:
             row = 1
             for chart in charts:
                 chart.add_traces(figure, row)
-                figure.update_xaxes(rangeslider={'visible':False}, row=row, col=1)
+                figure.update_xaxes(rangeslider={"visible": False}, row=row, col=1)
                 row += 1
 
             figure.layout.update(showlegend=show_legend)

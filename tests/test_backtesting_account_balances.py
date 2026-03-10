@@ -77,34 +77,39 @@ def test_invalid_updates_and_holds():
         balances.update(borrowed_updates={"BTC": Decimal(-1)})
 
 
-@pytest.mark.parametrize("order_fun, checkpoints", [
-    (
-        lambda e: e.create_market_order(orders.OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1")),
-        {
-            dt.local_datetime(2001, 1, 2): {
-                "BTC": {"available": Decimal("1"), "hold": Decimal("0"), "borrowed": Decimal("0")},
-                "USD": {"available": Decimal("999900"), "hold": Decimal("0"), "borrowed": Decimal("0")},
-            }
-        }
-    ),
-    (
-        lambda e: e.create_limit_order(orders.OrderOperation.BUY, Pair("BTC", "USD"), Decimal("150"), Decimal("100")),
-        {
-            dt.local_datetime(2001, 1, 1): {
-                "BTC": {"available": Decimal("0"), "hold": Decimal("0"), "borrowed": Decimal("0")},
-                "USD": {"available": Decimal("1e6"), "hold": Decimal("15000"), "borrowed": Decimal("0")},
+@pytest.mark.parametrize(
+    "order_fun, checkpoints",
+    [
+        (
+            lambda e: e.create_market_order(orders.OrderOperation.BUY, Pair("BTC", "USD"), Decimal("1")),
+            {
+                dt.local_datetime(2001, 1, 2): {
+                    "BTC": {"available": Decimal("1"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+                    "USD": {"available": Decimal("999900"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+                }
             },
-            dt.local_datetime(2001, 1, 2): {
-                "BTC": {"available": Decimal("100"), "hold": Decimal("0"), "borrowed": Decimal("0")},
-                "USD": {"available": Decimal("985000"), "hold": Decimal("5000"), "borrowed": Decimal("0")},
+        ),
+        (
+            lambda e: e.create_limit_order(
+                orders.OrderOperation.BUY, Pair("BTC", "USD"), Decimal("150"), Decimal("100")
+            ),
+            {
+                dt.local_datetime(2001, 1, 1): {
+                    "BTC": {"available": Decimal("0"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+                    "USD": {"available": Decimal("1e6"), "hold": Decimal("15000"), "borrowed": Decimal("0")},
+                },
+                dt.local_datetime(2001, 1, 2): {
+                    "BTC": {"available": Decimal("100"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+                    "USD": {"available": Decimal("985000"), "hold": Decimal("5000"), "borrowed": Decimal("0")},
+                },
+                dt.local_datetime(2001, 1, 3): {
+                    "BTC": {"available": Decimal("150"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+                    "USD": {"available": Decimal("985000"), "hold": Decimal("0"), "borrowed": Decimal("0")},
+                },
             },
-            dt.local_datetime(2001, 1, 3): {
-                "BTC": {"available": Decimal("150"), "hold": Decimal("0"), "borrowed": Decimal("0")},
-                "USD": {"available": Decimal("985000"), "hold": Decimal("0"), "borrowed": Decimal("0")},
-            }
-        }
-    ),
-])
+        ),
+    ],
+)
 def test_balance_updates_as_orders_get_processed(order_fun, checkpoints, backtesting_dispatcher):
     pair = Pair("BTC", "USD")
     e = exchange.Exchange(
@@ -127,32 +132,49 @@ def test_balance_updates_as_orders_get_processed(order_fun, checkpoints, backtes
 
     async def impl():
         # These are for testing scenarios where fills take place in multiple bars.
-        src = event.FifoQueueEventSource(events=[
-            bar.BarEvent(
-                dt.local_datetime(2001, 1, 2),
-                bar.Bar(
-                    dt.local_datetime(2001, 1, 1),
-                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
-                    datetime.timedelta(days=1)
-                )
-            ),
-            bar.BarEvent(
-                dt.local_datetime(2001, 1, 3),
-                bar.Bar(
+        src = event.FifoQueueEventSource(
+            events=[
+                bar.BarEvent(
                     dt.local_datetime(2001, 1, 2),
-                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
-                    datetime.timedelta(days=1)
-                )
-            ),
-            bar.BarEvent(
-                dt.local_datetime(2001, 1, 4),
-                bar.Bar(
+                    bar.Bar(
+                        dt.local_datetime(2001, 1, 1),
+                        pair,
+                        Decimal(100),
+                        Decimal(100),
+                        Decimal(100),
+                        Decimal(100),
+                        Decimal(100),
+                        datetime.timedelta(days=1),
+                    ),
+                ),
+                bar.BarEvent(
                     dt.local_datetime(2001, 1, 3),
-                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
-                    datetime.timedelta(days=1)
-                )
-            ),
-        ])
+                    bar.Bar(
+                        dt.local_datetime(2001, 1, 2),
+                        pair,
+                        Decimal(100),
+                        Decimal(100),
+                        Decimal(100),
+                        Decimal(100),
+                        Decimal(100),
+                        datetime.timedelta(days=1),
+                    ),
+                ),
+                bar.BarEvent(
+                    dt.local_datetime(2001, 1, 4),
+                    bar.Bar(
+                        dt.local_datetime(2001, 1, 3),
+                        pair,
+                        Decimal(100),
+                        Decimal(100),
+                        Decimal(100),
+                        Decimal(100),
+                        Decimal(100),
+                        datetime.timedelta(days=1),
+                    ),
+                ),
+            ]
+        )
         e.add_bar_source(src)
         e.subscribe_to_bar_events(pair, on_bar)
         await order_fun(e)
@@ -165,8 +187,13 @@ def test_balance_updates_as_orders_get_processed(order_fun, checkpoints, backtes
 def test_account_locked():
     class LockAccount(account_balances.UpdateRule):
         def check(
-            self, updated_balances: ValueMap, updated_holds: ValueMap, updated_borrowed: ValueMap,
-            delta_balances: ValueMap, delta_holds: ValueMap, delta_borrowed: ValueMap
+            self,
+            updated_balances: ValueMap,
+            updated_holds: ValueMap,
+            updated_borrowed: ValueMap,
+            delta_balances: ValueMap,
+            delta_holds: ValueMap,
+            delta_borrowed: ValueMap,
         ):
             raise Exception("Account locked")
 

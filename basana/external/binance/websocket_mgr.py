@@ -25,8 +25,11 @@ from basana.core.pair import Pair
 
 class WebsocketManager:
     def __init__(
-            self, dispatcher: dispatcher.EventDispatcher, api_client: client.APIClient,
-            session: Optional[aiohttp.ClientSession] = None, config_overrides: dict = {}
+        self,
+        dispatcher: dispatcher.EventDispatcher,
+        api_client: client.APIClient,
+        session: Optional[aiohttp.ClientSession] = None,
+        config_overrides: dict = {},
     ):
         self._dispatcher = dispatcher
         self._cli = api_client
@@ -38,46 +41,45 @@ class WebsocketManager:
         self._subscribe_to_ws_channel_events(
             binance_ws.PublicChannel(klines.get_channel(pair, interval)),
             lambda ws_cli: klines.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def subscribe_to_order_book_events(
-            self, pair: Pair, event_handler: order_book.PartialOrderBookEventHandler, depth: int = 10,
-            interval: int = 1000
+        self, pair: Pair, event_handler: order_book.PartialOrderBookEventHandler, depth: int = 10, interval: int = 1000
     ):
         self._subscribe_to_ws_channel_events(
             binance_ws.PublicChannel(order_book.get_channel(pair, depth, interval)),
             lambda ws_cli: order_book.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def subscribe_to_order_book_diff_events(
-            self, pair: Pair, event_handler: order_book_diff.OrderBookDiffEventHandler, interval: int = 1000
+        self, pair: Pair, event_handler: order_book_diff.OrderBookDiffEventHandler, interval: int = 1000
     ):
         self._subscribe_to_ws_channel_events(
             binance_ws.PublicChannel(order_book_diff.get_channel(pair, interval)),
             lambda ws_cli: order_book_diff.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def subscribe_to_trade_events(self, pair: Pair, event_handler: trades.TradeEventHandler):
         self._subscribe_to_ws_channel_events(
             binance_ws.PublicChannel(trades.get_channel(pair)),
             lambda ws_cli: trades.WebSocketEventSource(pair, ws_cli),
-            cast(dispatcher.EventHandler, event_handler)
+            cast(dispatcher.EventHandler, event_handler),
         )
 
     def subscribe_to_user_data_events(
-        self, channel: binance_ws.Channel,
+        self,
+        channel: binance_ws.Channel,
         event_src_factory: Callable[[core_ws.WebSocketClient], core_ws.ChannelEventSource],
         event_handler: user_data.UserDataEventHandler,
     ):
-        self._subscribe_to_ws_channel_events(
-            channel, event_src_factory, cast(dispatcher.EventHandler, event_handler)
-        )
+        self._subscribe_to_ws_channel_events(channel, event_src_factory, cast(dispatcher.EventHandler, event_handler))
 
     def subscribe_to_order_events(
-        self, channel: binance_ws.Channel,
+        self,
+        channel: binance_ws.Channel,
         event_src_factory: Callable[[core_ws.WebSocketClient], core_ws.ChannelEventSource],
         event_handler: user_data.OrderEventHandler,
     ):
@@ -90,9 +92,10 @@ class WebsocketManager:
         )
 
     def _subscribe_to_ws_channel_events(
-            self, channel: binance_ws.Channel,
-            event_src_factory: Callable[[core_ws.WebSocketClient], core_ws.ChannelEventSource],
-            event_handler: dispatcher.EventHandler
+        self,
+        channel: binance_ws.Channel,
+        event_src_factory: Callable[[core_ws.WebSocketClient], core_ws.ChannelEventSource],
+        event_handler: dispatcher.EventHandler,
     ):
         # Get/create the event source for the channel.
         ws_cli = self._get_ws_client()

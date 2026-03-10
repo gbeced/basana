@@ -22,14 +22,17 @@ import pytest
 from basana.core.token_bucket import TokenBucketLimiter
 
 
-@pytest.mark.parametrize("tokens_per_period, period_duration, initial_tokens, expected_wait", [
-    (1, 1, 0, 1),
-    (1, 1, 1, 0),
-    (10, 1, 0, 0.1),
-    (10, 7, 0, 0.7),
-    (1, 2, 0, 2),
-    (0.5, 1, 0, 2),
-])
+@pytest.mark.parametrize(
+    "tokens_per_period, period_duration, initial_tokens, expected_wait",
+    [
+        (1, 1, 0, 1),
+        (1, 1, 1, 0),
+        (10, 1, 0, 0.1),
+        (10, 7, 0, 0.7),
+        (1, 2, 0, 2),
+        (0.5, 1, 0, 2),
+    ],
+)
 def test_token_consume(tokens_per_period, period_duration, initial_tokens, expected_wait):
     limiter = TokenBucketLimiter(tokens_per_period, period_duration, initial_tokens=initial_tokens)
     assert limiter.tokens == initial_tokens

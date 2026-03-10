@@ -35,12 +35,7 @@ from basana.external.yahoo import bars
 def test_account_balances(backtesting_dispatcher):
     async def impl():
         e = exchange.Exchange(
-            backtesting_dispatcher,
-            {
-                "usd": Decimal("1000"),
-                "ars": Decimal("-2000.05"),
-                "eth": Decimal("0")
-            }
+            backtesting_dispatcher, {"usd": Decimal("1000"), "ars": Decimal("-2000.05"), "eth": Decimal("0")}
         )
         assert (await e.get_balance("usd")).available == Decimal("1000")
         assert (await e.get_balance("usd")).borrowed == Decimal("0")
@@ -58,11 +53,7 @@ def test_exchange_object_container():
     idx = bt_helpers.ExchangeObjectContainer[orders.Order]()
 
     for i in range(1, 3):
-        idx.add(
-            orders.MarketOrder(
-                str(i), OrderOperation.BUY, btc_pair, btc_pair_info, Decimal("1")
-            )
-        )
+        idx.add(orders.MarketOrder(str(i), OrderOperation.BUY, btc_pair, btc_pair_info, Decimal("1")))
     assert "1" in [o.id for o in idx.get_open()]
     idx.get("1").cancel()
     assert "1" not in [o.id for o in idx.get_open()]
@@ -96,7 +87,7 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
             {
                 "IBM": Decimal("0"),
                 "USD": Decimal("1000"),
-            }
+            },
         )
         p = Pair("IBM", "USD")
         e.add_bar_source(bars.CSVBarSource(p, abs_data_path("orcl-2001-yahoo.csv"), sort=True))
@@ -132,7 +123,7 @@ def test_pair_info(backtesting_dispatcher):
             {
                 "USD": Decimal("1e6"),
             },
-            fee_strategy=fees.Percentage(percentage=Decimal("0.25"))
+            fee_strategy=fees.Percentage(percentage=Decimal("0.25")),
         )
 
         pair_info = await e.get_pair_info(Pair("ORCL", "USD"))
@@ -152,16 +143,23 @@ def test_bid_ask(backtesting_dispatcher):
 
     async def impl():
         p = Pair("ORCL", "USD")
-        bs = event.FifoQueueEventSource(events=[
-            bar.BarEvent(
-                dt.local_datetime(2000, 1, 3, 23, 59, 59),
-                bar.Bar(
-                    dt.local_datetime(2000, 1, 3), p,
-                    Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"), Decimal("98122000"),
-                    datetime.timedelta(days=1)
+        bs = event.FifoQueueEventSource(
+            events=[
+                bar.BarEvent(
+                    dt.local_datetime(2000, 1, 3, 23, 59, 59),
+                    bar.Bar(
+                        dt.local_datetime(2000, 1, 3),
+                        p,
+                        Decimal("124.62"),
+                        Decimal("125.19"),
+                        Decimal("111.62"),
+                        Decimal("118.12"),
+                        Decimal("98122000"),
+                        datetime.timedelta(days=1),
+                    ),
                 )
-            )
-        ])
+            ]
+        )
         e.add_bar_source(bs)
 
         with pytest.raises(errors.Error, match="No price for"):

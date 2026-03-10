@@ -72,14 +72,13 @@ class TaskPool:
     :param size: The maximum number of tasks to be running at the same time.
     :param max_queue_size: The maximum number of coroutine functions to be waiting in the queue for execution.
     """
+
     def __init__(self, max_tasks: int, max_queue_size: Optional[int] = None):
         assert max_tasks > 0, "Invalid max_tasks"
         assert max_queue_size is None or max_queue_size > 0, "Invalid max_queue_size"
 
         self._max_tasks = max_tasks
-        self._queue = LazyProxy(
-            lambda: asyncio.Queue(maxsize=max_tasks if max_queue_size is None else max_queue_size)
-        )
+        self._queue = LazyProxy(lambda: asyncio.Queue(maxsize=max_tasks if max_queue_size is None else max_queue_size))
         self._tasks: Dict[str, asyncio.Task] = {}
         self._queue_timeout = 1.0
         self._active = 0
@@ -149,7 +148,6 @@ class TaskPool:
         try:
             eof = False
             while not eof:
-
                 try:
                     coro_func = await asyncio.wait_for(self._queue.get(), timeout=self._queue_timeout)
                 except asyncio.TimeoutError:

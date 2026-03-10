@@ -63,8 +63,9 @@ class PositionInfo:
 
     def __post_init__(self):
         # Both initial and initial_avg_price should be set to 0, or none of them.
-        assert (self.initial == Decimal(0)) is (self.initial_avg_price == Decimal(0)), \
-                f"initial={self.initial}, initial_avg_price={self.initial_avg_price}"
+        assert (self.initial == Decimal(0)) is (self.initial_avg_price == Decimal(0)), (
+            f"initial={self.initial}, initial_avg_price={self.initial_avg_price}"
+        )
 
     @property
     def current(self) -> Decimal:
@@ -100,13 +101,18 @@ class PositionInfo:
         else:
             assert self.initial * self.target > 0
             # Reducing the position.
-            if self.target > 0 and self.order.operation == bs.OrderOperation.SELL \
-                    or self.target < 0 and self.order.operation == bs.OrderOperation.BUY:
+            if (
+                self.target > 0
+                and self.order.operation == bs.OrderOperation.SELL
+                or self.target < 0
+                and self.order.operation == bs.OrderOperation.BUY
+            ):
                 ret = self.initial_avg_price
             # Increasing the position.
             else:
-                ret = (abs(self.initial) * self.initial_avg_price + self.order.amount_filled * order_fill_price) \
-                    / (abs(self.initial) + self.order.amount_filled)
+                ret = (abs(self.initial) * self.initial_avg_price + self.order.amount_filled * order_fill_price) / (
+                    abs(self.initial) + self.order.amount_filled
+                )
 
         return ret
 
@@ -132,8 +138,12 @@ class PositionInfo:
 class SpotAccountPositionManager:
     # Responsible for managing orders and tracking positions in response to trading signals.
     def __init__(
-            self, exchange: exchange.Exchange, position_amount: Decimal, quote_symbol: str,
-            stop_loss_pct: Decimal, checkpoint_fname: str
+        self,
+        exchange: exchange.Exchange,
+        position_amount: Decimal,
+        quote_symbol: str,
+        stop_loss_pct: Decimal,
+        checkpoint_fname: str,
     ):
         assert position_amount > 0
         assert stop_loss_pct > 0
@@ -170,12 +180,16 @@ class SpotAccountPositionManager:
         bids_and_asks = await asyncio.gather(*[self._exchange.get_bid_ask(pos_info.pair) for pos_info in non_neutral])
         for pos_info, (bid, ask) in zip(non_neutral, bids_and_asks):
             pnl_pct = pos_info.calculate_unrealized_pnl_pct(bid, ask)
-            logger.info(StructuredMessage(
-                f"Position for {pos_info.pair}", current=pos_info.current, target=pos_info.target,
-                order_open=pos_info.order_open,
-                avg_price=bs.round_decimal(pos_info.avg_price, pos_info.pair_info.quote_precision),
-                pnl_pct=bs.round_decimal(pnl_pct, 2)
-            ))
+            logger.info(
+                StructuredMessage(
+                    f"Position for {pos_info.pair}",
+                    current=pos_info.current,
+                    target=pos_info.target,
+                    order_open=pos_info.order_open,
+                    avg_price=bs.round_decimal(pos_info.avg_price, pos_info.pair_info.quote_precision),
+                    pnl_pct=bs.round_decimal(pnl_pct, 2),
+                )
+            )
             if pnl_pct <= self._stop_loss_pct * -1:
                 logger.info(f"Stop loss for {pos_info.pair}")
                 await self.switch_position(pos_info.pair, bs.Position.NEUTRAL, force=True)
@@ -184,14 +198,16 @@ class SpotAccountPositionManager:
         current_pos_info = await self.get_position_info(pair)
 
         # Unless force is set, we can ignore the request if we're already there.
-        if not force and any([
+        if not force and any(
+            [
                 current_pos_info is None and target_position == bs.Position.NEUTRAL,
                 (
                     current_pos_info is not None
                     and signed_to_position(current_pos_info.target) == target_position
                     and current_pos_info.target_reached
-                )
-        ]):
+                ),
+            ]
+        ):
             return
 
         # Exclusive access to the position since we're going to modify it.
@@ -200,9 +216,7 @@ class SpotAccountPositionManager:
             if current_pos_info and current_pos_info.order_open:
                 logger.info(StructuredMessage("Canceling order", order_ids=current_pos_info.order.id))
                 await self._exchange.spot_account.cancel_order(pair, order_id=current_pos_info.order.id)
-                order_info = await self._exchange.spot_account.get_order_info(
-                    pair, order_id=current_pos_info.order.id
-                )
+                order_info = await self._exchange.spot_account.get_order_info(pair, order_id=current_pos_info.order.id)
                 current_pos_info.order.update_from_order_info(order_info)
 
             (bid, ask), pair_info = await asyncio.gather(
@@ -238,9 +252,9 @@ class SpotAccountPositionManager:
             # 3. Create the order.
             order_size = abs(delta)
             operation = bs.OrderOperation.BUY if delta > 0 else bs.OrderOperation.SELL
-            logger.info(StructuredMessage(
-                "Creating market order", operation=operation, pair=pair, order_size=order_size
-            ))
+            logger.info(
+                StructuredMessage("Creating market order", operation=operation, pair=pair, order_size=order_size)
+            )
             created_order = await self._exchange.spot_account.create_market_order(operation, pair, order_size)
             logger.info(StructuredMessage("Order created", id=created_order.id))
             order = await self._exchange.spot_account.get_order_info(pair, order_id=created_order.id)
@@ -248,11 +262,18 @@ class SpotAccountPositionManager:
             # 4. Keep track of the position.
             initial_avg_price = Decimal(0) if current_pos_info is None else current_pos_info.avg_price
             pos_info = PositionInfo(
-                pair=pair, pair_info=pair_info, initial=current, initial_avg_price=initial_avg_price, target=target,
+                pair=pair,
+                pair_info=pair_info,
+                initial=current,
+                initial_avg_price=initial_avg_price,
+                target=target,
                 order=OrderInfo(
-                    id=order.id, operation=order.operation, is_open=order.is_open,
-                    amount_filled=order.amount_filled, fill_price=order.fill_price,
-                )
+                    id=order.id,
+                    operation=order.operation,
+                    is_open=order.is_open,
+                    amount_filled=order.amount_filled,
+                    fill_price=order.fill_price,
+                ),
             )
             self._positions[pair] = pos_info
 
@@ -281,15 +302,22 @@ class SpotAccountPositionManager:
     async def on_order_event(self, order_event: spot.OrderEvent):
         order_update = order_event.order_update
         pair = await self._exchange.symbol_to_pair(order_update.symbol)
-        logger.info(StructuredMessage(
-            "Order updated", id=order_update.id, pair=pair, is_open=order_update.is_open, amount=order_update.amount,
-            amount_filled=order_update.amount_filled, avg_fill_price=order_update.fill_price
-        ))
+        logger.info(
+            StructuredMessage(
+                "Order updated",
+                id=order_update.id,
+                pair=pair,
+                is_open=order_update.is_open,
+                amount=order_update.amount,
+                amount_filled=order_update.amount_filled,
+                avg_fill_price=order_update.fill_price,
+            )
+        )
 
         # Update the position info.
         async with self._pos_mutex[pair]:
             pos_info = self._positions[pair]
-            if order_update.id  == pos_info.order.id and order_update.amount_filled >= pos_info.order.amount_filled:
+            if order_update.id == pos_info.order.id and order_update.amount_filled >= pos_info.order.amount_filled:
                 pos_info.order.update_from_order_update(order_update)
 
 

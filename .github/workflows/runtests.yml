@@ -15,7 +15,7 @@ on:
       - issues/*
   pull_request:
     branches:
-      - master 
+      - master
       - develop
 
 jobs:

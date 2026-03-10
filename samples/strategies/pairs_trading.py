@@ -31,8 +31,15 @@ def get_p_value(values_1, values_2):
 # Strategy based on https://notebook.community/gwulfs/research_public/lectures/pairs_trading/Pairs%20Trading
 class Strategy(bs.TradingSignalSource):
     def __init__(
-            self, dispatcher: bs.EventDispatcher, pair_1: bs.Pair, pair_2: bs.Pair, window_size: int,
-            z_score_window_size: int, p_value_threshold: float, z_score_entry_ge: float, z_score_exit_lt: float
+        self,
+        dispatcher: bs.EventDispatcher,
+        pair_1: bs.Pair,
+        pair_2: bs.Pair,
+        window_size: int,
+        z_score_window_size: int,
+        p_value_threshold: float,
+        z_score_entry_ge: float,
+        z_score_exit_lt: float,
     ):
         assert z_score_window_size <= window_size
 
@@ -86,7 +93,7 @@ class Strategy(bs.TradingSignalSource):
                     bs.Position.LONG: bs.Position.SHORT,
                     bs.Position.SHORT: bs.Position.LONG,
                     bs.Position.NEUTRAL: bs.Position.NEUTRAL,
-                }[target_position]
+                }[target_position],
             )
             self.push(signal)
 
@@ -100,7 +107,7 @@ class Strategy(bs.TradingSignalSource):
 
     def _update_df(self, bar_event: bs.BarEvent):
         self._df.at[bar_event.bar.datetime, bar_event.bar.pair.base_symbol] = float(bar_event.bar.close)
-        self._df = self._df.iloc[-self._window_size:]
+        self._df = self._df.iloc[-self._window_size :]
 
     def _df_ready(self):
         if len(self._df.columns) != 2:
@@ -116,5 +123,5 @@ class Strategy(bs.TradingSignalSource):
         values_2 = self._df[self._pair_2.base_symbol]
         self._p_value = get_p_value(values_1, values_2)
 
-        ratios = values_1[-self._z_score_window_size:] / values_2[-self._z_score_window_size:]
+        ratios = values_1[-self._z_score_window_size :] / values_2[-self._z_score_window_size :]
         self._z_score = (ratios.iloc[-1] - ratios.mean()) / ratios.std()

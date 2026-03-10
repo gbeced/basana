@@ -69,16 +69,20 @@ class PublicChannel(Channel):
 
 class WebSocketClient(core_ws.WebSocketClient):
     def __init__(
-            self, dispatcher: dispatcher.EventDispatcher, api_client: client.APIClient,
-            session: Optional[aiohttp.ClientSession] = None, config_overrides: dict = {}
+        self,
+        dispatcher: dispatcher.EventDispatcher,
+        api_client: client.APIClient,
+        session: Optional[aiohttp.ClientSession] = None,
+        config_overrides: dict = {},
     ):
         url = urljoin(
-            get_config_value(config.DEFAULTS, "api.websockets.base_url", overrides=config_overrides),
-            "/stream"
+            get_config_value(config.DEFAULTS, "api.websockets.base_url", overrides=config_overrides), "/stream"
         )
         super().__init__(
-            url, session=session, config_overrides=config_overrides,
-            heartbeat=get_config_value(config.DEFAULTS, "api.websockets.heartbeat", overrides=config_overrides)
+            url,
+            session=session,
+            config_overrides=config_overrides,
+            heartbeat=get_config_value(config.DEFAULTS, "api.websockets.heartbeat", overrides=config_overrides),
         )
         self._dispatcher = dispatcher
         self._cli = api_client
@@ -100,19 +104,13 @@ class WebSocketClient(core_ws.WebSocketClient):
 
         # Give a chance for dynamic channels to resolve the stream name.
         channels: List[Channel] = [self._alias_to_channel[alias] for alias in channel_aliases]
-        await asyncio.gather(*[
-            channel.resolve_stream_name(self._cli) for channel in channels
-        ])
-        self._stream_to_channel.update({
-            channel.stream: channel for channel in channels
-        })
+        await asyncio.gather(*[channel.resolve_stream_name(self._cli) for channel in channels])
+        self._stream_to_channel.update({channel.stream: channel for channel in channels})
 
         msg_id = self._get_next_msg_id()
-        await ws_cli.send_str(json.dumps({
-            "id": msg_id,
-            "method": "SUBSCRIBE",
-            "params": [channel.stream for channel in channels]
-        }))
+        await ws_cli.send_str(
+            json.dumps({"id": msg_id, "method": "SUBSCRIBE", "params": [channel.stream for channel in channels]})
+        )
 
         # Schedule keep alives.
         for channel in channels:
@@ -130,9 +128,9 @@ class WebSocketClient(core_ws.WebSocketClient):
             assert channel, f"{stream} could not be mapped to a channel instance"
             # Resubscribe to the channel if the listen key expired.
             if message.get("data", {}).get("e") == "listenKeyExpired":
-                logger.debug(logs.StructuredMessage(
-                    "License key expired. Scheduling re-subscription", alias=channel.alias
-                ))
+                logger.debug(
+                    logs.StructuredMessage("License key expired. Scheduling re-subscription", alias=channel.alias)
+                )
                 self.schedule_resubscription([channel.alias])
             # Get the event source for the channel alias.
             if event_source := self.get_channel_event_source(channel.alias):
@@ -161,6 +159,7 @@ class WebSocketClient(core_ws.WebSocketClient):
                     await channel.keep_alive(self._cli)
                 finally:
                     self._schedule_keep_alive(channel)
+
         return scheduler_job
 
     def _schedule_keep_alive(self, channel: Channel):

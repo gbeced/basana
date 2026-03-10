@@ -40,28 +40,43 @@ from basana.core.bar import Bar, BarEvent
     ),
     [
         (
-            "USDT", Decimal("1000"), datetime.timedelta(days=0), Decimal("1"),
+            "USDT",
+            Decimal("1000"),
+            datetime.timedelta(days=0),
+            Decimal("1"),
             {"USDT": Decimal("1000")},
-            "USDT", Decimal("0"), datetime.timedelta(days=30), Decimal("0"), Decimal("0.5"),
-
-            Decimal("100"), Decimal("0")
+            "USDT",
+            Decimal("0"),
+            datetime.timedelta(days=30),
+            Decimal("0"),
+            Decimal("0.5"),
+            Decimal("100"),
+            Decimal("0"),
         )
-    ]
+    ],
 )
 def test_loans(
-    borrowed_symbol, borrowed_amount, loan_age, current_price, initial_balances,
-    interest_symbol, interest_percentage, interest_period, min_interest, margin_requirement,
-    expected_margin_level, expected_interest
+    borrowed_symbol,
+    borrowed_amount,
+    loan_age,
+    current_price,
+    initial_balances,
+    interest_symbol,
+    interest_percentage,
+    interest_period,
+    min_interest,
+    margin_requirement,
+    expected_margin_level,
+    expected_interest,
 ):
     quote_symbol = "USDT"
 
     # Setup config and prices
     config = Config(
-        default_symbol_info=SymbolInfo(precision=2),
-        default_pair_info=PairInfo(base_precision=2, quote_precision=2)
+        default_symbol_info=SymbolInfo(precision=2), default_pair_info=PairInfo(base_precision=2, quote_precision=2)
     )
     pair = Pair(borrowed_symbol, quote_symbol)
-    prices = Prices(bid_ask_spread_pct=Decimal('0.01'), config=config)
+    prices = Prices(bid_ask_spread_pct=Decimal("0.01"), config=config)
 
     # Set a bar for price conversion
     bar = Bar(
@@ -71,8 +86,8 @@ def test_loans(
         high=current_price,
         low=current_price,
         close=current_price,
-        volume=Decimal('1000'),
-        duration=datetime.timedelta(days=1)
+        volume=Decimal("1000"),
+        duration=datetime.timedelta(days=1),
     )
     prices.on_bar_event(BarEvent(bar.datetime, bar))
 
@@ -85,10 +100,7 @@ def test_loans(
 
     # Setup exchange context
     exchange_ctx = ExchangeContext(
-        dispatcher=dispatcher,
-        account_balances=account_balances,
-        prices=prices,
-        config=config
+        dispatcher=dispatcher, account_balances=account_balances, prices=prices, config=config
     )
 
     # Setup margin loan conditions and strategy
@@ -96,7 +108,7 @@ def test_loans(
         interest_symbol=interest_symbol,
         interest_percentage=interest_percentage,
         interest_period=interest_period,
-        min_interest=min_interest
+        min_interest=min_interest,
     )
     margin_loans = MarginLoans(quote_symbol, margin_requirement)
     margin_loans.set_conditions(borrowed_symbol, loan_conditions)
@@ -116,10 +128,10 @@ def test_loans(
         if loan.id == loan_info.id:
             loan_obj = loan
             break
-    assert loan_obj is not None, 'Loan object not found'
+    assert loan_obj is not None, "Loan object not found"
     interest = loan_obj.calculate_interest(bar.datetime + loan_age, prices)
     # If interest is a dict, get the value for interest_symbol
-    interest_value = interest.get(interest_symbol, Decimal('0'))
+    interest_value = interest.get(interest_symbol, Decimal("0"))
 
     assert margin_level == expected_margin_level
     assert interest_value == expected_interest

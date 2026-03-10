@@ -30,7 +30,8 @@ def bitstamp_http_api_mock():
 
 def test_get_ohlc_data_using_end(bitstamp_http_api_mock):
     bitstamp_http_api_mock.get(
-        "http://bitstamp.mock/api/v2/ohlc/btcusd/?end=1451606400&limit=1&step=60", status=200,
+        "http://bitstamp.mock/api/v2/ohlc/btcusd/?end=1451606400&limit=1&step=60",
+        status=200,
         payload={
             "data": {
                 "ohlc": [
@@ -40,39 +41,38 @@ def test_get_ohlc_data_using_end(bitstamp_http_api_mock):
                         "low": "430.89",
                         "open": "430.89",
                         "timestamp": "1451606400",
-                        "volume": "0.00000000"
+                        "volume": "0.00000000",
                     }
                 ],
-                "pair": "BTC/USD"
+                "pair": "BTC/USD",
             }
-        }
+        },
     )
 
     async def test_main():
-        c = client.APIClient(
-            config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
-        )
+        c = client.APIClient(config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}})
         response = await c.get_ohlc_data("btcusd", 60, end=1451606400, limit=1)
         assert len(response["data"]["ohlc"]) == 1
 
     asyncio.run(test_main())
 
 
-@pytest.mark.parametrize("status_code, response_body, expected", [
-    (403, {}, "403 Forbidden"),
-    (200, {"status": "error", "reason": "Order not found"}, "Order not found"),
-    (200, {"error": "Order not found"}, "Order not found"),
-    (200, {"code": "Order not found", "errors": "blabla"}, "Order not found"),
-])
+@pytest.mark.parametrize(
+    "status_code, response_body, expected",
+    [
+        (403, {}, "403 Forbidden"),
+        (200, {"status": "error", "reason": "Order not found"}, "Order not found"),
+        (200, {"error": "Order not found"}, "Order not found"),
+        (200, {"code": "Order not found", "errors": "blabla"}, "Order not found"),
+    ],
+)
 def test_error_parsing(status_code, response_body, expected, bitstamp_http_api_mock):
     bitstamp_http_api_mock.get(
         "http://bitstamp.mock/api/v2/order_book/btcusd/", status=status_code, payload=response_body
     )
 
     async def test_main():
-        c = client.APIClient(
-            config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
-        )
+        c = client.APIClient(config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}})
         with pytest.raises(client.Error) as excinfo:
             await c.get_order_book("btcusd")
         assert str(excinfo.value) == expected

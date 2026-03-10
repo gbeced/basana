@@ -23,9 +23,7 @@ from basana.core.event_sources import csv
 
 
 class RowParser(csv.RowParser):
-    def __init__(
-            self, pair: pair.Pair, tzinfo: datetime.tzinfo, timedelta: datetime.timedelta
-    ):
+    def __init__(self, pair: pair.Pair, tzinfo: datetime.tzinfo, timedelta: datetime.timedelta):
         self.pair = pair
         self.tzinfo = tzinfo
         self.timedelta = timedelta
@@ -46,8 +44,14 @@ class RowParser(csv.RowParser):
             bar.BarEvent(
                 dt + self.timedelta,
                 bar.Bar(
-                    dt, self.pair, Decimal(row_dict["open"]), Decimal(row_dict["high"]), Decimal(row_dict["low"]),
-                    Decimal(row_dict["close"]), volume, self.timedelta
-                )
+                    dt,
+                    self.pair,
+                    Decimal(row_dict["open"]),
+                    Decimal(row_dict["high"]),
+                    Decimal(row_dict["low"]),
+                    Decimal(row_dict["close"]),
+                    volume,
+                    self.timedelta,
+                ),
             )
         ]

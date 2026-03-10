@@ -23,16 +23,19 @@ from basana.external.common.csv.bars import RowParser
 
 
 period_to_timedelta = {
-    period_str: datetime.timedelta(seconds=period_secs)
-    for period_str, period_secs in period_to_step.items()
+    period_str: datetime.timedelta(seconds=period_secs) for period_str, period_secs in period_to_step.items()
 }
 
 
 class BarSource(csv.EventSource):
     def __init__(
-            self, pair: pair.Pair, csv_path: str, period: str,
-            sort: bool = False, tzinfo: datetime.tzinfo = datetime.timezone.utc,
-            dict_reader_kwargs: dict = {}
+        self,
+        pair: pair.Pair,
+        csv_path: str,
+        period: str,
+        sort: bool = False,
+        tzinfo: datetime.tzinfo = datetime.timezone.utc,
+        dict_reader_kwargs: dict = {},
     ):
         # The datetime in the files are the beginning of the period but we need to generate the event at the period's
         # end.
