@@ -26,7 +26,10 @@ def backtesting_log_mode(dispatcher):
     old_factory = logging.getLogRecordFactory()
 
     def record_factory(*args, **kwargs):
-        record_dt = dispatcher.now()
+        if dispatcher.now_available:
+            record_dt = dispatcher.now()
+        else:
+            record_dt = dt.utc_now()
         record = old_factory(*args, **kwargs)
         record.created = dt.to_utc_timestamp(record_dt)
         record.msecs = int(record_dt.microsecond / 1000)
