@@ -26,7 +26,7 @@ import pytest
 from .helpers import abs_data_path
 from .common import btc_pair, btc_pair_info
 from basana.backtesting import errors, exchange, fees, helpers as bt_helpers, orders
-from basana.core import bar, dt, event
+from basana.core import bar, dt, event, logs
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair, PairInfo
 from basana.external.yahoo import bars
@@ -172,5 +172,29 @@ def test_bid_ask(backtesting_dispatcher):
         bid, ask = await e.get_bid_ask(p)
         assert bid == Decimal("117.83")
         assert ask == Decimal("118.41")
+
+    asyncio.run(impl())
+
+
+def test_backtesting_log_mode(backtesting_dispatcher, caplog):
+    caplog.set_level(logging.INFO)
+
+    async def on_event(event: event.Event):
+        logging.info("test_backtesting_log_mode")  # Should have the even'ts datetime
+
+    async def impl():
+        event_source = event.FifoQueueEventSource(events=[
+            event.Event(dt.local_datetime(2000, 1, 1)),
+        ])
+        backtesting_dispatcher.subscribe(event_source, on_event)
+
+        logging.info("test_backtesting_log_mode")
+        with logs.backtesting_log_mode(backtesting_dispatcher):
+            logging.info("test_backtesting_log_mode")
+            await backtesting_dispatcher.run()
+            logging.info("test_backtesting_log_mode")  # Should have the even'ts datetime
+
+        assert caplog.text.count("test_backtesting_log_mode") == 4
+        assert caplog.text.count("2000-01-01") == 2
 
     asyncio.run(impl())
