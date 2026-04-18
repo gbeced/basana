@@ -119,10 +119,15 @@ class EventMultiplexer:
     def pop_while(
             self, max_dt: datetime.datetime
     ) -> Generator[Tuple[core_event.EventSource, core_event.Event], None, None]:
-        while None not in (src_and_event := self.pop(max_dt)):
-            yield (cast(core_event.EventSource, src_and_event[0]), cast(core_event.Event, src_and_event[1]))
+        while True:
+            source, event = self.pop(max_dt)
+            if source is None:
+                return
+            yield (cast(core_event.EventSource, source), cast(core_event.Event, event))
 
     def _prefetch(self):
+        if not self._sources_to_prefetch:
+            return
         for source in tuple(self._sources_to_prefetch):
             if event := source.pop():
                 self._prefetched_events[source] = event
@@ -285,9 +290,10 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             self._core_tasks = None
 
     async def _dispatch_event(self, event_dispatch: EventDispatch):
-        logger.debug(logs.StructuredMessage(
-            "Dispatching event", when=event_dispatch.event.when, type=helpers.classpath(event_dispatch.event)
-        ))
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(logs.StructuredMessage(
+                "Dispatching event", when=event_dispatch.event.when, type=helpers.classpath(event_dispatch.event)
+            ))
         await self._run_event_handlers(event_dispatch.event, self._sniffers_pre)
         await self._run_event_handlers(event_dispatch.event, event_dispatch.handlers)
         await self._run_event_handlers(event_dispatch.event, self._sniffers_post)
@@ -313,7 +319,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
                 self.stop()
 
     async def _execute_scheduled(self, dt: datetime.datetime, job: SchedulerJob):
-        logger.debug(logs.StructuredMessage("Executing scheduled job", scheduled=dt))
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(logs.StructuredMessage("Executing scheduled job", scheduled=dt))
 
         try:
             await job()
