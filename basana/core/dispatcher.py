@@ -294,14 +294,14 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             logger.debug(logs.StructuredMessage(
                 "Dispatching event", when=event_dispatch.event.when, type=helpers.classpath(event_dispatch.event)
             ))
-        await self._run_event_handlers(event_dispatch.event, self._sniffers_pre)
+        if self._sniffers_pre:
+            await self._run_event_handlers(event_dispatch.event, self._sniffers_pre)
         await self._run_event_handlers(event_dispatch.event, event_dispatch.handlers)
-        await self._run_event_handlers(event_dispatch.event, self._sniffers_post)
+        if self._sniffers_post:
+            await self._run_event_handlers(event_dispatch.event, self._sniffers_post)
 
     async def _run_event_handlers(self, evnt: core_event.Event, handlers: List[EventHandler]):
         match len(handlers):
-            case 0:
-                pass
             case 1:
                 await self._call_event_handler(evnt, handlers[0])
             case _:
