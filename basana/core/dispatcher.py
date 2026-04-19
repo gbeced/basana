@@ -36,12 +36,6 @@ IdleHandler = Callable[[], Awaitable[Any]]
 SchedulerJob = Callable[[], Awaitable[Any]]
 
 
-@dataclasses.dataclass
-class EventDispatch:
-    event: core_event.Event
-    handlers: List[EventHandler]
-
-
 @dataclasses.dataclass(order=True)
 class ScheduledJob:
     when: datetime.datetime
@@ -289,16 +283,16 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         finally:
             self._core_tasks = None
 
-    async def _dispatch_event(self, event_dispatch: EventDispatch):
+    async def _dispatch_event(self, event: core_event.Event, handlers: List[EventHandler]):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(logs.StructuredMessage(
-                "Dispatching event", when=event_dispatch.event.when, type=helpers.classpath(event_dispatch.event)
+                "Dispatching event", when=event.when, type=helpers.classpath(event)
             ))
         if self._sniffers_pre:
-            await self._run_event_handlers(event_dispatch.event, self._sniffers_pre)
-        await self._run_event_handlers(event_dispatch.event, event_dispatch.handlers)
+            await self._run_event_handlers(event, self._sniffers_pre)
+        await self._run_event_handlers(event, handlers)
         if self._sniffers_post:
-            await self._run_event_handlers(event_dispatch.event, self._sniffers_post)
+            await self._run_event_handlers(event, self._sniffers_post)
 
     async def _run_event_handlers(self, evnt: core_event.Event, handlers: List[EventHandler]):
         match len(handlers):
@@ -394,15 +388,15 @@ class BacktestingDispatcher(EventDispatcher):
     async def _dispatch_events(self, dt: datetime.datetime):
         self._last_dt = dt
         event_dispatches = [
-            EventDispatch(event=evnt, handlers=self._event_handlers[source])
-            for source, evnt in self._event_mux.pop_while(dt)
+            (event, self._event_handlers[source])
+            for source, event in self._event_mux.pop_while(dt)
         ]
         match len(event_dispatches):
             case 1:
-                await self._dispatch_event(event_dispatches[0])
+                await self._dispatch_event(*event_dispatches[0])
             case _:
                 for event_dispatch in event_dispatches:
-                    await self._handler_tasks.push(functools.partial(self._dispatch_event, event_dispatch))
+                    await self._handler_tasks.push(functools.partial(self._dispatch_event, *event_dispatch))
                 await self._handler_tasks.wait()
 
 
@@ -482,10 +476,7 @@ class RealtimeDispatcher(EventDispatcher):
 
             # Push event into the task pool for processing.
             await self._handler_tasks.push(
-                functools.partial(self._dispatch_event, EventDispatch(
-                    event=evnt,
-                    handlers=self._event_handlers[source]
-                ))
+                functools.partial(self._dispatch_event, evnt, self._event_handlers[source])
             )
 
 
