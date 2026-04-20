@@ -358,7 +358,8 @@ class BacktestingDispatcher(EventDispatcher):
                 assert self._last_dt is None or next_dt >= self._last_dt, \
                     f"{next_dt} can't be dispatched after {self._last_dt}"
 
-                await self._dispatch_scheduled(next_dt)
+                if self._scheduler_queue._queue:
+                    await self._dispatch_scheduled(next_dt)
                 await self._dispatch_events(next_dt)
             else:
                 # No more events. Dispatch all pending scheduled jobs before stopping.
