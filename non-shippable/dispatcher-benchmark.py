@@ -21,15 +21,17 @@ async def event_hander(event: bs.Event):
     pass
 
 
-async def run_dispatcher(event_count: int):
-    source = EventSource(event_count)
+async def run_dispatcher(event_counts: list):
     dispatcher = bs.backtesting_dispatcher()
-    dispatcher.subscribe(source, event_hander)
+    for count in event_counts:
+        source = EventSource(count)
+        dispatcher.subscribe(source, event_hander)
     await dispatcher.run()
 
 
 async def main():
-    await run_dispatcher(1e6)
+    # await run_dispatcher([1e6])
+    await run_dispatcher([5e5, 5e5])
 
 
 if __name__ == "__main__":
