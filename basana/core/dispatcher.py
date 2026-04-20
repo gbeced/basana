@@ -42,12 +42,12 @@ class ScheduledJob:
     job: SchedulerJob = dataclasses.field(compare=False)  # Comparing function objects fails on Win32
 
 
-@dataclasses.dataclass(order=True)
-class PrefetchedEvent:
-    when: datetime.datetime
-    priority: int
-    source: core_event.EventSource = dataclasses.field(compare=False)
-    event: core_event.Event = dataclasses.field(compare=False)
+# Indices for prefetched event tuples stored in the EventMultiplexer heap.
+# Using tuples instead of a dataclass avoids per-event __init__ and __lt__ overhead.
+_PE_WHEN = 0
+_PE_PRIORITY = 1
+_PE_SOURCE = 3
+_PE_EVENT = 4
 
 
 class SchedulerQueue:
@@ -88,7 +88,7 @@ class EventMultiplexer:
     """
     def __init__(self) -> None:
         self._prefetched_events: Dict[core_event.EventSource, Optional[core_event.Event]] = {}
-        self._event_heap: List[PrefetchedEvent] = []
+        self._event_heap: List[tuple] = []
         self._sources_to_prefetch: Set[core_event.EventSource] = set()
 
     def add(self, source: core_event.EventSource):
@@ -98,17 +98,18 @@ class EventMultiplexer:
 
     def peek_next_event_dt(self) -> Optional[datetime.datetime]:
         self._prefetch()
-        return self._event_heap[0].when if self._event_heap else None
+        return self._event_heap[0][_PE_WHEN] if self._event_heap else None
 
     def pop(self, max_dt: datetime.datetime) -> Tuple[Optional[core_event.EventSource], Optional[core_event.Event]]:
         self._prefetch()
-        if not self._event_heap or self._event_heap[0].when > max_dt:
+        if not self._event_heap or self._event_heap[0][_PE_WHEN] > max_dt:
             return (None, None)
 
-        prefetched_event = heapq.heappop(self._event_heap)
-        self._prefetched_events[prefetched_event.source] = None
-        self._sources_to_prefetch.add(prefetched_event.source)
-        return (prefetched_event.source, prefetched_event.event)
+        entry = heapq.heappop(self._event_heap)
+        source = entry[_PE_SOURCE]
+        self._prefetched_events[source] = None
+        self._sources_to_prefetch.add(source)
+        return (source, entry[_PE_EVENT])
 
     def pop_while(
             self, max_dt: datetime.datetime
@@ -126,12 +127,7 @@ class EventMultiplexer:
             if event := source.pop():
                 self._prefetched_events[source] = event
                 self._sources_to_prefetch.remove(source)
-                heapq.heappush(self._event_heap, PrefetchedEvent(
-                    when=event.when,
-                    priority=-source.priority,
-                    source=source,
-                    event=event,
-                ))
+                heapq.heappush(self._event_heap, (event.when, -source.priority, id(source), source, event))
 
 
 class EventDispatcher(metaclass=abc.ABCMeta):
