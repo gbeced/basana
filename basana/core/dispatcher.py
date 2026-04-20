@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from collections import defaultdict
-from typing import cast, Any, Awaitable, Callable, Dict, Generator, List, Optional, Set, Tuple
+from typing import Any, Awaitable, Callable, Dict, Generator, List, Optional, Set, Tuple
 import abc
 import asyncio
 import contextlib
@@ -117,7 +117,7 @@ class EventMultiplexer:
             source, event = self.pop(max_dt)
             if source is None:
                 return
-            yield (cast(core_event.EventSource, source), cast(core_event.Event, event))
+            yield (source, event)  # type: ignore[misc]
 
     def _prefetch(self):
         if not self._sources_to_prefetch:
