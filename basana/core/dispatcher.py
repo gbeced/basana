@@ -160,6 +160,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._handler_tasks = helpers.TaskPool(max_concurrent, max_queue_size=max_concurrent * 10)
         # Set to True for the dispatcher to stop if a handler raises an exception.
         self.stop_on_handler_exceptions = False
+        self._debug_enabled = False
 
     @property
     def current_event_dt(self) -> Optional[datetime.datetime]:
@@ -235,6 +236,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         assert not self._running, "Can't run twice."
         assert self._core_tasks is None
 
+        self._debug_enabled = logger.isEnabledFor(logging.DEBUG)
+
         # This block has coverage on all platforms except on Windows.
         if platform.system() != "Windows":  # pragma: no cover
             for stop_signal in stop_signals:
@@ -280,7 +283,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             self._core_tasks = None
 
     async def _dispatch_event(self, event: core_event.Event, handlers: List[EventHandler]):
-        if logger.isEnabledFor(logging.DEBUG):
+        if self._debug_enabled:
             logger.debug(logs.StructuredMessage(
                 "Dispatching event", when=event.when, type=helpers.classpath(event)
             ))
@@ -309,7 +312,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
                 self.stop()
 
     async def _execute_scheduled(self, dt: datetime.datetime, job: SchedulerJob):
-        if logger.isEnabledFor(logging.DEBUG):
+        if self._debug_enabled:
             logger.debug(logs.StructuredMessage("Executing scheduled job", scheduled=dt))
 
         try:
