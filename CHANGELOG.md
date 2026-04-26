@@ -1,5 +1,11 @@
 # Changelog
 
+## TBD
+
+### Misc
+
+* Performance optimizations.
+
 ## 1.10.1
 
 ### Bug fixes
