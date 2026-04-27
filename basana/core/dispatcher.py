@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from collections import defaultdict
-from typing import cast, Any, Awaitable, Callable, Dict, Generator, List, Optional, Set, Tuple
+from typing import Any, Awaitable, Callable, Dict, Generator, List, Optional, Set, Tuple
 import abc
 import asyncio
 import contextlib
@@ -36,24 +36,18 @@ IdleHandler = Callable[[], Awaitable[Any]]
 SchedulerJob = Callable[[], Awaitable[Any]]
 
 
-@dataclasses.dataclass
-class EventDispatch:
-    event: core_event.Event
-    handlers: List[EventHandler]
-
-
 @dataclasses.dataclass(order=True)
 class ScheduledJob:
     when: datetime.datetime
     job: SchedulerJob = dataclasses.field(compare=False)  # Comparing function objects fails on Win32
 
 
-@dataclasses.dataclass(order=True)
-class PrefetchedEvent:
-    when: datetime.datetime
-    priority: int
-    source: core_event.EventSource = dataclasses.field(compare=False)
-    event: core_event.Event = dataclasses.field(compare=False)
+# Indices for prefetched event tuples stored in the EventMultiplexer heap.
+# Using tuples instead of a dataclass avoids per-event __init__ and __lt__ overhead.
+_PE_WHEN = 0
+_PE_PRIORITY = 1
+_PE_SOURCE = 3
+_PE_EVENT = 4
 
 
 class SchedulerQueue:
@@ -94,7 +88,7 @@ class EventMultiplexer:
     """
     def __init__(self) -> None:
         self._prefetched_events: Dict[core_event.EventSource, Optional[core_event.Event]] = {}
-        self._event_heap: List[PrefetchedEvent] = []
+        self._event_heap: List[tuple] = []
         self._sources_to_prefetch: Set[core_event.EventSource] = set()
 
     def add(self, source: core_event.EventSource):
@@ -104,35 +98,36 @@ class EventMultiplexer:
 
     def peek_next_event_dt(self) -> Optional[datetime.datetime]:
         self._prefetch()
-        return self._event_heap[0].when if self._event_heap else None
+        return self._event_heap[0][_PE_WHEN] if self._event_heap else None
 
     def pop(self, max_dt: datetime.datetime) -> Tuple[Optional[core_event.EventSource], Optional[core_event.Event]]:
         self._prefetch()
-        if not self._event_heap or self._event_heap[0].when > max_dt:
+        if not self._event_heap or self._event_heap[0][_PE_WHEN] > max_dt:
             return (None, None)
 
-        prefetched_event = heapq.heappop(self._event_heap)
-        self._prefetched_events[prefetched_event.source] = None
-        self._sources_to_prefetch.add(prefetched_event.source)
-        return (prefetched_event.source, prefetched_event.event)
+        entry = heapq.heappop(self._event_heap)
+        source = entry[_PE_SOURCE]
+        self._prefetched_events[source] = None
+        self._sources_to_prefetch.add(source)
+        return (source, entry[_PE_EVENT])
 
     def pop_while(
             self, max_dt: datetime.datetime
     ) -> Generator[Tuple[core_event.EventSource, core_event.Event], None, None]:
-        while None not in (src_and_event := self.pop(max_dt)):
-            yield (cast(core_event.EventSource, src_and_event[0]), cast(core_event.Event, src_and_event[1]))
+        while True:
+            source, event = self.pop(max_dt)
+            if source is None:
+                return
+            yield (source, event)  # type: ignore[misc]
 
     def _prefetch(self):
+        if not self._sources_to_prefetch:
+            return
         for source in tuple(self._sources_to_prefetch):
             if event := source.pop():
                 self._prefetched_events[source] = event
                 self._sources_to_prefetch.remove(source)
-                heapq.heappush(self._event_heap, PrefetchedEvent(
-                    when=event.when,
-                    priority=-source.priority,
-                    source=source,
-                    event=event,
-                ))
+                heapq.heappush(self._event_heap, (event.when, -source.priority, id(source), source, event))
 
 
 class EventDispatcher(metaclass=abc.ABCMeta):
@@ -165,6 +160,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._handler_tasks = helpers.TaskPool(max_concurrent, max_queue_size=max_concurrent * 10)
         # Set to True for the dispatcher to stop if a handler raises an exception.
         self.stop_on_handler_exceptions = False
+        self._debug_enabled = False
 
     @property
     def current_event_dt(self) -> Optional[datetime.datetime]:
@@ -240,6 +236,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         assert not self._running, "Can't run twice."
         assert self._core_tasks is None
 
+        self._debug_enabled = logger.isEnabledFor(logging.DEBUG)
+
         # This block has coverage on all platforms except on Windows.
         if platform.system() != "Windows":  # pragma: no cover
             for stop_signal in stop_signals:
@@ -284,18 +282,19 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         finally:
             self._core_tasks = None
 
-    async def _dispatch_event(self, event_dispatch: EventDispatch):
-        logger.debug(logs.StructuredMessage(
-            "Dispatching event", when=event_dispatch.event.when, type=helpers.classpath(event_dispatch.event)
-        ))
-        await self._run_event_handlers(event_dispatch.event, self._sniffers_pre)
-        await self._run_event_handlers(event_dispatch.event, event_dispatch.handlers)
-        await self._run_event_handlers(event_dispatch.event, self._sniffers_post)
+    async def _dispatch_event(self, event: core_event.Event, handlers: List[EventHandler]):
+        if self._debug_enabled:
+            logger.debug(logs.StructuredMessage(
+                "Dispatching event", when=event.when, type=helpers.classpath(event)
+            ))
+        if self._sniffers_pre:
+            await self._run_event_handlers(event, self._sniffers_pre)
+        await self._run_event_handlers(event, handlers)
+        if self._sniffers_post:
+            await self._run_event_handlers(event, self._sniffers_post)
 
     async def _run_event_handlers(self, evnt: core_event.Event, handlers: List[EventHandler]):
         match len(handlers):
-            case 0:
-                pass
             case 1:
                 await self._call_event_handler(evnt, handlers[0])
             case _:
@@ -313,7 +312,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
                 self.stop()
 
     async def _execute_scheduled(self, dt: datetime.datetime, job: SchedulerJob):
-        logger.debug(logs.StructuredMessage("Executing scheduled job", scheduled=dt))
+        if self._debug_enabled:
+            logger.debug(logs.StructuredMessage("Executing scheduled job", scheduled=dt))
 
         try:
             await job()
@@ -361,7 +361,8 @@ class BacktestingDispatcher(EventDispatcher):
                 assert self._last_dt is None or next_dt >= self._last_dt, \
                     f"{next_dt} can't be dispatched after {self._last_dt}"
 
-                await self._dispatch_scheduled(next_dt)
+                if self._scheduler_queue._queue:
+                    await self._dispatch_scheduled(next_dt)
                 await self._dispatch_events(next_dt)
             else:
                 # No more events. Dispatch all pending scheduled jobs before stopping.
@@ -387,15 +388,15 @@ class BacktestingDispatcher(EventDispatcher):
     async def _dispatch_events(self, dt: datetime.datetime):
         self._last_dt = dt
         event_dispatches = [
-            EventDispatch(event=evnt, handlers=self._event_handlers[source])
-            for source, evnt in self._event_mux.pop_while(dt)
+            (event, self._event_handlers[source])
+            for source, event in self._event_mux.pop_while(dt)
         ]
         match len(event_dispatches):
             case 1:
-                await self._dispatch_event(event_dispatches[0])
+                await self._dispatch_event(*event_dispatches[0])
             case _:
                 for event_dispatch in event_dispatches:
-                    await self._handler_tasks.push(functools.partial(self._dispatch_event, event_dispatch))
+                    await self._handler_tasks.push(functools.partial(self._dispatch_event, *event_dispatch))
                 await self._handler_tasks.wait()
 
 
@@ -475,10 +476,7 @@ class RealtimeDispatcher(EventDispatcher):
 
             # Push event into the task pool for processing.
             await self._handler_tasks.push(
-                functools.partial(self._dispatch_event, EventDispatch(
-                    event=evnt,
-                    handlers=self._event_handlers[source]
-                ))
+                functools.partial(self._dispatch_event, evnt, self._event_handlers[source])
             )
 
 
