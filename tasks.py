@@ -46,3 +46,8 @@ def create_virtualenv(c, all_extras=True):
 def build_docs(c):
     with c.cd("docs"):
         c.run("poetry run -- make html", pty=True, echo=cmd_echo)
+
+
+@task
+def build_dist(c):
+    c.run("poetry build --clean", pty=True, echo=cmd_echo)
