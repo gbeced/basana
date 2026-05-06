@@ -14,6 +14,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import time
+
 from basana.core import dt
 
 
@@ -28,4 +30,5 @@ def test_utc_now_mono():
         now_mono_2 = dt.utc_now(monotonic=True)
         assert now_mono_2 >= now_mono_1
 
-    assert now_mono_2 > now_mono
+    time.sleep(0.01)
+    assert dt.utc_now(monotonic=True) > now_mono
