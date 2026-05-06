@@ -102,7 +102,7 @@ LISTEN_KEY_EXPIRED_MSG = {
     ("cross_margin_account", "http://binance.mock/sapi/v1/userDataStream"),
     ("isolated_margin_account", "http://binance.mock/sapi/v1/userDataStream/isolated"),
 ])
-def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatcher, binance_http_api_mock, caplog):
+async def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatcher, binance_http_api_mock, caplog):
     caplog.set_level(logging.DEBUG)
     order_update_event = None
     user_data_event = None
@@ -202,7 +202,7 @@ def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatcher, b
                 check_re_subscription(),
             )
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
 
     assert user_data_event is not None
     assert user_data_event.when == datetime.datetime(2024, 12, 24, 20, 9, 8, 134000, tzinfo=datetime.timezone.utc)

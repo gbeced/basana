@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from decimal import Decimal
-import asyncio
 import re
 
 import aiohttp
@@ -58,55 +57,46 @@ DEPTH_RESPONSE = {
 }
 
 
-def test_bid_ask(binance_http_api_mock, binance_exchange):
+async def test_bid_ask(binance_http_api_mock, binance_exchange):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/api/v3/depth\\?.*"), status=200,
         payload=DEPTH_RESPONSE
     )
 
-    async def test_main():
-        bid, ask = await binance_exchange.get_bid_ask(pair.Pair("BTC", "USDT"))
-        assert bid == Decimal("16757.47")
-        assert ask == Decimal("16758.13")
-
-    asyncio.run(test_main())
+    bid, ask = await binance_exchange.get_bid_ask(pair.Pair("BTC", "USDT"))
+    assert bid == Decimal("16757.47")
+    assert ask == Decimal("16758.13")
 
 
-def test_pair_info_explicit_session(binance_http_api_mock, realtime_dispatcher):
+async def test_pair_info_explicit_session(binance_http_api_mock, realtime_dispatcher):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/api/v3/exchangeInfo\\?.*"), status=200,
         payload=helpers.load_json("binance_btc_usdt_exchange_info.json")
     )
 
-    async def test_main():
-        async with aiohttp.ClientSession() as session:
-            e = exchange.Exchange(
-                realtime_dispatcher, "api_key", "api_secret", session=session,
-                config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
-            )
+    async with aiohttp.ClientSession() as session:
+        e = exchange.Exchange(
+            realtime_dispatcher, "api_key", "api_secret", session=session,
+            config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+        )
 
-            pair_info = await e.get_pair_info(pair.Pair("BTC", "USDT"))
-            assert pair_info.base_precision == 5
-            assert pair_info.quote_precision == 2
-            assert "SPOT" in pair_info.permissions
-
-    asyncio.run(test_main())
+        pair_info = await e.get_pair_info(pair.Pair("BTC", "USDT"))
+        assert pair_info.base_precision == 5
+        assert pair_info.quote_precision == 2
+        assert "SPOT" in pair_info.permissions
 
 
-def test_symbol_to_pair(binance_http_api_mock, realtime_dispatcher):
+async def test_symbol_to_pair(binance_http_api_mock, realtime_dispatcher):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/api/v3/exchangeInfo\\?.*"), status=200,
         payload=helpers.load_json("binance_btc_usdt_exchange_info.json")
     )
 
-    async def test_main():
-        async with aiohttp.ClientSession() as session:
-            e = exchange.Exchange(
-                realtime_dispatcher, "api_key", "api_secret", session=session,
-                config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
-            )
+    async with aiohttp.ClientSession() as session:
+        e = exchange.Exchange(
+            realtime_dispatcher, "api_key", "api_secret", session=session,
+            config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+        )
 
-            p = await e.symbol_to_pair("BTCUSDT")
-            assert p == pair.Pair("BTC", "USDT")
-
-    asyncio.run(test_main())
+        p = await e.symbol_to_pair("BTCUSDT")
+        assert p == pair.Pair("BTC", "USDT")

@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import re
 
 import aioresponses
@@ -29,7 +28,7 @@ def binance_http_api_mock():
         yield m
 
 
-def test_download_ohlc(binance_http_api_mock, capsys):
+async def test_download_ohlc(binance_http_api_mock, capsys):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/api/v3/klines\\?.*"),
         status=200,
@@ -81,13 +80,10 @@ def test_download_ohlc(binance_http_api_mock, capsys):
         ]
     )
 
-    async def test_main():
-        await download_bars.main(
-            params=["-c", "BTCUSDT", "-p", "1d", "-s", "2020-01-01", "-e", "2020-01-01"],
-            config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
-        )
-        assert capsys.readouterr().out == """datetime,open,high,low,close,volume
+    await download_bars.main(
+        params=["-c", "BTCUSDT", "-p", "1d", "-s", "2020-01-01", "-e", "2020-01-01"],
+        config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+    )
+    assert capsys.readouterr().out == """datetime,open,high,low,close,volume
 2020-01-01 00:00:00,7195.24000000,7255.00000000,7175.15000000,7200.85000000,16792.38816500
 """
-
-    asyncio.run(test_main())

@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import datetime
 
 import pytest
@@ -23,45 +22,39 @@ from . import helpers
 from basana.core import dt, errors, event
 
 
-def test_duplicate_subscription_is_ignored(backtesting_dispatcher):
+async def test_duplicate_subscription_is_ignored(backtesting_dispatcher):
     events = []
 
     async def save_events(event):
         events.append(event)
 
-    async def test_main():
-        src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
-        backtesting_dispatcher.subscribe(src, save_events)
-        backtesting_dispatcher.subscribe(src, save_events)
+    src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
+    backtesting_dispatcher.subscribe(src, save_events)
+    backtesting_dispatcher.subscribe(src, save_events)
 
-        await backtesting_dispatcher.run()
+    await backtesting_dispatcher.run()
 
-        assert len(events) == 1
-
-    asyncio.run(test_main())
+    assert len(events) == 1
 
 
-def test_subscription_order_per_source(backtesting_dispatcher):
+async def test_subscription_order_per_source(backtesting_dispatcher):
     priorities = []
 
-    async def test_main():
-        src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
+    src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
 
-        handler_count = 100
-        for i in range(handler_count):
-            async def handler(e, i=i):
-                priorities.append(i)
-            backtesting_dispatcher.subscribe(src, handler)
+    handler_count = 100
+    for i in range(handler_count):
+        async def handler(e, i=i):
+            priorities.append(i)
+        backtesting_dispatcher.subscribe(src, handler)
 
-        await backtesting_dispatcher.run()
+    await backtesting_dispatcher.run()
 
-        assert len(priorities) == handler_count
-        assert priorities == list(range(handler_count))
-
-    asyncio.run(test_main())
+    assert len(priorities) == handler_count
+    assert priorities == list(range(handler_count))
 
 
-def test_sniffers(backtesting_dispatcher):
+async def test_sniffers(backtesting_dispatcher):
     handlers = []
 
     async def event_handler(event):
@@ -73,18 +66,15 @@ def test_sniffers(backtesting_dispatcher):
     async def all_event_front_runner(event):
         handlers.append(1)
 
-    async def test_main():
-        src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
+    src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
 
-        backtesting_dispatcher.subscribe_all(all_event_handler)
-        backtesting_dispatcher.subscribe(src, event_handler)
-        backtesting_dispatcher.subscribe_all(all_event_front_runner, front_run=True)
+    backtesting_dispatcher.subscribe_all(all_event_handler)
+    backtesting_dispatcher.subscribe(src, event_handler)
+    backtesting_dispatcher.subscribe_all(all_event_front_runner, front_run=True)
 
-        await backtesting_dispatcher.run()
-        assert len(handlers) == 3
-        assert helpers.is_sorted(handlers)
-
-    asyncio.run(test_main())
+    await backtesting_dispatcher.run()
+    assert len(handlers) == 3
+    assert helpers.is_sorted(handlers)
 
 
 @pytest.mark.parametrize("schedule_dates", [
@@ -100,7 +90,7 @@ def test_sniffers(backtesting_dispatcher):
         dt.utc_now(),
     ],
 ])
-def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
+async def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
     datetimes = []
 
     def scheduled_job_factory(when):
@@ -114,32 +104,29 @@ def test_backtesting_scheduler(schedule_dates, backtesting_dispatcher):
     async def failing_scheduled_job():
         raise Exception("oh no, oh no, oh no no no no")
 
-    async def test_main():
-        src = event.FifoQueueEventSource()
-        event_datetimes = [
-            datetime.datetime(2000, 1, 1),
-            datetime.datetime(2001, 1, 1),
-            datetime.datetime(2002, 1, 1),
-        ]
-        for when in event_datetimes:
-            src.push(event.Event(when.replace(tzinfo=datetime.timezone.utc)))
-        backtesting_dispatcher.subscribe(src, proces_event)
+    src = event.FifoQueueEventSource()
+    event_datetimes = [
+        datetime.datetime(2000, 1, 1),
+        datetime.datetime(2001, 1, 1),
+        datetime.datetime(2002, 1, 1),
+    ]
+    for when in event_datetimes:
+        src.push(event.Event(when.replace(tzinfo=datetime.timezone.utc)))
+    backtesting_dispatcher.subscribe(src, proces_event)
 
-        for schedule_date in schedule_dates:
-            if dt.is_naive(schedule_date):
-                schedule_date = schedule_date.replace(tzinfo=datetime.timezone.utc)
-            backtesting_dispatcher.schedule(schedule_date, scheduled_job_factory(schedule_date))
-            backtesting_dispatcher.schedule(schedule_date, failing_scheduled_job)
+    for schedule_date in schedule_dates:
+        if dt.is_naive(schedule_date):
+            schedule_date = schedule_date.replace(tzinfo=datetime.timezone.utc)
+        backtesting_dispatcher.schedule(schedule_date, scheduled_job_factory(schedule_date))
+        backtesting_dispatcher.schedule(schedule_date, failing_scheduled_job)
 
-        await backtesting_dispatcher.run()
+    await backtesting_dispatcher.run()
 
-        assert helpers.is_sorted(datetimes)
-        assert len(datetimes) == len(schedule_dates) + len(event_datetimes)
-
-    asyncio.run(test_main())
+    assert helpers.is_sorted(datetimes)
+    assert len(datetimes) == len(schedule_dates) + len(event_datetimes)
 
 
-def test_handler_exceptions_dont_stop_the_dispatcher(backtesting_dispatcher):
+async def test_handler_exceptions_dont_stop_the_dispatcher(backtesting_dispatcher):
     handler_calls = 0
     scheduler_handler_calls = 0
 
@@ -153,26 +140,23 @@ def test_handler_exceptions_dont_stop_the_dispatcher(backtesting_dispatcher):
         scheduler_handler_calls += 1
         raise Exception("Scheduler handler error")
 
-    async def test_main():
-        src = event.FifoQueueEventSource(events=[
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-        ])
+    src = event.FifoQueueEventSource(events=[
+        event.Event(dt.utc_now()),
+        event.Event(dt.utc_now()),
+        event.Event(dt.utc_now()),
+    ])
 
-        backtesting_dispatcher.subscribe_all(event_handler, front_run=True)
-        backtesting_dispatcher.subscribe(src, event_handler)
-        backtesting_dispatcher.subscribe_all(event_handler)
-        backtesting_dispatcher.schedule(dt.utc_now(), scheduler_handler)
+    backtesting_dispatcher.subscribe_all(event_handler, front_run=True)
+    backtesting_dispatcher.subscribe(src, event_handler)
+    backtesting_dispatcher.subscribe_all(event_handler)
+    backtesting_dispatcher.schedule(dt.utc_now(), scheduler_handler)
 
-        await backtesting_dispatcher.run()
-        assert handler_calls == 3 * 3
-        assert scheduler_handler_calls == 1
-
-    asyncio.run(test_main())
+    await backtesting_dispatcher.run()
+    assert handler_calls == 3 * 3
+    assert scheduler_handler_calls == 1
 
 
-def test_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher):
+async def test_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher):
     backtesting_dispatcher.stop_on_handler_exceptions = True
     handler_calls = 0
 
@@ -186,23 +170,20 @@ def test_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher):
         handler_calls += 1
         raise Exception("Event handler error")
 
-    async def test_main():
-        src = event.FifoQueueEventSource(events=[
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-        ])
+    src = event.FifoQueueEventSource(events=[
+        event.Event(dt.utc_now()),
+        event.Event(dt.utc_now()),
+        event.Event(dt.utc_now()),
+    ])
 
-        backtesting_dispatcher.subscribe(src, event_handler)
-        backtesting_dispatcher.subscribe(src, event_handler_2)
+    backtesting_dispatcher.subscribe(src, event_handler)
+    backtesting_dispatcher.subscribe(src, event_handler_2)
 
-        await backtesting_dispatcher.run()
-        assert handler_calls == 1
-
-    asyncio.run(test_main())
+    await backtesting_dispatcher.run()
+    assert handler_calls == 1
 
 
-def test_scheduler_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher):
+async def test_scheduler_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher):
     backtesting_dispatcher.stop_on_handler_exceptions = True
     handler_calls = 0
 
@@ -219,21 +200,18 @@ def test_scheduler_handler_exceptions_stop_the_dispatcher(backtesting_dispatcher
         handler_calls += 1
         raise Exception("Scheduler handler error")
 
-    async def test_main():
-        src = event.FifoQueueEventSource(events=[
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-            event.Event(dt.utc_now()),
-        ])
+    src = event.FifoQueueEventSource(events=[
+        event.Event(dt.utc_now()),
+        event.Event(dt.utc_now()),
+        event.Event(dt.utc_now()),
+    ])
 
-        backtesting_dispatcher.subscribe(src, event_handler)
-        backtesting_dispatcher.schedule(dt.utc_now(), scheduler_handler)
-        backtesting_dispatcher.schedule(dt.utc_now(), scheduler_handler_2)
-        await backtesting_dispatcher.run()
+    backtesting_dispatcher.subscribe(src, event_handler)
+    backtesting_dispatcher.schedule(dt.utc_now(), scheduler_handler)
+    backtesting_dispatcher.schedule(dt.utc_now(), scheduler_handler_2)
+    await backtesting_dispatcher.run()
 
-        assert handler_calls == 1
-
-    asyncio.run(test_main())
+    assert handler_calls == 1
 
 
 def test_now_fails_if_no_events_were_processed(backtesting_dispatcher):
@@ -241,7 +219,7 @@ def test_now_fails_if_no_events_were_processed(backtesting_dispatcher):
         backtesting_dispatcher.now()
 
 
-def test_recursive_schedule_bug(backtesting_dispatcher):
+async def test_recursive_schedule_bug(backtesting_dispatcher):
     jobs_processed = 0
 
     async def scheduled_job():
@@ -254,12 +232,9 @@ def test_recursive_schedule_bug(backtesting_dispatcher):
         next_dt = event.when + datetime.timedelta(hours=1)
         backtesting_dispatcher.schedule(next_dt, scheduled_job)
 
-    async def test_main():
-        src = event.FifoQueueEventSource(events=[
-            event.Event(datetime.datetime(2024, 1, 1).replace(tzinfo=datetime.timezone.utc)),
-        ])
-        backtesting_dispatcher.subscribe(src, proces_event)
-        await backtesting_dispatcher.run()
-        assert jobs_processed == 1
-
-    asyncio.run(test_main())
+    src = event.FifoQueueEventSource(events=[
+        event.Event(datetime.datetime(2024, 1, 1).replace(tzinfo=datetime.timezone.utc)),
+    ])
+    backtesting_dispatcher.subscribe(src, proces_event)
+    await backtesting_dispatcher.run()
+    assert jobs_processed == 1

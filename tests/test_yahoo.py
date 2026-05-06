@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from decimal import Decimal
-import asyncio
 import datetime
 
 from dateutil import tz
@@ -81,7 +80,7 @@ bars_to_sanitize = [
 ]
 
 
-def test_multiple_sources(backtesting_dispatcher):
+async def test_multiple_sources(backtesting_dispatcher):
     events = []
 
     async def add_bar(event: bar.BarEvent):
@@ -98,7 +97,7 @@ def test_multiple_sources(backtesting_dispatcher):
     backtesting_dispatcher.subscribe(src_1, add_bar)
     backtesting_dispatcher.subscribe(src_2, add_bar)
 
-    asyncio.run(backtesting_dispatcher.run())
+    await backtesting_dispatcher.run()
 
     assert events[0].bar.datetime == datetime.datetime(2000, 1, 3, tzinfo=datetime.timezone.utc)
     assert events[0].bar.pair.base_symbol == "ORCL"

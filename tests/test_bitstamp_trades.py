@@ -27,7 +27,7 @@ from basana.external.bitstamp import exchange
 
 
 @pytest.mark.parametrize("public_events", [True, False])
-def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher):
+async def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher):
     if not public_events:
         bitstamp_http_api_mock.post(
             "http://bitstamp.mock/api/v2/websockets_token/", status=200, payload={"user_id": "1234", "token": "1234"}
@@ -88,7 +88,7 @@ def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher
 
             await realtime_dispatcher.run()
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
 
     assert last_trade is not None
     assert last_trade.pair == p

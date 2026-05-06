@@ -70,7 +70,7 @@ def binance_http_api_mock():
         yield m
 
 
-def test_poll_ok_with_custom_session(binance_http_api_mock, realtime_dispatcher):
+async def test_poll_ok_with_custom_session(binance_http_api_mock, realtime_dispatcher):
     p = pair.Pair("BTC", "USDT")
     last_ob = None
 
@@ -92,7 +92,7 @@ def test_poll_ok_with_custom_session(binance_http_api_mock, realtime_dispatcher)
 
             await realtime_dispatcher.run()
 
-    asyncio.run(asyncio.wait_for(test_main(), 2))
+    await asyncio.wait_for(test_main(), 2)
 
     assert last_ob is not None
     assert last_ob.pair == p
@@ -105,7 +105,7 @@ def test_poll_ok_with_custom_session(binance_http_api_mock, realtime_dispatcher)
 @pytest.mark.parametrize("response_status, response_body", [
     (500, {}),
 ])
-def test_unhandled_exception_during_poll(
+async def test_unhandled_exception_during_poll(
     response_status, response_body, binance_http_api_mock, realtime_dispatcher, caplog
 ):
     caplog.set_level(logging.INFO)
@@ -133,10 +133,10 @@ def test_unhandled_exception_during_poll(
             await realtime_dispatcher.run()
             assert "Error polling order book" in caplog.text
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
 
 
-def test_websocket_ok(realtime_dispatcher):
+async def test_websocket_ok(realtime_dispatcher):
     p = pair.Pair("BTC", "USDT")
     obook_10 = None
     obook_20 = None
@@ -183,10 +183,10 @@ def test_websocket_ok(realtime_dispatcher):
             assert obook.asks[1].volume == Decimal("0.04963")
             assert obook.last_update_id == 27229732069
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
 
 
-def test_websocket_error(realtime_dispatcher, caplog):
+async def test_websocket_error(realtime_dispatcher, caplog):
     p = pair.Pair("BTC", "USDT")
 
     async def stop_on_error(timeout):
@@ -210,4 +210,4 @@ def test_websocket_error(realtime_dispatcher, caplog):
 
             await asyncio.gather(realtime_dispatcher.run(), stop_on_error(timeout))
 
-    asyncio.run(asyncio.wait_for(test_main(5), 5))
+    await asyncio.wait_for(test_main(5), 5)

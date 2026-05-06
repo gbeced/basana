@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import time
 
 import pytest
@@ -38,10 +37,10 @@ def test_token_consume(tokens_per_period, period_duration, initial_tokens, expec
     assert round(limiter.consume(), 2) == expected_wait
 
 
-def test_token_wait():
+async def test_token_wait():
     limiter = TokenBucketLimiter(2, 1)
     begin = time.time()
-    asyncio.run(limiter.wait())
+    await limiter.wait()
     assert round(time.time() - begin, 1) == 0.5
 
 

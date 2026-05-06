@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from decimal import Decimal
-import asyncio
 import datetime
 import re
 
@@ -308,21 +307,18 @@ CANCEL_OCO_ORDER_RESPONSE_79680111 = {
 }
 
 
-def test_account_balances(binance_http_api_mock, binance_exchange):
+async def test_account_balances(binance_http_api_mock, binance_exchange):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/sapi/v1/margin/account\\?.*"), status=200,
         payload=helpers.load_json("binance_cross_margin_account_details.json")
     )
 
-    async def test_main():
-        balances = await binance_exchange.cross_margin_account.get_balances()
+    balances = await binance_exchange.cross_margin_account.get_balances()
 
-        balance = balances["USDT"]
-        assert balance.available == Decimal("205.87545172")
-        assert balance.total == Decimal("205.87545172")
-        assert balance.locked == Decimal("0")
-
-    asyncio.run(test_main())
+    balance = balances["USDT"]
+    assert balance.available == Decimal("205.87545172")
+    assert balance.total == Decimal("205.87545172")
+    assert balance.locked == Decimal("0")
 
 
 @pytest.mark.parametrize("create_order_fun, response_payload, expected_attrs, expected_fills", [
@@ -407,22 +403,19 @@ def test_account_balances(binance_http_api_mock, binance_exchange):
         [],
     ),
 ])
-def test_create_order(
+async def test_create_order(
         create_order_fun, response_payload, expected_attrs, expected_fills, binance_http_api_mock, binance_exchange
 ):
     binance_http_api_mock.post(
         re.compile(r"http://binance.mock/sapi/v1/margin/order\\?.*"), status=200, payload=response_payload
     )
 
-    async def test_main():
-        order_created = await create_order_fun(binance_exchange)
-        assert order_created is not None
-        helpers.assert_expected_attrs(order_created, expected_attrs)
-        assert len(order_created.fills) == len(expected_fills)
-        for fill, expected_fill in zip(order_created.fills, expected_fills):
-            helpers.assert_expected_attrs(fill, expected_fill)
-
-    asyncio.run(test_main())
+    order_created = await create_order_fun(binance_exchange)
+    assert order_created is not None
+    helpers.assert_expected_attrs(order_created, expected_attrs)
+    assert len(order_created.fills) == len(expected_fills)
+    for fill, expected_fill in zip(order_created.fills, expected_fills):
+        helpers.assert_expected_attrs(fill, expected_fill)
 
 
 @pytest.mark.parametrize(
@@ -489,7 +482,7 @@ def test_create_order(
         ),
     ]
 )
-def test_order_info(
+async def test_order_info(
         pair, order_id, client_order_id, order_payload, trades_payload, expected_attrs, expected_first_trade,
         binance_http_api_mock, binance_exchange
 ):
@@ -500,16 +493,13 @@ def test_order_info(
         re.compile(r"http://binance.mock/sapi/v1/margin/myTrades\\?.*"), status=200, payload=trades_payload
     )
 
-    async def test_main():
-        order_info = await binance_exchange.cross_margin_account.get_order_info(
-            pair, order_id=order_id, client_order_id=client_order_id
-        )
-        assert order_info is not None
-        helpers.assert_expected_attrs(order_info, expected_attrs)
-        if expected_first_trade:
-            helpers.assert_expected_attrs(order_info.trades[0], expected_first_trade)
-
-    asyncio.run(test_main())
+    order_info = await binance_exchange.cross_margin_account.get_order_info(
+        pair, order_id=order_id, client_order_id=client_order_id
+    )
+    assert order_info is not None
+    helpers.assert_expected_attrs(order_info, expected_attrs)
+    if expected_first_trade:
+        helpers.assert_expected_attrs(order_info.trades[0], expected_first_trade)
 
 
 @pytest.mark.parametrize(
@@ -556,18 +546,15 @@ def test_order_info(
         ),
     ]
 )
-def test_get_open_orders(
+async def test_get_open_orders(
         pair, open_orders_payload, expected_first_open_order, binance_http_api_mock, binance_exchange
 ):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/sapi/v1/margin/openOrders\\?.*"), status=200, payload=open_orders_payload
     )
 
-    async def test_main():
-        open_orders = await binance_exchange.cross_margin_account.get_open_orders(pair)
-        helpers.assert_expected_attrs(open_orders[0], expected_first_open_order)
-
-    asyncio.run(test_main())
+    open_orders = await binance_exchange.cross_margin_account.get_open_orders(pair)
+    helpers.assert_expected_attrs(open_orders[0], expected_first_open_order)
 
 
 @pytest.mark.parametrize("pair, order_id, client_order_id, response_payload, expected_attrs", [
@@ -597,21 +584,18 @@ def test_get_open_orders(
         }
     )
 ])
-def test_cancel_order(
+async def test_cancel_order(
         pair, order_id, client_order_id, response_payload, expected_attrs, binance_http_api_mock, binance_exchange
 ):
     binance_http_api_mock.delete(
         re.compile(r"http://binance.mock/sapi/v1/margin/order\\?.*"), status=200, payload=response_payload
     )
 
-    async def test_main():
-        canceled_order = await binance_exchange.cross_margin_account.cancel_order(
-            pair, order_id=order_id, client_order_id=client_order_id
-        )
-        assert canceled_order is not None
-        helpers.assert_expected_attrs(canceled_order, expected_attrs)
-
-    asyncio.run(test_main())
+    canceled_order = await binance_exchange.cross_margin_account.cancel_order(
+        pair, order_id=order_id, client_order_id=client_order_id
+    )
+    assert canceled_order is not None
+    helpers.assert_expected_attrs(canceled_order, expected_attrs)
 
 
 @pytest.mark.parametrize("create_order_fun, response_payload, expected_attrs", [
@@ -677,19 +661,16 @@ def test_cancel_order(
         },
     ),
 ])
-def test_create_oco_order(
+async def test_create_oco_order(
         create_order_fun, response_payload, expected_attrs, binance_http_api_mock, binance_exchange
 ):
     binance_http_api_mock.post(
         re.compile(r"http://binance.mock/sapi/v1/margin/order/oco\\?.*"), status=200, payload=response_payload
     )
 
-    async def test_main():
-        order_created = await create_order_fun(binance_exchange)
-        assert order_created is not None
-        helpers.assert_expected_attrs(order_created, expected_attrs)
-
-    asyncio.run(test_main())
+    order_created = await create_order_fun(binance_exchange)
+    assert order_created is not None
+    helpers.assert_expected_attrs(order_created, expected_attrs)
 
 
 @pytest.mark.parametrize("order_list_id, client_order_list_id, response_payload, expected_attrs", [
@@ -712,21 +693,18 @@ def test_create_oco_order(
         }
     ),
 ])
-def test_oco_order_info(
+async def test_oco_order_info(
         order_list_id, client_order_list_id, response_payload, expected_attrs, binance_http_api_mock, binance_exchange
 ):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/sapi/v1/margin/orderList\\?.*"), status=200, payload=response_payload
     )
 
-    async def test_main():
-        order_info = await binance_exchange.cross_margin_account.get_oco_order_info(
-            order_list_id=order_list_id, client_order_list_id=client_order_list_id
-        )
-        assert order_info is not None
-        helpers.assert_expected_attrs(order_info, expected_attrs)
-
-    asyncio.run(test_main())
+    order_info = await binance_exchange.cross_margin_account.get_oco_order_info(
+        order_list_id=order_list_id, client_order_list_id=client_order_list_id
+    )
+    assert order_info is not None
+    helpers.assert_expected_attrs(order_info, expected_attrs)
 
 
 @pytest.mark.parametrize("pair, order_list_id, client_order_list_id, response_payload, expected_attrs", [
@@ -751,7 +729,7 @@ def test_oco_order_info(
         }
     )
 ])
-def test_cancel_oco_order(
+async def test_cancel_oco_order(
         pair, order_list_id, client_order_list_id, response_payload, expected_attrs,
         binance_http_api_mock, binance_exchange
 ):
@@ -759,26 +737,20 @@ def test_cancel_oco_order(
         re.compile(r"http://binance.mock/sapi/v1/margin/orderList\\?.*"), status=200, payload=response_payload
     )
 
-    async def test_main():
-        canceled_order = await binance_exchange.cross_margin_account.cancel_oco_order(
-            pair, order_list_id=order_list_id, client_order_list_id=client_order_list_id
-        )
-        assert canceled_order is not None
-        helpers.assert_expected_attrs(canceled_order, expected_attrs)
-
-    asyncio.run(test_main())
+    canceled_order = await binance_exchange.cross_margin_account.cancel_oco_order(
+        pair, order_list_id=order_list_id, client_order_list_id=client_order_list_id
+    )
+    assert canceled_order is not None
+    helpers.assert_expected_attrs(canceled_order, expected_attrs)
 
 
-def test_transfer(binance_http_api_mock, binance_exchange):
-    async def test_main():
-        binance_http_api_mock.post(
-            re.compile(r"http://binance.mock/sapi/v1/margin/transfer\\?.*"), status=200,
-            payload={"clientTag": "", "tranId": 124735427615}, repeat=True
-        )
+async def test_transfer(binance_http_api_mock, binance_exchange):
+    binance_http_api_mock.post(
+        re.compile(r"http://binance.mock/sapi/v1/margin/transfer\\?.*"), status=200,
+        payload={"clientTag": "", "tranId": 124735427615}, repeat=True
+    )
 
-        assert (await binance_exchange.cross_margin_account.transfer_from_spot_account(
-            "USDT", Decimal("100")))["tranId"] == 124735427615
-        assert (await binance_exchange.cross_margin_account.transfer_to_spot_account(
-            "USDT", Decimal("100")))["tranId"] == 124735427615
-
-    asyncio.run(test_main())
+    assert (await binance_exchange.cross_margin_account.transfer_from_spot_account(
+        "USDT", Decimal("100")))["tranId"] == 124735427615
+    assert (await binance_exchange.cross_margin_account.transfer_to_spot_account(
+        "USDT", Decimal("100")))["tranId"] == 124735427615

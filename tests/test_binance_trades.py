@@ -43,7 +43,7 @@ TRADE_MSG = {
 }
 
 
-def test_websocket_ok(realtime_dispatcher):
+async def test_websocket_ok(realtime_dispatcher):
     p = pair.Pair("BTC", "USDT")
     last_trade = None
 
@@ -71,7 +71,7 @@ def test_websocket_ok(realtime_dispatcher):
 
             await realtime_dispatcher.run()
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
 
     assert last_trade is not None
     assert last_trade.pair == p

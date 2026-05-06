@@ -52,7 +52,7 @@ class WebSocketClient(core_ws.WebSocketClient):
         return ret
 
 
-def test_add_channels(realtime_dispatcher):
+async def test_add_channels(realtime_dispatcher):
     event_source = None
     ws = None
     subscriptions = 0
@@ -88,10 +88,10 @@ def test_add_channels(realtime_dispatcher):
             await realtime_dispatcher.run()
             assert subscriptions == 2
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
 
 
-def test_schedule_reconnection(realtime_dispatcher):
+async def test_schedule_reconnection(realtime_dispatcher):
     event_source = None
     subscriptions = 0
     ws = None
@@ -133,4 +133,4 @@ def test_schedule_reconnection(realtime_dispatcher):
             await realtime_dispatcher.run()
             assert subscriptions == 4
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
