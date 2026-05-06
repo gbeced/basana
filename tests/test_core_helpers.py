@@ -232,11 +232,11 @@ async def test_task_pool_task_auto_quit():
 
 
 if sys.version_info >= (3, 12):
-    @pytest.mark.parametrize("task_factory", [
-        None,
-        asyncio.eager_task_factory,
+    @pytest.mark.parametrize("eager_task_factory", [
+        False,
+        True,
     ])
-    async def test_task_pool_with_eager_tasks(task_factory):
+    async def test_task_pool_with_eager_tasks(eager_task_factory):
         tasks_found = 0
         pool = helpers.TaskPool(10)
 
@@ -245,11 +245,14 @@ if sys.version_info >= (3, 12):
             tasks_found = len(pool._tasks)
 
         async def test_main():
-            if task_factory:
-                asyncio.get_running_loop().set_task_factory(task_factory)
+            if eager_task_factory:
+                asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
 
             await pool.push(task)
-            done = await pool.wait(0.01)
+            if eager_task_factory:
+                assert tasks_found == 1
+
+            done = await pool.wait(0.1)
 
             assert done
             assert tasks_found == 1
