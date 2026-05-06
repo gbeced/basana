@@ -55,7 +55,7 @@ def test_long_partially_filled():
                 pair.quote_symbol: -Decimal(70000),
             },
             fees={},
-            fill_price=Decimal(10000),
+            price=Decimal(10000),
         )
     )
 
@@ -97,7 +97,7 @@ def test_short_completely_filled():
                 pair.quote_symbol: -Decimal(100000),
             },
             fees={},
-            fill_price=Decimal(10000),
+            price=Decimal(10000),
         )
     )
 
@@ -153,7 +153,7 @@ def test_long_jump(target_position):
                 pair.quote_symbol: -sign * Decimal(13000),
             },
             fees={},
-            fill_price=Decimal(1000),
+            price=Decimal(1000),
         )
     )
 
@@ -185,7 +185,7 @@ def test_long_jump(target_position):
                 pair.quote_symbol: -sign * Decimal(5500),
             },
             fees={},
-            fill_price=Decimal(1100),
+            price=Decimal(1100),
         )
     )
 
@@ -215,7 +215,7 @@ def test_long_jump(target_position):
                 pair.quote_symbol: sign * Decimal(100000),
             },
             fees={},
-            fill_price=Decimal(100000),
+            price=Decimal(100000),
         )
     )
 
@@ -271,7 +271,7 @@ def test_avg_price(
                     pair.quote_symbol: -sign * order_filled_amount * order_filled_price,
                 },
                 fees={},
-                fill_price=Decimal(order_filled_price),
+                price=Decimal(order_filled_price),
             )
         ]
     )
@@ -296,7 +296,7 @@ def test_pnl_pct():
                     pair.quote_symbol: -Decimal(1000),
                 },
                 fees={},
-                fill_price=Decimal(1000),
+                price=Decimal(1000),
             )
         ]
     )

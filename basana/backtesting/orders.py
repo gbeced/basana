@@ -49,7 +49,12 @@ class Fill:
     #: The fees.
     fees: Dict[str, Decimal]
     #: The fill price.
-    fill_price: Decimal
+    price: Decimal
+
+    @property
+    def fill_price(self) -> Decimal:
+        """Backward-compatible alias for price."""
+        return self.price
 
 
 @dataclasses.dataclass
@@ -87,7 +92,7 @@ class OrderInfo:
         wsum = Decimal(0)
         for fill in self.fills:
             fill_amount = abs(fill.balance_updates.get(self.pair.base_symbol, Decimal(0)))
-            wsum += fill_amount * fill.fill_price
+            wsum += fill_amount * fill.price
         return None if not self.amount_filled else wsum / self.amount_filled
 
 
@@ -260,7 +265,7 @@ class MarketOrder(Order):
                 self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
             },
             fees={},
-            fill_price=price
+            price=price
         )
 
 
@@ -312,7 +317,7 @@ class LimitOrder(Order):
                     self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
                 },
                 fees={},
-                fill_price=price
+                price=price
             )
         return ret
 
@@ -389,7 +394,7 @@ class StopOrder(Order):
                     self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
                 },
                 fees={},
-                fill_price=price
+                price=price
             )
         return ret
 
@@ -485,7 +490,7 @@ class StopLimitOrder(Order):
                     self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
                 },
                 fees={},
-                fill_price=price
+                price=price
             )
         return ret
 
@@ -524,7 +529,7 @@ class StopLimitOrder(Order):
                     self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
                 },
                 fees={},
-                fill_price=price
+                price=price
             )
         return ret
 
