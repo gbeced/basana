@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from typing import Optional
-import asyncio
 import datetime
 import random
 
@@ -59,7 +58,7 @@ class HeadEventSource(event.EventSource):
         return None
 
 
-def test_mutiple_sources(backtesting_dispatcher):
+async def test_mutiple_sources(backtesting_dispatcher):
     event_count = 0
 
     async def on_event(event):
@@ -71,12 +70,12 @@ def test_mutiple_sources(backtesting_dispatcher):
 
     backtesting_dispatcher.subscribe(src1, on_event)
     backtesting_dispatcher.subscribe(src2, on_event)
-    asyncio.run(backtesting_dispatcher.run())
+    await backtesting_dispatcher.run()
 
     assert event_count == 2800
 
 
-def test_unhandled_exception_during_pop(backtesting_dispatcher):
+async def test_unhandled_exception_during_pop(backtesting_dispatcher):
     event_count = 0
 
     async def on_event(event):
@@ -86,6 +85,6 @@ def test_unhandled_exception_during_pop(backtesting_dispatcher):
     src1 = FailingEventSource()
     backtesting_dispatcher.subscribe(src1, on_event)
     with pytest.raises(Exception, match="Error during pop"):
-        asyncio.run(backtesting_dispatcher.run())
+        await backtesting_dispatcher.run()
 
     assert event_count == 0

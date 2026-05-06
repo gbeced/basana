@@ -2,6 +2,10 @@
 
 ## TBD
 
+### Bug fixes
+
+* Newer versions of kaleido cannot serialize Python Decimal objects to JSON.
+
 ### Misc
 
 * Performance optimizations.

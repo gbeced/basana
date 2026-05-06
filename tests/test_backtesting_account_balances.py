@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from decimal import Decimal
-import asyncio
 import datetime
 
 import pytest
@@ -105,7 +104,7 @@ def test_invalid_updates_and_holds():
         }
     ),
 ])
-def test_balance_updates_as_orders_get_processed(order_fun, checkpoints, backtesting_dispatcher):
+async def test_balance_updates_as_orders_get_processed(order_fun, checkpoints, backtesting_dispatcher):
     pair = Pair("BTC", "USD")
     e = exchange.Exchange(
         backtesting_dispatcher,
@@ -125,41 +124,38 @@ def test_balance_updates_as_orders_get_processed(order_fun, checkpoints, backtes
                 if getattr(balance, name) != value:
                     mismatches.append((bar_event.when, symbol, name, getattr(balance, name)))
 
-    async def impl():
-        # These are for testing scenarios where fills take place in multiple bars.
-        src = event.FifoQueueEventSource(events=[
-            bar.BarEvent(
+    # These are for testing scenarios where fills take place in multiple bars.
+    src = event.FifoQueueEventSource(events=[
+        bar.BarEvent(
+            dt.local_datetime(2001, 1, 2),
+            bar.Bar(
+                dt.local_datetime(2001, 1, 1),
+                pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
+                datetime.timedelta(days=1)
+            )
+        ),
+        bar.BarEvent(
+            dt.local_datetime(2001, 1, 3),
+            bar.Bar(
                 dt.local_datetime(2001, 1, 2),
-                bar.Bar(
-                    dt.local_datetime(2001, 1, 1),
-                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
-                    datetime.timedelta(days=1)
-                )
-            ),
-            bar.BarEvent(
+                pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
+                datetime.timedelta(days=1)
+            )
+        ),
+        bar.BarEvent(
+            dt.local_datetime(2001, 1, 4),
+            bar.Bar(
                 dt.local_datetime(2001, 1, 3),
-                bar.Bar(
-                    dt.local_datetime(2001, 1, 2),
-                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
-                    datetime.timedelta(days=1)
-                )
-            ),
-            bar.BarEvent(
-                dt.local_datetime(2001, 1, 4),
-                bar.Bar(
-                    dt.local_datetime(2001, 1, 3),
-                    pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
-                    datetime.timedelta(days=1)
-                )
-            ),
-        ])
-        e.add_bar_source(src)
-        e.subscribe_to_bar_events(pair, on_bar)
-        await order_fun(e)
-        await backtesting_dispatcher.run()
-        assert mismatches == []
-
-    asyncio.run(impl())
+                pair, Decimal(100), Decimal(100), Decimal(100), Decimal(100), Decimal(100),
+                datetime.timedelta(days=1)
+            )
+        ),
+    ])
+    e.add_bar_source(src)
+    e.subscribe_to_bar_events(pair, on_bar)
+    await order_fun(e)
+    await backtesting_dispatcher.run()
+    assert mismatches == []
 
 
 def test_account_locked():

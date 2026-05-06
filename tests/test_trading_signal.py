@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 
 import pytest
 
@@ -28,57 +27,48 @@ class TradingSignalSource(trading_signal.TradingSignalSource):
         super().__init__(dispatcher)
 
 
-def test_trading_signal_op(backtesting_dispatcher):
+async def test_trading_signal_op(backtesting_dispatcher):
     trading_signals = []
 
     async def on_trading_signal(trading_signal: trading_signal.TradingSignal):
         trading_signals.append(trading_signal)
 
-    async def impl():
-        source = TradingSignalSource(backtesting_dispatcher)
-        source.push(trading_signal.TradingSignal(dt.local_now(), enums.OrderOperation.BUY, Pair("BTC", "USDT")))
-        source.subscribe_to_trading_signals(on_trading_signal)
-        await backtesting_dispatcher.run()
-
-    asyncio.run(impl())
+    source = TradingSignalSource(backtesting_dispatcher)
+    source.push(trading_signal.TradingSignal(dt.local_now(), enums.OrderOperation.BUY, Pair("BTC", "USDT")))
+    source.subscribe_to_trading_signals(on_trading_signal)
+    await backtesting_dispatcher.run()
     assert len(trading_signals) == 1
     for signal in trading_signals:
         assert signal.operation == enums.OrderOperation.BUY
         assert signal.position == enums.Position.LONG
 
 
-def test_trading_signal_pos(backtesting_dispatcher):
+async def test_trading_signal_pos(backtesting_dispatcher):
     trading_signals = []
 
     async def on_trading_signal(trading_signal: trading_signal.TradingSignal):
         trading_signals.append(trading_signal)
 
-    async def impl():
-        source = TradingSignalSource(backtesting_dispatcher)
-        source.push(trading_signal.TradingSignal(dt.local_now(), enums.Position.SHORT, Pair("BTC", "USDT")))
-        source.subscribe_to_trading_signals(on_trading_signal)
-        await backtesting_dispatcher.run()
-
-    asyncio.run(impl())
+    source = TradingSignalSource(backtesting_dispatcher)
+    source.push(trading_signal.TradingSignal(dt.local_now(), enums.Position.SHORT, Pair("BTC", "USDT")))
+    source.subscribe_to_trading_signals(on_trading_signal)
+    await backtesting_dispatcher.run()
     assert len(trading_signals) == 1
     for signal in trading_signals:
         assert signal.operation == enums.OrderOperation.SELL
         assert signal.position == enums.Position.SHORT
 
 
-def test_neutral_position_cant_be_mapped_to_operation(backtesting_dispatcher):
+async def test_neutral_position_cant_be_mapped_to_operation(backtesting_dispatcher):
     trading_signals = []
 
     async def on_trading_signal(trading_signal: trading_signal.TradingSignal):
         trading_signals.append(trading_signal)
 
-    async def impl():
-        source = TradingSignalSource(backtesting_dispatcher)
-        source.push(trading_signal.TradingSignal(dt.local_now(), enums.Position.NEUTRAL, Pair("BTC", "USDT")))
-        source.subscribe_to_trading_signals(on_trading_signal)
-        await backtesting_dispatcher.run()
-
-    asyncio.run(impl())
+    source = TradingSignalSource(backtesting_dispatcher)
+    source.push(trading_signal.TradingSignal(dt.local_now(), enums.Position.NEUTRAL, Pair("BTC", "USDT")))
+    source.subscribe_to_trading_signals(on_trading_signal)
+    await backtesting_dispatcher.run()
     assert len(trading_signals) == 1
     for signal in trading_signals:
         assert signal.position == enums.Position.NEUTRAL

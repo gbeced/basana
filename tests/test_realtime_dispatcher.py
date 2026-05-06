@@ -74,7 +74,7 @@ class FailingProducer(event.Producer):
             raise Error("Error during finalize")
 
 
-def test_producers_and_events(realtime_dispatcher):
+async def test_producers_and_events(realtime_dispatcher):
     shared_producer = Producer()
     event_sources = [
         event.FifoQueueEventSource(), event.FifoQueueEventSource(),
@@ -106,7 +106,7 @@ def test_producers_and_events(realtime_dispatcher):
                 assert event_source.producer.stopped
                 assert event_source.producer.finalized
 
-    asyncio.run(asyncio.wait_for(test_main(), 2))
+    await asyncio.wait_for(test_main(), 2)
 
 
 @pytest.mark.parametrize("failing_producer, other_initialized, other_ran, other_stopped, other_finalized", [
@@ -114,7 +114,7 @@ def test_producers_and_events(realtime_dispatcher):
     (FailingProducer(False, True, False), True, True, True, True),
     (FailingProducer(False, True, True), True, True, True, True),
 ])
-def test_exceptions_in_producers(
+async def test_exceptions_in_producers(
     failing_producer, other_initialized, other_ran, other_stopped, other_finalized, realtime_dispatcher
 ):
     shared_producer = Producer()
@@ -146,10 +146,10 @@ def test_exceptions_in_producers(
                 assert event_source.producer.stopped == other_stopped
                 assert event_source.producer.finalized == other_finalized
 
-    asyncio.run(asyncio.wait_for(test_main(), 2))
+    await asyncio.wait_for(test_main(), 2)
 
 
-def test_out_of_order_events_are_skipped(realtime_dispatcher):
+async def test_out_of_order_events_are_skipped(realtime_dispatcher):
     events = []
     now = dt.utc_now()
     event_dts = [
@@ -176,7 +176,7 @@ def test_out_of_order_events_are_skipped(realtime_dispatcher):
         assert events[0].when == event_dts[0]
         assert events[1].when == event_dts[2]
 
-    asyncio.run(asyncio.wait_for(test_main(), 2))
+    await asyncio.wait_for(test_main(), 2)
 
 
 @pytest.mark.parametrize("delta_seconds", [
@@ -184,7 +184,7 @@ def test_out_of_order_events_are_skipped(realtime_dispatcher):
     1,
     -0.5,
 ])
-def test_realtime_scheduler(delta_seconds, realtime_dispatcher):
+async def test_realtime_scheduler(delta_seconds, realtime_dispatcher):
     async def scheduled_job():
         realtime_dispatcher.stop()
 
@@ -194,10 +194,10 @@ def test_realtime_scheduler(delta_seconds, realtime_dispatcher):
         )
         await realtime_dispatcher.run()
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
 
 
-def test_stop_dispatcher_when_idle(realtime_dispatcher):
+async def test_stop_dispatcher_when_idle(realtime_dispatcher):
     handler_calls = 0
 
     async def on_event(event):
@@ -213,17 +213,17 @@ def test_stop_dispatcher_when_idle(realtime_dispatcher):
     ])
     realtime_dispatcher.subscribe(src, on_event)
     realtime_dispatcher.subscribe_idle(on_idle)
-    asyncio.run(realtime_dispatcher.run())
+    await realtime_dispatcher.run()
 
     assert handler_calls == 2
 
 
-def test_cancelation_is_forwarded(realtime_dispatcher):
+async def test_cancelation_is_forwarded(realtime_dispatcher):
     async def test_main():
         with pytest.raises(asyncio.CancelledError):
             await realtime_dispatcher.run()
 
     try:
-        asyncio.run(asyncio.wait_for(test_main(), 1))
+        await asyncio.wait_for(test_main(), 1)
     except asyncio.TimeoutError:
         pass

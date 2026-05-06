@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from decimal import Decimal
-import asyncio
 import copy
 import datetime
 
@@ -240,40 +239,34 @@ def bitstamp_exchange(realtime_dispatcher):
     )
 
 
-def test_balances(bitstamp_http_api_mock, bitstamp_exchange):
-    async def test_main():
-        balance = await bitstamp_exchange.get_balance("USD")
-        assert balance.available == Decimal("28.92")
-        assert balance.total == Decimal("28.92")
-        assert balance.reserved == Decimal("0")
+async def test_balances(bitstamp_http_api_mock, bitstamp_exchange):
+    balance = await bitstamp_exchange.get_balance("USD")
+    assert balance.available == Decimal("28.92")
+    assert balance.total == Decimal("28.92")
+    assert balance.reserved == Decimal("0")
 
-        balances = await bitstamp_exchange.get_balances()
-        balance = balances["PAX"]
-        assert balance.available == Decimal("0.01374")
-        assert balance.total == Decimal("0.01374")
-        assert balance.reserved == Decimal("0")
-
-    asyncio.run(test_main())
+    balances = await bitstamp_exchange.get_balances()
+    balance = balances["PAX"]
+    assert balance.available == Decimal("0.01374")
+    assert balance.total == Decimal("0.01374")
+    assert balance.reserved == Decimal("0")
 
 
-def test_open_orders(bitstamp_http_api_mock, bitstamp_exchange):
-    async def test_main():
-        for p in [None, pair.Pair("ETH", "USD")]:
-            open_orders = await bitstamp_exchange.get_open_orders(p)
-            assert len(open_orders) == 1
-            open_order = open_orders[0]
-            assert open_order.id == "1535407273615360"
-            assert open_order.datetime == datetime.datetime(2022, 9, 20, 16, 11, 6).replace(
-                tzinfo=datetime.timezone.utc
-            )
-            assert open_order.operation == exchange.OrderOperation.BUY
-            assert open_order.limit_price == Decimal(1200)
-            assert open_order.amount == Decimal("0.01204166")
-            assert open_order.amount_filled == Decimal("0.01204166")
-            assert open_order.pair == pair.Pair("ETH", "USD")
-            assert open_order.client_order_id is None
-
-    asyncio.run(test_main())
+async def test_open_orders(bitstamp_http_api_mock, bitstamp_exchange):
+    for p in [None, pair.Pair("ETH", "USD")]:
+        open_orders = await bitstamp_exchange.get_open_orders(p)
+        assert len(open_orders) == 1
+        open_order = open_orders[0]
+        assert open_order.id == "1535407273615360"
+        assert open_order.datetime == datetime.datetime(2022, 9, 20, 16, 11, 6).replace(
+            tzinfo=datetime.timezone.utc
+        )
+        assert open_order.operation == exchange.OrderOperation.BUY
+        assert open_order.limit_price == Decimal(1200)
+        assert open_order.amount == Decimal("0.01204166")
+        assert open_order.amount_filled == Decimal("0.01204166")
+        assert open_order.pair == pair.Pair("ETH", "USD")
+        assert open_order.client_order_id is None
 
 
 @pytest.mark.parametrize("order_id, expected_attrs", [
@@ -294,97 +287,79 @@ def test_open_orders(bitstamp_http_api_mock, bitstamp_exchange):
         "fees": {"USD": Decimal("0.12")},
     }),
 ])
-def test_order_info(order_id, expected_attrs, bitstamp_http_api_mock, bitstamp_exchange):
-    async def test_main():
-        order_info = await bitstamp_exchange.get_order_info(pair.Pair("USDT", "USD"), order_id=order_id)
-        assert order_info is not None
+async def test_order_info(order_id, expected_attrs, bitstamp_http_api_mock, bitstamp_exchange):
+    order_info = await bitstamp_exchange.get_order_info(pair.Pair("USDT", "USD"), order_id=order_id)
+    assert order_info is not None
 
-        if "fill_price" in expected_attrs:
-            assert helpers.truncate_decimal(order_info.fill_price, 5) == expected_attrs["fill_price"]
-            del expected_attrs["fill_price"]  # So its not checked inside assert_expected_attrs
-        assert_expected_attrs(order_info, expected_attrs)
-
-    asyncio.run(test_main())
+    if "fill_price" in expected_attrs:
+        assert helpers.truncate_decimal(order_info.fill_price, 5) == expected_attrs["fill_price"]
+        del expected_attrs["fill_price"]  # So its not checked inside assert_expected_attrs
+    assert_expected_attrs(order_info, expected_attrs)
 
 
-def test_order_status(bitstamp_http_api_mock, bitstamp_exchange):
-    async def test_main():
-        order_status = await bitstamp_exchange.get_order_status(order_id="1536137941123072")
-        assert order_status is not None
-        assert order_status.id == "1536137941123072"
-        assert order_status.status == "Canceled"
-        assert order_status.amount_remaining == Decimal("0")
-        assert order_status.client_order_id is None
+async def test_order_status(bitstamp_http_api_mock, bitstamp_exchange):
+    order_status = await bitstamp_exchange.get_order_status(order_id="1536137941123072")
+    assert order_status is not None
+    assert order_status.id == "1536137941123072"
+    assert order_status.status == "Canceled"
+    assert order_status.amount_remaining == Decimal("0")
+    assert order_status.client_order_id is None
 
-        assert len(order_status.transactions) == 4
-        assert order_status.transactions[0].tid == "248447671"
-        assert order_status.transactions[0].price == Decimal("0.99993")
-        assert order_status.transactions[0].fee == Decimal("0")
-        assert order_status.transactions[0].type == exchange.TransactionType.MARKET_TRADE
-        assert order_status.transactions[0].usd == Decimal("4899.79261051")
-        assert order_status.transactions[0].usdt == Decimal("4900.13562")
-        with pytest.raises(AttributeError):
-            assert order_status.transactions[0].pax
-
-    asyncio.run(test_main())
+    assert len(order_status.transactions) == 4
+    assert order_status.transactions[0].tid == "248447671"
+    assert order_status.transactions[0].price == Decimal("0.99993")
+    assert order_status.transactions[0].fee == Decimal("0")
+    assert order_status.transactions[0].type == exchange.TransactionType.MARKET_TRADE
+    assert order_status.transactions[0].usd == Decimal("4899.79261051")
+    assert order_status.transactions[0].usdt == Decimal("4900.13562")
+    with pytest.raises(AttributeError):
+        assert order_status.transactions[0].pax
 
 
-def test_order_status_without_transactions(bitstamp_http_api_mock, bitstamp_exchange):
-    async def test_main():
-        order_status = await bitstamp_exchange.get_order_status(order_id="1536137941123072", omit_transactions=True)
-        assert order_status is not None
-        assert order_status.id == "1536137941123072"
-        assert order_status.status == "Canceled"
-        assert order_status.amount_remaining == Decimal("0")
-        assert order_status.client_order_id is None
+async def test_order_status_without_transactions(bitstamp_http_api_mock, bitstamp_exchange):
+    order_status = await bitstamp_exchange.get_order_status(order_id="1536137941123072", omit_transactions=True)
+    assert order_status is not None
+    assert order_status.id == "1536137941123072"
+    assert order_status.status == "Canceled"
+    assert order_status.amount_remaining == Decimal("0")
+    assert order_status.client_order_id is None
 
-        assert len(order_status.transactions) == 0
-
-    asyncio.run(test_main())
+    assert len(order_status.transactions) == 0
 
 
-def test_order_status_not_found(bitstamp_http_api_mock, bitstamp_exchange):
-    async def test_main():
-        with pytest.raises(exchange.Error) as excinfo:
-            await bitstamp_exchange.get_order_status(order_id="1234")
-        assert str(excinfo.value) == "Order not found."
-        assert excinfo.value.json_response["reason"] == "Order not found."
-
-    asyncio.run(test_main())
+async def test_order_status_not_found(bitstamp_http_api_mock, bitstamp_exchange):
+    with pytest.raises(exchange.Error) as excinfo:
+        await bitstamp_exchange.get_order_status(order_id="1234")
+    assert str(excinfo.value) == "Order not found."
+    assert excinfo.value.json_response["reason"] == "Order not found."
 
 
-def test_explicit_session(bitstamp_http_api_mock, realtime_dispatcher):
-    async def test_main():
-        async with aiohttp.ClientSession() as session:
-            e = exchange.Exchange(
-                realtime_dispatcher, "api_key", "api_secret", session=session,
-                config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
-            )
+async def test_explicit_session(bitstamp_http_api_mock, realtime_dispatcher):
+    async with aiohttp.ClientSession() as session:
+        e = exchange.Exchange(
+            realtime_dispatcher, "api_key", "api_secret", session=session,
+            config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+        )
 
-            balance = await e.get_balance("USD")
-            assert balance.available == Decimal("28.92")
-            assert balance.total == Decimal("28.92")
-            assert balance.reserved == Decimal("0")
+        balance = await e.get_balance("USD")
+        assert balance.available == Decimal("28.92")
+        assert balance.total == Decimal("28.92")
+        assert balance.reserved == Decimal("0")
 
-            balances = await e.get_balances()
-            balance = balances["PAX"]
-            assert balance.available == Decimal("0.01374")
-            assert balance.total == Decimal("0.01374")
-            assert balance.reserved == Decimal("0")
-
-    asyncio.run(test_main())
+        balances = await e.get_balances()
+        balance = balances["PAX"]
+        assert balance.available == Decimal("0.01374")
+        assert balance.total == Decimal("0.01374")
+        assert balance.reserved == Decimal("0")
 
 
-def test_cancel_order(bitstamp_http_api_mock, bitstamp_exchange):
-    async def test_main():
-        canceled_order = await bitstamp_exchange.cancel_order(1538604691881987)
-        assert canceled_order is not None
-        assert canceled_order.id == "1538604691881987"
-        assert helpers.truncate_decimal(canceled_order.amount, 8) == Decimal("0.00319028")
-        assert canceled_order.limit_price == Decimal("17500")
-        assert canceled_order.operation == exchange.OrderOperation.BUY
-
-    asyncio.run(test_main())
+async def test_cancel_order(bitstamp_http_api_mock, bitstamp_exchange):
+    canceled_order = await bitstamp_exchange.cancel_order(1538604691881987)
+    assert canceled_order is not None
+    assert canceled_order.id == "1538604691881987"
+    assert helpers.truncate_decimal(canceled_order.amount, 8) == Decimal("0.00319028")
+    assert canceled_order.limit_price == Decimal("17500")
+    assert canceled_order.operation == exchange.OrderOperation.BUY
 
 
 @pytest.mark.parametrize("create_order_fun, expected_op, expected_amount, expected_price, expected_id", [
@@ -410,46 +385,34 @@ def test_cancel_order(bitstamp_http_api_mock, bitstamp_exchange):
         exchange.OrderOperation.SELL, Decimal("13"), Decimal("19954"), "1540371958628352"
     ),
 ])
-def test_order_requests(
+async def test_order_requests(
         create_order_fun, expected_op, expected_amount, expected_price, expected_id,
         bitstamp_http_api_mock, bitstamp_exchange
 ):
-    async def test_main():
-        order_created = await create_order_fun(bitstamp_exchange)
-        assert order_created is not None
-        assert order_created.id == expected_id
-        assert order_created.datetime == datetime.datetime(2022, 9, 30, 16, 47, 12, 583000).replace(
-            tzinfo=datetime.timezone.utc
-        )
-        assert order_created.operation == expected_op
-        assert order_created.amount == expected_amount
-        assert order_created.price == expected_price
-        assert order_created.client_order_id == "51557545381C4997BC452AE1E48E0D88"
-
-    asyncio.run(test_main())
+    order_created = await create_order_fun(bitstamp_exchange)
+    assert order_created is not None
+    assert order_created.id == expected_id
+    assert order_created.datetime == datetime.datetime(2022, 9, 30, 16, 47, 12, 583000).replace(
+        tzinfo=datetime.timezone.utc
+    )
+    assert order_created.operation == expected_op
+    assert order_created.amount == expected_amount
+    assert order_created.price == expected_price
+    assert order_created.client_order_id == "51557545381C4997BC452AE1E48E0D88"
 
 
-def test_cancel_inexistent_order(bitstamp_http_api_mock, bitstamp_exchange):
-    async def test_main():
-        with pytest.raises(exchange.Error) as excinfo:
-            await bitstamp_exchange.cancel_order(1234)
-        assert str(excinfo.value) == "Order not found."
-        assert excinfo.value.json_response["error"] == "Order not found."
-
-    asyncio.run(test_main())
+async def test_cancel_inexistent_order(bitstamp_http_api_mock, bitstamp_exchange):
+    with pytest.raises(exchange.Error) as excinfo:
+        await bitstamp_exchange.cancel_order(1234)
+    assert str(excinfo.value) == "Order not found."
+    assert excinfo.value.json_response["error"] == "Order not found."
 
 
-def test_bid_ask(bitstamp_http_api_mock, bitstamp_exchange):
-    async def test_main():
-        bid, ask = await bitstamp_exchange.get_bid_ask(pair.Pair("BTC", "USD"))
-        assert bid == Decimal("20781")
-        assert ask == Decimal("20782")
-
-    asyncio.run(test_main())
+async def test_bid_ask(bitstamp_http_api_mock, bitstamp_exchange):
+    bid, ask = await bitstamp_exchange.get_bid_ask(pair.Pair("BTC", "USD"))
+    assert bid == Decimal("20781")
+    assert ask == Decimal("20782")
 
 
-def test_get_pair_info(bitstamp_http_api_mock, bitstamp_exchange):
-    async def impl():
-        assert await bitstamp_exchange.get_pair_info(pair.Pair("BTC", "USD")) == pair.PairInfo(8, 0)
-
-    asyncio.run(impl())
+async def test_get_pair_info(bitstamp_http_api_mock, bitstamp_exchange):
+    assert await bitstamp_exchange.get_pair_info(pair.Pair("BTC", "USD")) == pair.PairInfo(8, 0)

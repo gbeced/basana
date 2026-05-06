@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from decimal import Decimal
-import asyncio
 import datetime
 import re
 
@@ -44,39 +43,33 @@ CREATE_ORDER_RESPONSE_16620163621 = {
 }
 
 
-def test_transfer(binance_http_api_mock, binance_exchange):
-    async def test_main():
-        binance_http_api_mock.post(
-            re.compile(r"http://binance.mock/sapi/v1/margin/isolated/transfer\\?.*"), status=200,
-            payload={"tranId": 124739543934, "clientTag": ""}, repeat=True
-        )
-        assert (await binance_exchange.isolated_margin_account.transfer_from_spot_account(
-            "USDT", Pair("BTC", "USDT"), Decimal("100")))["tranId"] == 124739543934
-        assert (await binance_exchange.isolated_margin_account.transfer_to_spot_account(
-            "USDT", Pair("BTC", "USDT"), Decimal("100")))["tranId"] == 124739543934
-
-    asyncio.run(test_main())
+async def test_transfer(binance_http_api_mock, binance_exchange):
+    binance_http_api_mock.post(
+        re.compile(r"http://binance.mock/sapi/v1/margin/isolated/transfer\\?.*"), status=200,
+        payload={"tranId": 124739543934, "clientTag": ""}, repeat=True
+    )
+    assert (await binance_exchange.isolated_margin_account.transfer_from_spot_account(
+        "USDT", Pair("BTC", "USDT"), Decimal("100")))["tranId"] == 124739543934
+    assert (await binance_exchange.isolated_margin_account.transfer_to_spot_account(
+        "USDT", Pair("BTC", "USDT"), Decimal("100")))["tranId"] == 124739543934
 
 
-def test_account_balances(binance_http_api_mock, binance_exchange):
+async def test_account_balances(binance_http_api_mock, binance_exchange):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/sapi/v1/margin/isolated/account\\?.*"), status=200,
         payload=helpers.load_json("binance_isolated_margin_account_details.json")
     )
 
-    async def test_main():
-        balances = await binance_exchange.isolated_margin_account.get_balances()
+    balances = await binance_exchange.isolated_margin_account.get_balances()
 
-        isolated_balance = balances[Pair("BTC", "USDT")]
-        assert isolated_balance.base_asset == "BTC"
-        assert isolated_balance.base_asset_balance.total == Decimal("0")
-        assert isolated_balance.quote_asset == "USDT"
-        assert isolated_balance.quote_asset_balance.total == Decimal("100")
-        assert isolated_balance.quote_asset_balance.available == Decimal("100")
-        assert isolated_balance.quote_asset_balance.locked == Decimal("0")
-        assert isolated_balance.quote_asset_balance.borrowed == Decimal("0")
-
-    asyncio.run(test_main())
+    isolated_balance = balances[Pair("BTC", "USDT")]
+    assert isolated_balance.base_asset == "BTC"
+    assert isolated_balance.base_asset_balance.total == Decimal("0")
+    assert isolated_balance.quote_asset == "USDT"
+    assert isolated_balance.quote_asset_balance.total == Decimal("100")
+    assert isolated_balance.quote_asset_balance.available == Decimal("100")
+    assert isolated_balance.quote_asset_balance.locked == Decimal("0")
+    assert isolated_balance.quote_asset_balance.borrowed == Decimal("0")
 
 
 @pytest.mark.parametrize("create_order_fun, response_payload, expected_attrs, expected_fills", [
@@ -101,19 +94,16 @@ def test_account_balances(binance_http_api_mock, binance_exchange):
         [],
     ),
 ])
-def test_create_order(
+async def test_create_order(
         create_order_fun, response_payload, expected_attrs, expected_fills, binance_http_api_mock, binance_exchange
 ):
     binance_http_api_mock.post(
         re.compile(r"http://binance.mock/sapi/v1/margin/order\\?.*"), status=200, payload=response_payload
     )
 
-    async def test_main():
-        order_created = await create_order_fun(binance_exchange)
-        assert order_created is not None
-        helpers.assert_expected_attrs(order_created, expected_attrs)
-        assert len(order_created.fills) == len(expected_fills)
-        for fill, expected_fill in zip(order_created.fills, expected_fills):
-            helpers.assert_expected_attrs(fill, expected_fill)
-
-    asyncio.run(test_main())
+    order_created = await create_order_fun(binance_exchange)
+    assert order_created is not None
+    helpers.assert_expected_attrs(order_created, expected_attrs)
+    assert len(order_created.fills) == len(expected_fills)
+    for fill, expected_fill in zip(order_created.fills, expected_fills):
+        helpers.assert_expected_attrs(fill, expected_fill)
