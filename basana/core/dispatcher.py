@@ -123,11 +123,13 @@ class EventMultiplexer:
     def _prefetch(self):
         if not self._sources_to_prefetch:
             return
-        for source in tuple(self._sources_to_prefetch):
+        done = []
+        for source in self._sources_to_prefetch:
             if event := source.pop():
                 self._prefetched_events[source] = event
-                self._sources_to_prefetch.remove(source)
                 heapq.heappush(self._event_heap, (event.when, -source.priority, id(source), source, event))
+                done.append(source)
+        self._sources_to_prefetch.difference_update(done)
 
 
 class EventDispatcher(metaclass=abc.ABCMeta):
@@ -326,7 +328,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
 
 
 class BacktestingDispatcher(EventDispatcher):
-    """Event dispatcher for backtesting.
+    """
+    Event dispatcher for backtesting.
 
     :param max_concurrent: The maximum number of events to process concurrently.
     """
@@ -352,6 +355,16 @@ class BacktestingDispatcher(EventDispatcher):
         # For testing purposes.
         assert self._last_dt is None or now >= self._last_dt
         self._last_dt = now
+
+    async def _run_event_handlers(self, evnt: core_event.Event, handlers: List[EventHandler]):
+        # In backtesting there is no real concurrency so we run handlers sequentially to avoid
+        # asyncio.gather's Task-creation overhead.
+        # Check stopped before each handler to mirror asyncio.gather's task-cancellation semantics
+        # when stop_on_handler_exceptions is True.
+        for handler in handlers:
+            if self.stopped:
+                break
+            await self._call_event_handler(evnt, handler)
 
     async def _dispatch_loop(self):
         while not self.stopped:
