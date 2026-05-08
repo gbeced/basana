@@ -60,6 +60,9 @@ class SchedulerQueue:
     def __init__(self):
         self._queue = []
 
+    def __bool__(self):
+        return bool(self._queue)
+
     def push(self, when: datetime.datetime, job: SchedulerJob):
         assert not dt.is_naive(when), f"{when} should have timezone information set"
         heapq.heappush(self._queue, ScheduledJob(when=when, job=job))
@@ -374,7 +377,7 @@ class BacktestingDispatcher(EventDispatcher):
                 assert self._last_dt is None or next_dt >= self._last_dt, \
                     f"{next_dt} can't be dispatched after {self._last_dt}"
 
-                if self._scheduler_queue._queue:
+                if self._scheduler_queue:
                     await self._dispatch_scheduled(next_dt)
                 await self._dispatch_events(next_dt)
             else:
