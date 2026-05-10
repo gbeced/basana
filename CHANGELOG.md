@@ -1,6 +1,6 @@
 # Changelog
 
-## TBD
+## 1.10.2
 
 ### Bug fixes
 
