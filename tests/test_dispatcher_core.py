@@ -16,7 +16,8 @@
 
 import datetime
 
-from basana.core import dispatcher, dt, event
+from basana.core import dt, event
+from basana.core.dispatcher import base, concurrency, scheduler
 
 
 async def scheduler_job():
@@ -24,7 +25,7 @@ async def scheduler_job():
 
 
 def test_scheduler_queue():
-    queue = dispatcher.SchedulerQueue()
+    queue = scheduler.SchedulerQueue()
 
     assert queue.peek_next_event_dt() is None
     assert queue.peek_last_event_dt() is None
@@ -54,7 +55,7 @@ class Event(event.Event):
 
 
 def test_multiplexer_priority():
-    mux = dispatcher.EventMultiplexer()
+    mux = base.EventMultiplexer()
     when = dt.utc_now()
     event_1 = Event(when, 1)
     event_2 = Event(when, 2)
@@ -78,7 +79,7 @@ def test_multiplexer_priority():
 
 
 async def test_no_concurrency_pool():
-    c = dispatcher.NoConcurrency()
+    c = concurrency.NoConcurrency()
 
     async def check_concurrency_state():
         assert not c.pool_idle
