@@ -75,3 +75,22 @@ def test_multiplexer_priority():
         events.append(evnt)
 
     assert events == [event_1, event_2, event_3]
+
+
+async def test_no_concurrency_pool():
+    c = dispatcher.NoConcurrency()
+
+    async def check_concurrency_state():
+        assert not c.pool_idle
+        assert not await c.wait_pool(60)
+
+    await c.push_pool(check_concurrency_state)
+
+    assert c.pool_idle
+    assert await c.wait_pool(60)
+
+    async def should_not_get_here():
+        assert False
+
+    c.cancel_pool()
+    await c.push_pool(should_not_get_here)

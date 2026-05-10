@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from collections import defaultdict
-from typing import Any, Awaitable, Callable, Dict, Generator, List, Optional, Set, Tuple
+from typing import Any, Awaitable, Callable, Coroutine, Dict, Generator, List, Optional, Set, Tuple, Union
 import abc
 import asyncio
 import contextlib
@@ -48,6 +48,84 @@ _PE_WHEN = 0
 _PE_PRIORITY = 1
 _PE_SOURCE = 3
 _PE_EVENT = 4
+
+
+CoroutineFunc = Callable[[], Coroutine]
+
+
+class ConcurrencyStrategy(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    async def gather(self, coro_funcs: List[CoroutineFunc]):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def push_pool(self, coro_func: CoroutineFunc):
+        raise NotImplementedError()
+
+    @property
+    @abc.abstractmethod
+    def pool_idle(self) -> bool:
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    def cancel_pool(self):
+        raise NotImplementedError()
+
+    @abc.abstractmethod
+    async def wait_pool(self, timeout: Optional[Union[int, float]] = None) -> bool:
+        raise NotImplementedError()
+
+
+class NoConcurrency(ConcurrencyStrategy):
+    def __init__(self):
+        self._canceled = False
+        self._idle = True
+
+    async def gather(self, coro_funcs: List[CoroutineFunc]):
+        for coro_func in coro_funcs:
+            if self._canceled:
+                break
+            await coro_func()
+
+    async def push_pool(self, coro_func: CoroutineFunc):
+        try:
+            self._idle = False
+            if not self._canceled:
+                await coro_func()
+        finally:
+            self._idle = True
+
+    @property
+    def pool_idle(self) -> bool:
+        return self._idle
+
+    def cancel_pool(self):
+        self._canceled = True
+
+    async def wait_pool(self, timeout: Optional[Union[int, float]] = None) -> bool:
+        return self._idle
+
+
+class BoundedConcurrency(ConcurrencyStrategy):
+    def __init__(self, max_concurrency: int):
+        self._max_concurrency = max_concurrency
+        self._task_pool = helpers.TaskPool(self._max_concurrency, max_queue_size=self._max_concurrency * 10)
+
+    async def gather(self, coro_funcs: List[CoroutineFunc]):
+        return await asyncio.gather(*[coro_func() for coro_func in coro_funcs])
+
+    async def push_pool(self, coro_func: CoroutineFunc):
+        await self._task_pool.push(coro_func)
+
+    @property
+    def pool_idle(self) -> bool:
+        return self._task_pool.idle
+
+    def cancel_pool(self):
+        return self._task_pool.cancel()
+
+    async def wait_pool(self, timeout: Optional[Union[int, float]] = None) -> bool:
+        return await self._task_pool.wait(timeout)
 
 
 class SchedulerQueue:
@@ -151,6 +229,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
     """
 
     def __init__(self, max_concurrent: int):
+        assert max_concurrent > 0
+
         self._event_handlers: Dict[core_event.EventSource, List[EventHandler]] = defaultdict(list)
         self._sniffers_pre: List[EventHandler] = []
         self._sniffers_post: List[EventHandler] = []
@@ -161,11 +241,12 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._stopped = False
         self._scheduler_queue = SchedulerQueue()
         self._event_mux = EventMultiplexer()
-        # Task group for event and scheduler handlers.
-        self._handler_tasks = helpers.TaskPool(max_concurrent, max_queue_size=max_concurrent * 10)
         # Set to True for the dispatcher to stop if a handler raises an exception.
         self.stop_on_handler_exceptions = False
         self._debug_enabled = False
+        # Handles concurrency related to event and scheduler handlers.
+        self._concurrency = NoConcurrency() if max_concurrent == 1 \
+            else BoundedConcurrency(max_concurrency=max_concurrent)
 
     @property
     def current_event_dt(self) -> Optional[datetime.datetime]:
@@ -187,7 +268,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._stopped = True
         if self._core_tasks:
             self._core_tasks.cancel()
-        self._handler_tasks.cancel()
+        self._concurrency.cancel_pool()
 
     def subscribe(self, source: core_event.EventSource, event_handler: EventHandler):
         """Registers an async callable that will be called when an event source has new events.
@@ -264,8 +345,8 @@ class EventDispatcher(metaclass=abc.ABCMeta):
                 raise
         finally:
             # Cancel any pending task in the event handlers pool.
-            self._handler_tasks.cancel()
-            await self._handler_tasks.wait()
+            self._concurrency.cancel_pool()
+            await self._concurrency.wait_pool()
             # No more cancelation at this point.
             self._core_tasks = None
             # Finalize producers.
@@ -293,17 +374,19 @@ class EventDispatcher(metaclass=abc.ABCMeta):
                 "Dispatching event", when=event.when, type=helpers.classpath(event)
             ))
         if self._sniffers_pre:
-            await self._run_event_handlers(event, self._sniffers_pre)
-        await self._run_event_handlers(event, handlers)
+            await self._call_event_handlers(event, self._sniffers_pre)
+        await self._call_event_handlers(event, handlers)
         if self._sniffers_post:
-            await self._run_event_handlers(event, self._sniffers_post)
+            await self._call_event_handlers(event, self._sniffers_post)
 
-    async def _run_event_handlers(self, evnt: core_event.Event, handlers: List[EventHandler]):
+    async def _call_event_handlers(self, evnt: core_event.Event, handlers: List[EventHandler]):
         match len(handlers):
             case 1:
                 await self._call_event_handler(evnt, handlers[0])
             case _:
-                await asyncio.gather(*(self._call_event_handler(evnt, handler) for handler in handlers))
+                await self._concurrency.gather([
+                    functools.partial(self._call_event_handler, evnt, handler) for handler in handlers
+                ])
 
     async def _call_event_handler(self, event: core_event.Event, handler: EventHandler):
         try:
@@ -324,7 +407,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             await job()
         except Exception as e:
             logger.exception(logs.StructuredMessage(
-                "Unhandled exception in handler", error=e, dt=dt, scheduler_job=job
+                "Unhandled exception executing scheduled job", error=e, dt=dt, scheduler_job=job
             ))
             if self.stop_on_handler_exceptions:
                 self.stop()
@@ -359,18 +442,9 @@ class BacktestingDispatcher(EventDispatcher):
         assert self._last_dt is None or now >= self._last_dt
         self._last_dt = now
 
-    async def _run_event_handlers(self, evnt: core_event.Event, handlers: List[EventHandler]):
-        # In backtesting there is no real concurrency so we run handlers sequentially to avoid
-        # asyncio.gather's Task-creation overhead.
-        # Check stopped before each handler to mirror asyncio.gather's task-cancellation semantics
-        # when stop_on_handler_exceptions is True.
-        for handler in handlers:
-            if self.stopped:
-                break
-            await self._call_event_handler(evnt, handler)
-
     async def _dispatch_loop(self):
         while not self.stopped:
+            # Time is driven by event timestamps, so "now" advances only when events are processed.
             next_dt = self._event_mux.peek_next_event_dt()
             if next_dt:
                 # Check that events are processed in ascending order.
@@ -412,8 +486,9 @@ class BacktestingDispatcher(EventDispatcher):
                 await self._dispatch_event(*event_dispatches[0])
             case _:
                 for event_dispatch in event_dispatches:
-                    await self._handler_tasks.push(functools.partial(self._dispatch_event, *event_dispatch))
-                await self._handler_tasks.wait()
+                    await self._concurrency.push_pool(functools.partial(self._dispatch_event, *event_dispatch))
+                # In backtesting mode we don't move forward with future events.
+                await self._concurrency.wait_pool()
 
 
 class RealtimeDispatcher(EventDispatcher):
@@ -433,7 +508,8 @@ class RealtimeDispatcher(EventDispatcher):
         return dt.utc_now()
 
     def subscribe_idle(self, idle_handler: IdleHandler):
-        """Registers an async callable that will be called when there are no events to dispatch.
+        """
+        Registers an async callable that will be called when there are no events to dispatch.
 
         :param idle_handler: An async callable that receives no arguments.
         """
@@ -454,9 +530,9 @@ class RealtimeDispatcher(EventDispatcher):
             # Optionally give some time for handlers to execute before pushing new ones.
             # This is disabled by default and it will be deprecated.
             if self._wait_all_timeout:  # pragma: no cover
-                await self._handler_tasks.wait(timeout=self._wait_all_timeout)
+                await self._concurrency.wait_pool(timeout=self._wait_all_timeout)
 
-            if self._handler_tasks.idle:
+            if self._concurrency.pool_idle:
                 await self._on_idle()
             else:
                 # Yield to the event loop to allow other tasks to run.
@@ -465,7 +541,7 @@ class RealtimeDispatcher(EventDispatcher):
     async def _on_idle(self):
         if self._idle_handlers:
             await gather_no_raise(*[
-                self._handler_tasks.push(idle_handler) for idle_handler in self._idle_handlers
+                self._concurrency.push_pool(idle_handler) for idle_handler in self._idle_handlers
             ])
 
         # Avoid trashing the CPU if there's nothing to do.
@@ -475,7 +551,7 @@ class RealtimeDispatcher(EventDispatcher):
         while (next_scheduled_dt := self._scheduler_queue.peek_next_event_dt()) and next_scheduled_dt <= dt:
             next_scheduled_dt, job = self._scheduler_queue.pop()
             # Push scheduled job into the task pool for processing.
-            await self._handler_tasks.push(functools.partial(self._execute_scheduled, next_scheduled_dt, job))
+            await self._concurrency.push_pool(functools.partial(self._execute_scheduled, next_scheduled_dt, job))
 
     async def _push_events(self, dt: datetime.datetime):
         # Pop events and feed the pool.
@@ -491,7 +567,7 @@ class RealtimeDispatcher(EventDispatcher):
             self._prev_event_dt[source] = evnt.when
 
             # Push event into the task pool for processing.
-            await self._handler_tasks.push(
+            await self._concurrency.push_pool(
                 functools.partial(self._dispatch_event, evnt, self._event_handlers[source])
             )
 
@@ -514,7 +590,7 @@ def realtime_dispatcher(max_concurrent: int = 50) -> RealtimeDispatcher:
     return RealtimeDispatcher(max_concurrent=max_concurrent)
 
 
-def backtesting_dispatcher(max_concurrent: int = 50) -> BacktestingDispatcher:
+def backtesting_dispatcher(max_concurrent: int = 1) -> BacktestingDispatcher:
     """
     Creates an event dispatcher suitable for backtesting.
 
