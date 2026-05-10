@@ -27,6 +27,9 @@ import aiohttp
 from basana.core import logs
 
 
+QUANTIZERS_CACHE: Dict[int, Decimal] = {}
+
+
 class TaskGroup:
     def __init__(self):
         self._tasks = []
@@ -202,7 +205,11 @@ def round_decimal(value: Decimal, precision: int, rounding=None) -> Decimal:
     :param rounding: An optional rounding option from the :mod:`decimal` module.
     :returns: The rounded value.
     """
-    return value.quantize(Decimal(f"1e-{precision}"), rounding=rounding)
+    quantizer = QUANTIZERS_CACHE.get(precision)
+    if quantizer is None:
+        quantizer = Decimal(f"1e-{precision}")
+        QUANTIZERS_CACHE[precision] = quantizer
+    return value.quantize(quantizer, rounding=rounding)
 
 
 def truncate_decimal(value: Decimal, precision: int) -> Decimal:
