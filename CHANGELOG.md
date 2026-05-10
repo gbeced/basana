@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.10.2
+
+### Bug fixes
+
+* Newer versions of kaleido cannot serialize Python Decimal objects to JSON.
+
+### Misc
+
+* Performance optimizations.
+
 ## 1.10.1
 
 ### Bug fixes

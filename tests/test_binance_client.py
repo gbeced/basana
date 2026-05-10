@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import re
 
 import aioresponses
@@ -37,17 +36,14 @@ def binance_http_api_mock():
         "Signature for this request is not valid."
     ),
 ])
-def test_error_parsing(status_code, response_body, expected, binance_http_api_mock):
+async def test_error_parsing(status_code, response_body, expected, binance_http_api_mock):
     binance_http_api_mock.get(
         re.compile(r"http://binance.mock/api/v3/account\\?.*"), status=status_code, payload=response_body
     )
 
-    async def test_main():
-        c = client.APIClient(
-            api_key="key", api_secret="secret", config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
-        )
-        with pytest.raises(client.Error) as excinfo:
-            await c.spot_account.get_account_information()
-        assert str(excinfo.value) == expected
-
-    asyncio.run(test_main())
+    c = client.APIClient(
+        api_key="key", api_secret="secret", config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+    )
+    with pytest.raises(client.Error) as excinfo:
+        await c.spot_account.get_account_information()
+    assert str(excinfo.value) == expected

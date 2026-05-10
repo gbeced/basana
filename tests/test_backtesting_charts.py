@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from decimal import Decimal
-import asyncio
 import datetime
 import os
 
@@ -41,7 +40,7 @@ order_plan = {
     (order_plan, True),
     (order_plan, False),
 ])
-def test_save_line_chart(order_plan, candlesticks, backtesting_dispatcher, caplog):
+async def test_save_line_chart(order_plan, candlesticks, backtesting_dispatcher, caplog):
     e = exchange.Exchange(
         backtesting_dispatcher,
         {
@@ -66,14 +65,11 @@ def test_save_line_chart(order_plan, candlesticks, backtesting_dispatcher, caplo
             created_order = await create_order_fun(e)
             assert created_order is not None
 
-    async def impl():
-        e.add_bar_source(bars.CSVBarSource(pair, helpers.abs_data_path("orcl-2000-yahoo-sorted.csv")))
-        e.subscribe_to_bar_events(pair, on_bar)
+    e.add_bar_source(bars.CSVBarSource(pair, helpers.abs_data_path("orcl-2000-yahoo-sorted.csv")))
+    e.subscribe_to_bar_events(pair, on_bar)
 
-        await backtesting_dispatcher.run()
+    await backtesting_dispatcher.run()
 
-        with helpers.temp_file_name(suffix=".png") as tmp_file_name:
-            line_charts.save(tmp_file_name)
-            assert os.stat(tmp_file_name).st_size > 100
-
-    asyncio.run(impl())
+    with helpers.temp_file_name(suffix=".png") as tmp_file_name:
+        line_charts.save(tmp_file_name)
+        assert os.stat(tmp_file_name).st_size > 100

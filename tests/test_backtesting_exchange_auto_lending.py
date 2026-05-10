@@ -16,7 +16,6 @@
 
 from decimal import Decimal
 from typing import List, Tuple
-import asyncio
 import datetime
 
 import pytest
@@ -107,7 +106,7 @@ def build_bar_source(
         ),
     ]
 )
-def test_entry_and_exit_ok(
+async def test_entry_and_exit_ok(
         initial_balances, entry_dt, entry_limit_price, exit_dt, exit_limit_price, amount, final_balances,
         backtesting_dispatcher, caplog
 ):
@@ -156,51 +155,48 @@ def test_entry_and_exit_ok(
         if action:
             await action()
 
-    async def impl():
-        e.set_symbol_precision("BTC", 8)
-        e.set_symbol_precision("USD", 2)
-        e.subscribe_to_bar_events(pair, on_bar)
+    e.set_symbol_precision("BTC", 8)
+    e.set_symbol_precision("USD", 2)
+    e.subscribe_to_bar_events(pair, on_bar)
 
-        # Load bars
-        bs = build_bar_source(
-            pair, datetime.timedelta(days=1),
-            [
-                (dt.local_datetime(2000, 1, 1), Decimal(1000)),
-                (dt.local_datetime(2000, 1, 2), Decimal(1000)),
-                (dt.local_datetime(2000, 1, 3), Decimal(2000)),
-                (dt.local_datetime(2000, 1, 4), Decimal(3000)),
-                (dt.local_datetime(2000, 1, 5), Decimal(2000)),
-                (dt.local_datetime(2000, 1, 6), Decimal(1000)),
-                (dt.local_datetime(2000, 1, 7), Decimal(800)),
-            ]
-        )
-        e.add_bar_source(bs)
-        await backtesting_dispatcher.run()
+    # Load bars
+    bs = build_bar_source(
+        pair, datetime.timedelta(days=1),
+        [
+            (dt.local_datetime(2000, 1, 1), Decimal(1000)),
+            (dt.local_datetime(2000, 1, 2), Decimal(1000)),
+            (dt.local_datetime(2000, 1, 3), Decimal(2000)),
+            (dt.local_datetime(2000, 1, 4), Decimal(3000)),
+            (dt.local_datetime(2000, 1, 5), Decimal(2000)),
+            (dt.local_datetime(2000, 1, 6), Decimal(1000)),
+            (dt.local_datetime(2000, 1, 7), Decimal(800)),
+        ]
+    )
+    e.add_bar_source(bs)
+    await backtesting_dispatcher.run()
 
-        # All orders must be completed.
-        for created_order in [entry_order, exit_order]:
-            assert created_order is not None
-            order_info = await e.get_order_info(created_order.id)
-            assert order_info.is_open is False
-            assert order_info.amount_remaining == Decimal(0)
-            assert len(order_info.loan_ids) == 1
+    # All orders must be completed.
+    for created_order in [entry_order, exit_order]:
+        assert created_order is not None
+        order_info = await e.get_order_info(created_order.id)
+        assert order_info.is_open is False
+        assert order_info.amount_remaining == Decimal(0)
+        assert len(order_info.loan_ids) == 1
 
-        # There should be no open loans.
-        open_loans = await e.get_loans(is_open=True)
-        assert open_loans == []
+    # There should be no open loans.
+    open_loans = await e.get_loans(is_open=True)
+    assert open_loans == []
 
-        # Check available balances.
-        balances = await e.get_balances()
-        assert len(balances) == len(final_balances)
-        for symbol, balance in balances.items():
-            assert balance.available == final_balances[symbol]
-            assert balance.hold == 0
-            assert balance.borrowed == 0
-
-    asyncio.run(impl())
+    # Check available balances.
+    balances = await e.get_balances()
+    assert len(balances) == len(final_balances)
+    for symbol, balance in balances.items():
+        assert balance.available == final_balances[symbol]
+        assert balance.hold == 0
+        assert balance.borrowed == 0
 
 
-def test_rollback_if_borrowing_fails(backtesting_dispatcher, caplog):
+async def test_rollback_if_borrowing_fails(backtesting_dispatcher, caplog):
     caplog.set_level(0)
 
     pair = Pair("BTC", "USD")
@@ -235,60 +231,57 @@ def test_rollback_if_borrowing_fails(backtesting_dispatcher, caplog):
         if action:
             await action()
 
-    async def impl():
-        e.set_symbol_precision("BTC", 8)
-        e.set_symbol_precision("ETH", 18)
-        e.set_symbol_precision("USD", 2)
-        e.set_pair_info(pair, PairInfo(8, 2))
-        e.subscribe_to_bar_events(pair, on_bar)
+    e.set_symbol_precision("BTC", 8)
+    e.set_symbol_precision("ETH", 18)
+    e.set_symbol_precision("USD", 2)
+    e.set_pair_info(pair, PairInfo(8, 2))
+    e.subscribe_to_bar_events(pair, on_bar)
 
-        # Load BTC bars.
-        e.add_bar_source(
-            build_bar_source(
-                pair, datetime.timedelta(days=1),
-                [
-                    (dt.local_datetime(2000, 1, 2), Decimal(1000)),
-                    (dt.local_datetime(2000, 1, 3), Decimal(1000)),
-                ]
-            )
+    # Load BTC bars.
+    e.add_bar_source(
+        build_bar_source(
+            pair, datetime.timedelta(days=1),
+            [
+                (dt.local_datetime(2000, 1, 2), Decimal(1000)),
+                (dt.local_datetime(2000, 1, 3), Decimal(1000)),
+            ]
         )
-        # This is just to get prices for ETH.
-        e.add_bar_source(
-            build_bar_source(
-                Pair("ETH", "USD"), datetime.timedelta(days=1),
-                [
-                    (dt.local_datetime(2000, 1, 2), Decimal(1000)),
-                ]
-            )
+    )
+    # This is just to get prices for ETH.
+    e.add_bar_source(
+        build_bar_source(
+            Pair("ETH", "USD"), datetime.timedelta(days=1),
+            [
+                (dt.local_datetime(2000, 1, 2), Decimal(1000)),
+            ]
         )
+    )
 
-        await backtesting_dispatcher.run()
+    await backtesting_dispatcher.run()
 
-        # Selling should have failed.
-        assert entry_failed is True
+    # Selling should have failed.
+    assert entry_failed is True
 
-        # There should be no open loans.
-        open_loans = await e.get_loans(is_open=True)
-        assert open_loans == []
+    # There should be no open loans.
+    open_loans = await e.get_loans(is_open=True)
+    assert open_loans == []
 
-        # Check available balances.
-        balances = await e.get_balances()
-        assert balances["ETH"].available == 1
-        for symbol, balance in balances.items():
-            if symbol == "ETH":
-                continue
-            assert balance.available == 0
-            assert balance.hold == 0
-            assert balance.borrowed == 0
-
-    asyncio.run(impl())
+    # Check available balances.
+    balances = await e.get_balances()
+    assert balances["ETH"].available == 1
+    for symbol, balance in balances.items():
+        if symbol == "ETH":
+            continue
+        assert balance.available == 0
+        assert balance.hold == 0
+        assert balance.borrowed == 0
 
     assert caplog.text.count("Borrowing for order") == 2
     assert caplog.text.count("Canceling loan") == 1
     assert caplog.text.count("Not enough balance to accept order") == 1
 
 
-def test_repay_fails(backtesting_dispatcher, caplog):
+async def test_repay_fails(backtesting_dispatcher, caplog):
     caplog.set_level(0)
     pair = Pair("BTC", "USD")
     entry_order = None
@@ -324,48 +317,45 @@ def test_repay_fails(backtesting_dispatcher, caplog):
         if action:
             await action()
 
-    async def impl():
-        e.set_symbol_precision("BTC", 8)
-        e.set_symbol_precision("USD", 2)
-        e.set_pair_info(pair, PairInfo(8, 2))
-        e.subscribe_to_bar_events(pair, on_bar)
+    e.set_symbol_precision("BTC", 8)
+    e.set_symbol_precision("USD", 2)
+    e.set_pair_info(pair, PairInfo(8, 2))
+    e.subscribe_to_bar_events(pair, on_bar)
 
-        # Load bars
-        bs = build_bar_source(
-            pair, datetime.timedelta(days=1),
-            [
-                (dt.local_datetime(2000, 1, 1), Decimal(1000)),
-                (dt.local_datetime(2000, 1, 2), Decimal(1000)),
-                (dt.local_datetime(2000, 1, 3), Decimal(10)),
-            ]
-        )
-        e.add_bar_source(bs)
-        await backtesting_dispatcher.run()
+    # Load bars
+    bs = build_bar_source(
+        pair, datetime.timedelta(days=1),
+        [
+            (dt.local_datetime(2000, 1, 1), Decimal(1000)),
+            (dt.local_datetime(2000, 1, 2), Decimal(1000)),
+            (dt.local_datetime(2000, 1, 3), Decimal(10)),
+        ]
+    )
+    e.add_bar_source(bs)
+    await backtesting_dispatcher.run()
 
-        # All orders must be completed, even though the exit order couldn't repay the loan.
-        for created_order in [entry_order, exit_order]:
-            assert created_order is not None
-            order_info = await e.get_order_info(created_order.id)
-            assert order_info.is_open is False
-            assert order_info.amount_remaining == Decimal(0)
-            if created_order == entry_order:
-                # The entry order should have created a loan.
-                assert len(order_info.loan_ids) == 1
+    # All orders must be completed, even though the exit order couldn't repay the loan.
+    for created_order in [entry_order, exit_order]:
+        assert created_order is not None
+        order_info = await e.get_order_info(created_order.id)
+        assert order_info.is_open is False
+        assert order_info.amount_remaining == Decimal(0)
+        if created_order == entry_order:
+            # The entry order should have created a loan.
+            assert len(order_info.loan_ids) == 1
 
-        # There should be 1 open loans.
-        open_loans = await e.get_loans(is_open=True)
-        assert len(open_loans) == 1
+    # There should be 1 open loans.
+    open_loans = await e.get_loans(is_open=True)
+    assert len(open_loans) == 1
 
-        # Check balances.
-        balances = await e.get_balances()
-        assert len(balances) == 2
+    # Check balances.
+    balances = await e.get_balances()
+    assert len(balances) == 2
 
-        assert balances["BTC"].available == 0
-        assert balances["BTC"].borrowed == 0
-        assert balances["BTC"].hold == 0
+    assert balances["BTC"].available == 0
+    assert balances["BTC"].borrowed == 0
+    assert balances["BTC"].hold == 0
 
-        assert balances["USD"].available == Decimal("18")
-        assert balances["USD"].borrowed == Decimal("800")
-        assert balances["USD"].hold == 0
-
-    asyncio.run(impl())
+    assert balances["USD"].available == Decimal("18")
+    assert balances["USD"].borrowed == Decimal("800")
+    assert balances["USD"].hold == 0

@@ -56,8 +56,8 @@ def test_truncate(amount, precision, expected):
     assert helpers.truncate_decimal(Decimal(amount), precision) == Decimal(expected)
 
 
-def test_task_group_awaited_before_scope_exit():
-    async def impl():
+async def test_task_group_awaited_before_scope_exit():
+    async def test_main():
         events = [asyncio.Event() for _ in range(3)]
 
         async with helpers.TaskGroup() as tg:
@@ -68,11 +68,11 @@ def test_task_group_awaited_before_scope_exit():
             for ev in events:
                 assert ev.is_set()
 
-    asyncio.run(asyncio.wait_for(impl(), 1))
+    await asyncio.wait_for(test_main(), 1)
 
 
-def test_task_group_awaited_on_scope_exit():
-    async def impl():
+async def test_task_group_awaited_on_scope_exit():
+    async def test_main():
         events = [asyncio.Event() for _ in range(3)]
 
         async with helpers.TaskGroup() as tg:
@@ -82,11 +82,11 @@ def test_task_group_awaited_on_scope_exit():
         for ev in events:
             assert ev.is_set()
 
-    asyncio.run(asyncio.wait_for(impl(), 1))
+    await asyncio.wait_for(test_main(), 1)
 
 
-def test_task_group_finishes_with_errors():
-    async def impl():
+async def test_task_group_finishes_with_errors():
+    async def test_main():
         should_be_set = asyncio.Event()
         should_not_be_set = asyncio.Event()
 
@@ -99,11 +99,11 @@ def test_task_group_finishes_with_errors():
         assert should_be_set.is_set()
         assert not should_not_be_set.is_set()
 
-    asyncio.run(asyncio.wait_for(impl(), 1))
+    await asyncio.wait_for(test_main(), 1)
 
 
-def test_cancel_task_group():
-    async def impl():
+async def test_cancel_task_group():
+    async def test_main():
         should_be_set = asyncio.Event()
         should_not_be_set = asyncio.Event()
 
@@ -116,7 +116,7 @@ def test_cancel_task_group():
         assert should_be_set.is_set()
         assert not should_not_be_set.is_set()
 
-    asyncio.run(asyncio.wait_for(impl(), 1))
+    await asyncio.wait_for(test_main(), 1)
 
 
 @pytest.mark.parametrize("pool_size, task_count", [
@@ -124,7 +124,7 @@ def test_cancel_task_group():
     (1, 2),
     (10, 200),
 ])
-def test_task_pool(pool_size, task_count):
+async def test_task_pool(pool_size, task_count):
     task_calls = 0
 
     async def task():
@@ -140,10 +140,10 @@ def test_task_pool(pool_size, task_count):
         assert pool.idle
         assert task_calls == task_count
 
-    asyncio.run(asyncio.wait_for(test_main(), 1))
+    await asyncio.wait_for(test_main(), 1)
 
 
-def test_task_pool_cancel():
+async def test_task_pool_cancel():
     some_handler_called = helpers.LazyProxy(asyncio.Event)
 
     async def task():
@@ -165,10 +165,10 @@ def test_task_pool_cancel():
 
         assert pool.idle
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
 
 
-def test_task_pool_wait():
+async def test_task_pool_wait():
 
     async def task():
         await asyncio.sleep(0.5)
@@ -191,10 +191,10 @@ def test_task_pool_wait():
 
         pool.cancel()
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
 
 
-def test_task_pool_with_failing_tasks():
+async def test_task_pool_with_failing_tasks():
     async def test_main():
         pool_size = 1
         task_count = 10
@@ -206,10 +206,10 @@ def test_task_pool_with_failing_tasks():
         assert done
         assert pool.idle
 
-    asyncio.run(asyncio.wait_for(test_main(), 2))
+    await asyncio.wait_for(test_main(), 2)
 
 
-def test_task_pool_task_auto_quit():
+async def test_task_pool_task_auto_quit():
 
     async def task():
         pass
@@ -228,15 +228,15 @@ def test_task_pool_task_auto_quit():
         await asyncio.sleep(pool._queue_timeout * 2)
         assert len(pool._tasks) == 0
 
-    asyncio.run(asyncio.wait_for(test_main(), 1))
+    await asyncio.wait_for(test_main(), 1)
 
 
 if sys.version_info >= (3, 12):
-    @pytest.mark.parametrize("task_factory", [
-        None,
-        asyncio.eager_task_factory,
+    @pytest.mark.parametrize("eager_task_factory", [
+        False,
+        True,
     ])
-    def test_task_pool_with_eager_tasks(task_factory):
+    async def test_task_pool_with_eager_tasks(eager_task_factory):
         tasks_found = 0
         pool = helpers.TaskPool(10)
 
@@ -245,17 +245,20 @@ if sys.version_info >= (3, 12):
             tasks_found = len(pool._tasks)
 
         async def test_main():
-            if task_factory:
-                asyncio.get_running_loop().set_task_factory(task_factory)
+            if eager_task_factory:
+                asyncio.get_running_loop().set_task_factory(asyncio.eager_task_factory)
 
             await pool.push(task)
-            done = await pool.wait(0.01)
+            if eager_task_factory:
+                assert tasks_found == 1
+
+            done = await pool.wait(0.1)
 
             assert done
             assert tasks_found == 1
             assert pool.idle
 
-        asyncio.run(asyncio.wait_for(test_main(), 1))
+        await asyncio.wait_for(test_main(), 1)
 
 
 @pytest.mark.parametrize("obj, expected_classpath", [

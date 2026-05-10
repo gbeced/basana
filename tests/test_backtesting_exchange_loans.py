@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from decimal import Decimal
-import asyncio
 import datetime
 
 import pytest
@@ -27,20 +26,17 @@ from basana.core.bar import Bar, BarEvent
 from basana.core.pair import Pair
 
 
-def test_no_loans(backtesting_dispatcher):
-    async def impl():
-        e = exchange.Exchange(backtesting_dispatcher, {})
+async def test_no_loans(backtesting_dispatcher):
+    e = exchange.Exchange(backtesting_dispatcher, {})
 
-        symbol = "USD"
-        amount = Decimal(10000)
+    symbol = "USD"
+    amount = Decimal(10000)
 
-        # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._set_now(dt.local_now())
+    # This is necessary to have prices since we're not doing bar events.
+    backtesting_dispatcher._set_now(dt.local_now())
 
-        with pytest.raises(Exception, match="Lending is not supported"):
-            await e.create_loan(symbol, amount)
-
-    asyncio.run(impl())
+    with pytest.raises(Exception, match="Lending is not supported"):
+        await e.create_loan(symbol, amount)
 
 
 @pytest.mark.parametrize(
@@ -115,7 +111,7 @@ def test_no_loans(backtesting_dispatcher):
         ),
     ]
 )
-def test_borrow_and_repay(
+async def test_borrow_and_repay(
         loan_amount, loan_symbol, margin_requirement,
         interest_percentage, interest_symbol, interest_period, min_interest,
         repay_after,
@@ -123,269 +119,245 @@ def test_borrow_and_repay(
         intermediate_margin_level, intermediate_interest, paid_interest,
         backtesting_dispatcher
 ):
-    async def impl():
-        exchange_rates = {
-            Pair("BTC", "USD"): Decimal(70000),
-        }
-        precisions = {
-            "BTC": 8,
-            "USD": 2,
-        }
+    exchange_rates = {
+        Pair("BTC", "USD"): Decimal(70000),
+    }
+    precisions = {
+        "BTC": 8,
+        "USD": 2,
+    }
 
-        loan_conditions = {
-            loan_symbol: margin.MarginLoanConditions(
-                interest_symbol=interest_symbol, interest_percentage=interest_percentage,
-                interest_period=interest_period, min_interest=min_interest
-            ),
-        }
-        lending_strategy = margin.MarginLoans("USD", margin_requirement)
-        for symbol, conditions in loan_conditions.items():
-            lending_strategy.set_conditions(symbol, conditions)
+    loan_conditions = {
+        loan_symbol: margin.MarginLoanConditions(
+            interest_symbol=interest_symbol, interest_percentage=interest_percentage,
+            interest_period=interest_period, min_interest=min_interest
+        ),
+    }
+    lending_strategy = margin.MarginLoans("USD", margin_requirement)
+    for symbol, conditions in loan_conditions.items():
+        lending_strategy.set_conditions(symbol, conditions)
 
-        e = exchange.Exchange(backtesting_dispatcher, initial_balances, lending_strategy=lending_strategy)
+    e = exchange.Exchange(backtesting_dispatcher, initial_balances, lending_strategy=lending_strategy)
 
-        # Configure the exchange.
-        for symbol, precision in precisions.items():
-            e.set_symbol_precision(symbol, precision)
+    # Configure the exchange.
+    for symbol, precision in precisions.items():
+        e.set_symbol_precision(symbol, precision)
 
-        # This is necessary to have prices and dates since we're not doing bar events.
-        now = dt.local_now()
-        for pair, exchange_rate in exchange_rates.items():
-            e._prices.on_bar_event(BarEvent(
-                now,
-                Bar(
-                    now, pair, exchange_rate, exchange_rate, exchange_rate, exchange_rate, Decimal(10),
-                    datetime.timedelta(seconds=1)
-                )
-            ))
-        backtesting_dispatcher._set_now(now)
+    # This is necessary to have prices and dates since we're not doing bar events.
+    now = dt.local_now()
+    for pair, exchange_rate in exchange_rates.items():
+        e._prices.on_bar_event(BarEvent(
+            now,
+            Bar(
+                now, pair, exchange_rate, exchange_rate, exchange_rate, exchange_rate, Decimal(10),
+                datetime.timedelta(seconds=1)
+            )
+        ))
+    backtesting_dispatcher._set_now(now)
 
-        # Create loan
-        assert lending_strategy.margin_level == Decimal("Infinity")
-        loan = await e.create_loan(loan_symbol, loan_amount)
+    # Create loan
+    assert lending_strategy.margin_level == Decimal("Infinity")
+    loan = await e.create_loan(loan_symbol, loan_amount)
 
-        # Checks while loan is open.
-        loans = await e.get_loans(is_open=True)
-        assert loans == [loan]
-        assert await e.get_loan(loan.id) == loan
-        assert loan.is_open
-        assert loan.borrowed_symbol == loan_symbol
-        assert loan.borrowed_amount == loan_amount
+    # Checks while loan is open.
+    loans = await e.get_loans(is_open=True)
+    assert loans == [loan]
+    assert await e.get_loan(loan.id) == loan
+    assert loan.is_open
+    assert loan.borrowed_symbol == loan_symbol
+    assert loan.borrowed_amount == loan_amount
 
-        # Time to repay. Move clock if necessary.
-        backtesting_dispatcher._set_now(dt.local_now())
-        if repay_after:
-            backtesting_dispatcher._set_now(backtesting_dispatcher.now() + repay_after)
+    # Time to repay. Move clock if necessary.
+    backtesting_dispatcher._set_now(dt.local_now())
+    if repay_after:
+        backtesting_dispatcher._set_now(backtesting_dispatcher.now() + repay_after)
 
-        # Checks before repay.
-        assert helpers.round_decimal(lending_strategy.margin_level, 2) == intermediate_margin_level
+    # Checks before repay.
+    assert helpers.round_decimal(lending_strategy.margin_level, 2) == intermediate_margin_level
 
-        for symbol, expected_balance in intermediate_balances.items():
-            balance = await e.get_balance(symbol)
-            assert balance.available == expected_balance["available"], symbol
-            assert balance.borrowed == expected_balance["borrowed"], symbol
-            assert balance.hold == Decimal(0)
+    for symbol, expected_balance in intermediate_balances.items():
+        balance = await e.get_balance(symbol)
+        assert balance.available == expected_balance["available"], symbol
+        assert balance.borrowed == expected_balance["borrowed"], symbol
+        assert balance.hold == Decimal(0)
 
-        loan = await e.get_loan(loan.id)
-        assert loan.outstanding_interest == intermediate_interest
-        assert loan.paid_interest == {}
+    loan = await e.get_loan(loan.id)
+    assert loan.outstanding_interest == intermediate_interest
+    assert loan.paid_interest == {}
 
+    await e.repay_loan(loan.id)
+    assert loan.paid_interest == {}  # Regression check.
+
+    # Checks after repay.
+    for symbol, expected_balance in final_balances.items():
+        balance = await e.get_balance(symbol)
+        assert balance.available == expected_balance["available"], symbol
+        assert balance.borrowed == expected_balance["borrowed"], symbol
+        assert balance.hold == Decimal(0)
+
+    loans = await e.get_loans(borrowed_symbol=loan_symbol, is_open=True)
+    assert loans == []
+
+    loan = await e.get_loan(loan.id)
+    assert not loan.is_open
+    assert loan.borrowed_symbol == loan_symbol
+    assert loan.borrowed_amount == loan_amount
+    assert loan.outstanding_interest == {}
+    assert loan.paid_interest == paid_interest
+
+    assert lending_strategy.margin_level == Decimal("Infinity")
+
+
+async def test_margin_exceeded(backtesting_dispatcher):
+    exchange_rates = {
+        Pair("BTC", "USD"): Decimal(70000),
+    }
+    precisions = {
+        "BTC": 8,
+        "USD": 2,
+    }
+
+    loan_conditions = {
+        "USD": margin.MarginLoanConditions(
+            interest_symbol="USD", interest_percentage=Decimal("15"),
+            interest_period=datetime.timedelta(days=365), min_interest=Decimal(0)
+        ),
+    }
+    lending_strategy = margin.MarginLoans("USD", Decimal("0.2"))
+    for symbol, conditions in loan_conditions.items():
+        lending_strategy.set_conditions(symbol, conditions)
+
+    initial_balances = {"USD": Decimal(1000)}
+    e = exchange.Exchange(backtesting_dispatcher, initial_balances, lending_strategy=lending_strategy)
+
+    # Configure the exchange.
+    for symbol, precision in precisions.items():
+        e.set_symbol_precision(symbol, precision)
+
+    # This is necessary to have prices since we're not doing bar events.
+    now = dt.local_now()
+    for pair, exchange_rate in exchange_rates.items():
+        e._prices.on_bar_event(BarEvent(
+            now,
+            Bar(
+                now, pair, exchange_rate, exchange_rate, exchange_rate, exchange_rate, Decimal(10),
+                datetime.timedelta(seconds=1)
+            )
+        ))
+    backtesting_dispatcher._set_now(dt.local_now())
+
+    # We should be able to borrow up to 4k.
+    assert lending_strategy.margin_level == Decimal("Infinity")
+    for _ in range(4):
+        await e.create_loan("USD", Decimal(1000))
+    assert lending_strategy.margin_level == Decimal(100)
+    assert (await e.get_balance("USD")).borrowed == Decimal(4000)
+
+    with pytest.raises(errors.NotEnoughBalance, match="Margin level too low"):
+        await e.create_loan("USD", Decimal("0.01"))
+
+    assert lending_strategy.margin_level == Decimal(100)
+
+
+async def test_repay_inexistent(backtesting_dispatcher):
+    lending_strategy = margin.MarginLoans("USD", Decimal("0.5"))
+    e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
+
+    # This is necessary to have prices since we're not doing bar events.
+    backtesting_dispatcher._set_now(dt.local_now())
+
+    with pytest.raises(Exception, match="Loan not found"):
+        await e.repay_loan("inexistent")
+    with pytest.raises(Exception, match="Loan not found"):
+        await e.get_loan("inexistent")
+
+
+async def test_invalid_borrow_amount(backtesting_dispatcher):
+    lending_strategy = margin.MarginLoans("USD", Decimal("0.5"))
+    e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
+
+    # This is necessary to have prices since we're not doing bar events.
+    backtesting_dispatcher._set_now(dt.local_now())
+
+    with pytest.raises(Exception, match="Invalid amount"):
+        await e.create_loan("USD", Decimal(-10000))
+
+
+async def test_no_lending_conditions_for_symbol(backtesting_dispatcher):
+    lending_strategy = margin.MarginLoans("USD", Decimal("0.5"))
+    e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal(1000)}, lending_strategy=lending_strategy)
+
+    # This is necessary to have prices since we're not doing bar events.
+    backtesting_dispatcher._set_now(dt.local_now())
+
+    with pytest.raises(Exception, match="No lending conditions for USD"):
+        await e.create_loan("USD", Decimal(700))
+
+
+async def test_repay_twice(backtesting_dispatcher):
+    lending_strategy = margin.MarginLoans(
+        "USD", Decimal(0.5),
+        default_conditions=margin.MarginLoanConditions(
+            interest_symbol="USD", interest_percentage=Decimal(0), interest_period=datetime.timedelta(days=1),
+            min_interest=Decimal(0)
+        )
+    )
+    e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal(100)}, lending_strategy=lending_strategy)
+    e.set_symbol_precision("USD", 2)
+
+    # This is necessary to have prices since we're not doing bar events.
+    backtesting_dispatcher._set_now(dt.local_now())
+
+    loan = await e.create_loan("USD", Decimal("100"))
+    await e.repay_loan(loan.id)
+    with pytest.raises(Exception, match="Loan is not open"):
         await e.repay_loan(loan.id)
-        assert loan.paid_interest == {}  # Regression check.
-
-        # Checks after repay.
-        for symbol, expected_balance in final_balances.items():
-            balance = await e.get_balance(symbol)
-            assert balance.available == expected_balance["available"], symbol
-            assert balance.borrowed == expected_balance["borrowed"], symbol
-            assert balance.hold == Decimal(0)
-
-        loans = await e.get_loans(borrowed_symbol=loan_symbol, is_open=True)
-        assert loans == []
-
-        loan = await e.get_loan(loan.id)
-        assert not loan.is_open
-        assert loan.borrowed_symbol == loan_symbol
-        assert loan.borrowed_amount == loan_amount
-        assert loan.outstanding_interest == {}
-        assert loan.paid_interest == paid_interest
-
-        assert lending_strategy.margin_level == Decimal("Infinity")
-
-    asyncio.run(impl())
 
 
-def test_margin_exceeded(backtesting_dispatcher):
-    async def impl():
-        exchange_rates = {
-            Pair("BTC", "USD"): Decimal(70000),
-        }
-        precisions = {
-            "BTC": 8,
-            "USD": 2,
-        }
-
-        loan_conditions = {
-            "USD": margin.MarginLoanConditions(
-                interest_symbol="USD", interest_percentage=Decimal("15"),
-                interest_period=datetime.timedelta(days=365), min_interest=Decimal(0)
-            ),
-        }
-        lending_strategy = margin.MarginLoans("USD", Decimal("0.2"))
-        for symbol, conditions in loan_conditions.items():
-            lending_strategy.set_conditions(symbol, conditions)
-
-        initial_balances = {"USD": Decimal(1000)}
-        e = exchange.Exchange(backtesting_dispatcher, initial_balances, lending_strategy=lending_strategy)
-
-        # Configure the exchange.
-        for symbol, precision in precisions.items():
-            e.set_symbol_precision(symbol, precision)
-
-        # This is necessary to have prices since we're not doing bar events.
-        now = dt.local_now()
-        for pair, exchange_rate in exchange_rates.items():
-            e._prices.on_bar_event(BarEvent(
-                now,
-                Bar(
-                    now, pair, exchange_rate, exchange_rate, exchange_rate, exchange_rate, Decimal(10),
-                    datetime.timedelta(seconds=1)
-                )
-            ))
-        backtesting_dispatcher._set_now(dt.local_now())
-
-        # We should be able to borrow up to 4k.
-        assert lending_strategy.margin_level == Decimal("Infinity")
-        for _ in range(4):
-            await e.create_loan("USD", Decimal(1000))
-        assert lending_strategy.margin_level == Decimal(100)
-        assert (await e.get_balance("USD")).borrowed == Decimal(4000)
-
-        with pytest.raises(errors.NotEnoughBalance, match="Margin level too low"):
-            await e.create_loan("USD", Decimal("0.01"))
-
-        assert lending_strategy.margin_level == Decimal(100)
-
-    asyncio.run(impl())
-
-
-def test_repay_inexistent(backtesting_dispatcher):
-    async def impl():
-        lending_strategy = margin.MarginLoans("USD", Decimal("0.5"))
-        e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
-
-        # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._set_now(dt.local_now())
-
-        with pytest.raises(Exception, match="Loan not found"):
-            await e.repay_loan("inexistent")
-        with pytest.raises(Exception, match="Loan not found"):
-            await e.get_loan("inexistent")
-
-    asyncio.run(impl())
-
-
-def test_invalid_borrow_amount(backtesting_dispatcher):
-    async def impl():
-        lending_strategy = margin.MarginLoans("USD", Decimal("0.5"))
-        e = exchange.Exchange(backtesting_dispatcher, {}, lending_strategy=lending_strategy)
-
-        # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._set_now(dt.local_now())
-
-        with pytest.raises(Exception, match="Invalid amount"):
-            await e.create_loan("USD", Decimal(-10000))
-
-    asyncio.run(impl())
-
-
-def test_no_lending_conditions_for_symbol(backtesting_dispatcher):
-    async def impl():
-        lending_strategy = margin.MarginLoans("USD", Decimal("0.5"))
-        e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal(1000)}, lending_strategy=lending_strategy)
-
-        # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._set_now(dt.local_now())
-
-        with pytest.raises(Exception, match="No lending conditions for USD"):
-            await e.create_loan("USD", Decimal(700))
-
-    asyncio.run(impl())
-
-
-def test_repay_twice(backtesting_dispatcher):
-    async def impl():
-        lending_strategy = margin.MarginLoans(
-            "USD", Decimal(0.5),
-            default_conditions=margin.MarginLoanConditions(
-                interest_symbol="USD", interest_percentage=Decimal(0), interest_period=datetime.timedelta(days=1),
-                min_interest=Decimal(0)
-            )
+async def test_not_enough_balance_to_repay(backtesting_dispatcher):
+    lending_strategy = margin.MarginLoans(
+        "USD", Decimal(0.5),
+        default_conditions=margin.MarginLoanConditions(
+            interest_symbol="USD", interest_percentage=Decimal(10), interest_period=datetime.timedelta(days=1),
+            min_interest=Decimal(1)
         )
-        e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal(100)}, lending_strategy=lending_strategy)
-        e.set_symbol_precision("USD", 2)
+    )
+    e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal(10)}, lending_strategy=lending_strategy)
+    e.set_symbol_precision("USD", 2)
 
-        # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._set_now(dt.local_now())
+    # This is necessary to have prices since we're not doing bar events.
+    backtesting_dispatcher._set_now(dt.local_now())
 
-        loan = await e.create_loan("USD", Decimal("100"))
+    loan = await e.create_loan("USD", Decimal("10"))
+
+    # 11 days after we are short of equity to repay the loan + interest.
+    backtesting_dispatcher._set_now(dt.local_now() + datetime.timedelta(days=11))
+    with pytest.raises(Exception, match="Not enough USD available"):
         await e.repay_loan(loan.id)
-        with pytest.raises(Exception, match="Loan is not open"):
-            await e.repay_loan(loan.id)
-
-    asyncio.run(impl())
 
 
-def test_not_enough_balance_to_repay(backtesting_dispatcher):
-    async def impl():
-        lending_strategy = margin.MarginLoans(
-            "USD", Decimal(0.5),
-            default_conditions=margin.MarginLoanConditions(
-                interest_symbol="USD", interest_percentage=Decimal(10), interest_period=datetime.timedelta(days=1),
-                min_interest=Decimal(1)
-            )
+async def test_cancel_loan(backtesting_dispatcher):
+    lending_strategy = margin.MarginLoans(
+        "USD", Decimal(0.1),
+        default_conditions=margin.MarginLoanConditions(
+            interest_symbol="USD", interest_percentage=Decimal(0), interest_period=datetime.timedelta(days=1),
+            min_interest=Decimal(1)
         )
-        e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal(10)}, lending_strategy=lending_strategy)
-        e.set_symbol_precision("USD", 2)
+    )
+    e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal(1000)}, lending_strategy=lending_strategy)
+    e.set_symbol_precision("USD", 2)
 
-        # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._set_now(dt.local_now())
+    # This is necessary to have prices since we're not doing bar events.
+    backtesting_dispatcher._set_now(dt.local_now())
 
-        loan = await e.create_loan("USD", Decimal("10"))
+    balances_pre = await e.get_balances()
+    loan = await e.create_loan("USD", Decimal("1000"))
+    e._loan_mgr.cancel_loan(loan.id)
+    balances_post = await e.get_balances()
 
-        # 11 days after we are short of equity to repay the loan + interest.
-        backtesting_dispatcher._set_now(dt.local_now() + datetime.timedelta(days=11))
-        with pytest.raises(Exception, match="Not enough USD available"):
-            await e.repay_loan(loan.id)
+    loan = await e.get_loan(loan.id)
+    assert loan.is_open is False
+    assert loan.outstanding_interest == {}
+    assert loan.paid_interest == {}
 
-    asyncio.run(impl())
-
-
-def test_cancel_loan(backtesting_dispatcher):
-    async def impl():
-        lending_strategy = margin.MarginLoans(
-            "USD", Decimal(0.1),
-            default_conditions=margin.MarginLoanConditions(
-                interest_symbol="USD", interest_percentage=Decimal(0), interest_period=datetime.timedelta(days=1),
-                min_interest=Decimal(1)
-            )
-        )
-        e = exchange.Exchange(backtesting_dispatcher, {"USD": Decimal(1000)}, lending_strategy=lending_strategy)
-        e.set_symbol_precision("USD", 2)
-
-        # This is necessary to have prices since we're not doing bar events.
-        backtesting_dispatcher._set_now(dt.local_now())
-
-        balances_pre = await e.get_balances()
-        loan = await e.create_loan("USD", Decimal("1000"))
-        e._loan_mgr.cancel_loan(loan.id)
-        balances_post = await e.get_balances()
-
-        loan = await e.get_loan(loan.id)
-        assert loan.is_open is False
-        assert loan.outstanding_interest == {}
-        assert loan.paid_interest == {}
-
-        assert balances_pre == balances_post
-
-    asyncio.run(impl())
+    assert balances_pre == balances_post

@@ -14,7 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
 import re
 
 import aioresponses
@@ -48,14 +47,11 @@ def bitstamp_http_api_mock():
         yield m
 
 
-def test_download_ohlc(bitstamp_http_api_mock, capsys):
-    async def test_main():
-        await download_bars.main(
-            params=["-c", "btcusd", "-p", "day", "-s", "2016-01-01", "-e", "2016-01-01"],
-            config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
-        )
-        assert capsys.readouterr().out == """datetime,open,high,low,close,volume
+async def test_download_ohlc(bitstamp_http_api_mock, capsys):
+    await download_bars.main(
+        params=["-c", "btcusd", "-p", "day", "-s", "2016-01-01", "-e", "2016-01-01"],
+        config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+    )
+    assert capsys.readouterr().out == """datetime,open,high,low,close,volume
 2016-01-01 00:00:00,430.89,436,427.2,433.82,3788.11117403
 """
-
-    asyncio.run(test_main())

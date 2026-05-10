@@ -114,7 +114,7 @@ test_order_requests_data = [
                             when=datetime.datetime(2000, 1, 4, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("4"), "USD": Decimal("-440.04")},
                             fees={"USD": Decimal("-1.11")},
-                            fill_price=Decimal("110.01")
+                            price=Decimal("110.01")
                         ),
                     ],
                     None
@@ -159,7 +159,7 @@ test_order_requests_data = [
                             when=datetime.datetime(2000, 1, 18, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("-1"), "USD": Decimal("107.87")},
                             fees={"USD": Decimal("-0.27")},
-                            fill_price=Decimal("107.87"),
+                            price=Decimal("107.87"),
                         ),
                     ],
                     None
@@ -336,7 +336,7 @@ test_order_requests_data = [
                             when=datetime.datetime(2000, 1, 4, tzinfo=tz.tzlocal()),
                             balance_updates={"ORCL": Decimal("8600"), "USD": Decimal("-993300.00")},
                             fees={"USD": Decimal("-2483.25")},
-                            fill_price=Decimal("115.50")
+                            price=Decimal("115.50")
                         ),
                     ],
                     None

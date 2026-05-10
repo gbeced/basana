@@ -28,7 +28,7 @@ from basana.external.bitstamp import exchange
 
 
 @pytest.mark.parametrize("public_events", [True, False])
-def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher):
+async def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher):
     if not public_events:
         bitstamp_http_api_mock.post(
             "http://bitstamp.mock/api/v2/websockets_token/", status=200, payload={"user_id": "1234", "token": "1234"}
@@ -91,7 +91,7 @@ def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher
 
             await realtime_dispatcher.run()
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
 
     assert last_order is not None
     assert last_order.pair == p
@@ -108,7 +108,7 @@ def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_dispatcher
     ({"event": "bts:subscription_failed"}, "Error"),
     ({"event": "bts:error"}, "Error"),
 ])
-def test_error_in_websocket(server_message, expected_log, realtime_dispatcher, caplog):
+async def test_error_in_websocket(server_message, expected_log, realtime_dispatcher, caplog):
     p = pair.Pair("BTC", "USD")
 
     async def on_order_event(order_event):
@@ -141,10 +141,10 @@ def test_error_in_websocket(server_message, expected_log, realtime_dispatcher, c
             e.subscribe_to_public_order_events(p, on_order_event)
             await asyncio.gather(realtime_dispatcher.run(), stop_on_error(timeout))
 
-    asyncio.run(asyncio.wait_for(test_main(6), 5))
+    await asyncio.wait_for(test_main(6), 5)
 
 
-def test_authentication_fails(bitstamp_http_api_mock, realtime_dispatcher, caplog):
+async def test_authentication_fails(bitstamp_http_api_mock, realtime_dispatcher, caplog):
     bitstamp_http_api_mock.post(
         "http://bitstamp.mock/api/v2/websockets_token/", status=403,
         payload={"status": "error", "reason": "Invalid signature", "code": "API0005"}
@@ -179,4 +179,4 @@ def test_authentication_fails(bitstamp_http_api_mock, realtime_dispatcher, caplo
 
             await asyncio.gather(realtime_dispatcher.run(), stop_on_error(timeout))
 
-    asyncio.run(asyncio.wait_for(test_main(6), 5))
+    await asyncio.wait_for(test_main(6), 5)

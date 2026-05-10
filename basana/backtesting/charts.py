@@ -58,7 +58,9 @@ class TimeSeries:
         self._values[dt] = value
 
     def get_x_y(self):
-        return zip(*sorted(self._values.items())) if self._values else ([], [])
+        return zip(*sorted(
+            (key, float(value)) for key, value in self._values.items()
+        )) if self._values else ([], [])
 
 
 class LineChart(metaclass=abc.ABCMeta):

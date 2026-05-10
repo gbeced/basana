@@ -1,8 +1,10 @@
+__pycache__
+.claude
 .coverage
 .idea
+.python-version
 .venv/*
 .vscode
-__pycache__
 cov_html
 data/*
 dist/*
@@ -10,4 +12,3 @@ docs/_build
 docs/generated
 pocs/*
 venv/*
-.python-version

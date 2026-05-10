@@ -26,7 +26,7 @@ from basana.core import pair
 from basana.external.binance import exchange
 
 
-def test_websocket_ok(realtime_dispatcher):
+async def test_websocket_ok(realtime_dispatcher):
     p = pair.Pair("BTC", "USDT")
     order_book_diff = None
 
@@ -62,4 +62,4 @@ def test_websocket_ok(realtime_dispatcher):
         assert astuple(order_book_diff.bids[0]) == (Decimal("111179.99000000"), Decimal("17.88084000"))
         assert astuple(order_book_diff.asks[0]) == (Decimal("111178.52000000"), Decimal("0.00000000"))
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)

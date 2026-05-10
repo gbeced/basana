@@ -61,7 +61,7 @@ def bitstamp_http_api_mock():
         yield m
 
 
-def test_websocket_ok(realtime_dispatcher):
+async def test_websocket_ok(realtime_dispatcher):
     p = pair.Pair("BTC", "USD")
     last_ob = None
 
@@ -112,7 +112,7 @@ def test_websocket_ok(realtime_dispatcher):
             e.subscribe_to_order_book_events(p, on_order_book_event)
             await realtime_dispatcher.run()
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)
 
     assert last_ob is not None
     assert last_ob.pair == p
@@ -127,7 +127,7 @@ def test_websocket_ok(realtime_dispatcher):
     {},
     {"event": "xyz"},
 ])
-def test_unknown_message_in_websocket(server_message, realtime_dispatcher, caplog):
+async def test_unknown_message_in_websocket(server_message, realtime_dispatcher, caplog):
     p = pair.Pair("BTC", "USD")
 
     async def stop_on_unknown_message(timeout):
@@ -159,10 +159,10 @@ def test_unknown_message_in_websocket(server_message, realtime_dispatcher, caplo
 
             await asyncio.gather(realtime_dispatcher.run(), stop_on_unknown_message(timeout))
 
-    asyncio.run(asyncio.wait_for(test_main(6), 5))
+    await asyncio.wait_for(test_main(6), 5)
 
 
-def test_reconnect_request(realtime_dispatcher, caplog):
+async def test_reconnect_request(realtime_dispatcher, caplog):
     caplog.set_level(logging.DEBUG)
     p = pair.Pair("BTC", "USD")
 
@@ -189,10 +189,10 @@ def test_reconnect_request(realtime_dispatcher, caplog):
 
             await asyncio.gather(realtime_dispatcher.run(), stop_on_reconnection_request(timeout))
 
-    asyncio.run(asyncio.wait_for(test_main(6), 5))
+    await asyncio.wait_for(test_main(6), 5)
 
 
-def test_poll_ok_with_custom_session(bitstamp_http_api_mock, realtime_dispatcher):
+async def test_poll_ok_with_custom_session(bitstamp_http_api_mock, realtime_dispatcher):
     p = pair.Pair("BTC", "USD")
     last_ob = None
 
@@ -214,7 +214,7 @@ def test_poll_ok_with_custom_session(bitstamp_http_api_mock, realtime_dispatcher
 
             await realtime_dispatcher.run()
 
-    asyncio.run(asyncio.wait_for(test_main(), 2))
+    await asyncio.wait_for(test_main(), 2)
 
     assert last_ob is not None
     assert last_ob.pair == p
@@ -228,7 +228,7 @@ def test_poll_ok_with_custom_session(bitstamp_http_api_mock, realtime_dispatcher
 @pytest.mark.parametrize("response_status, response_body", [
     (500, {}),
 ])
-def test_unhandled_exception_during_poll(
+async def test_unhandled_exception_during_poll(
     response_status, response_body, bitstamp_http_api_mock, realtime_dispatcher, caplog
 ):
     caplog.set_level(logging.INFO)
@@ -255,4 +255,4 @@ def test_unhandled_exception_during_poll(
             await realtime_dispatcher.run()
             assert "Error polling order book" in caplog.text
 
-    asyncio.run(asyncio.wait_for(test_main(), 5))
+    await asyncio.wait_for(test_main(), 5)

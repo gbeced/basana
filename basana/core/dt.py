@@ -23,12 +23,7 @@ from dateutil import tz
 
 # Capture reference point
 _start_utc = datetime.datetime.now(tz=datetime.timezone.utc)
-_start_monotonic = time.monotonic()
-
-
-def is_naive(dt: datetime.datetime) -> bool:
-    """Returns True if datetime is naive."""
-    return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
+_start_monotonic_ns = time.monotonic_ns()  # Integer nanoseconds, no float precision loss
 
 
 def utc_now(monotonic: bool = False) -> datetime.datetime:
@@ -38,10 +33,16 @@ def utc_now(monotonic: bool = False) -> datetime.datetime:
     :param monotonic: True for monotonic behaviour (ignoring system clock updates).
     """
     if monotonic:
-        delta = time.monotonic() - _start_monotonic
-        return _start_utc + datetime.timedelta(seconds=delta)
+        # No float precision loss when calculating the delta.
+        delta_ns = time.monotonic_ns() - _start_monotonic_ns
+        return _start_utc + datetime.timedelta(microseconds=delta_ns // 1000)
     else:
         return datetime.datetime.now(tz=datetime.timezone.utc)
+
+
+def is_naive(dt: datetime.datetime) -> bool:
+    """Returns True if datetime is naive."""
+    return dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None
 
 
 def local_datetime(*args, **kwargs) -> datetime.datetime:

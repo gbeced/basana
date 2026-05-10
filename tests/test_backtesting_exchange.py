@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from decimal import Decimal
-import asyncio
 import datetime
 import io
 import logging
@@ -26,32 +25,29 @@ import pytest
 from .helpers import abs_data_path
 from .common import btc_pair, btc_pair_info
 from basana.backtesting import errors, exchange, fees, helpers as bt_helpers, orders
-from basana.core import bar, dt, event
+from basana.core import bar, dt, event, logs
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair, PairInfo
 from basana.external.yahoo import bars
 
 
-def test_account_balances(backtesting_dispatcher):
-    async def impl():
-        e = exchange.Exchange(
-            backtesting_dispatcher,
-            {
-                "usd": Decimal("1000"),
-                "ars": Decimal("-2000.05"),
-                "eth": Decimal("0")
-            }
-        )
-        assert (await e.get_balance("usd")).available == Decimal("1000")
-        assert (await e.get_balance("usd")).borrowed == Decimal("0")
-        assert (await e.get_balance("usd")).total == Decimal("1000")
-        assert (await e.get_balance("ars")).available == Decimal("0")
-        assert (await e.get_balance("ars")).borrowed == Decimal("2000.05")
-        assert (await e.get_balance("ars")).total == Decimal("-2000.05")
-        assert (await e.get_balance("eth")).available == Decimal("0")
-        assert (await e.get_balance("ltc")).available == Decimal("0")
-
-    asyncio.run(impl())
+async def test_account_balances(backtesting_dispatcher):
+    e = exchange.Exchange(
+        backtesting_dispatcher,
+        {
+            "usd": Decimal("1000"),
+            "ars": Decimal("-2000.05"),
+            "eth": Decimal("0")
+        }
+    )
+    assert (await e.get_balance("usd")).available == Decimal("1000")
+    assert (await e.get_balance("usd")).borrowed == Decimal("0")
+    assert (await e.get_balance("usd")).total == Decimal("1000")
+    assert (await e.get_balance("ars")).available == Decimal("0")
+    assert (await e.get_balance("ars")).borrowed == Decimal("2000.05")
+    assert (await e.get_balance("ars")).total == Decimal("-2000.05")
+    assert (await e.get_balance("eth")).available == Decimal("0")
+    assert (await e.get_balance("ltc")).available == Decimal("0")
 
 
 def test_exchange_object_container():
@@ -73,7 +69,7 @@ def test_exchange_object_container():
     assert len(idx._open_items) == 1
 
 
-def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, caplog):
+async def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, caplog):
     caplog.set_level(logging.INFO)
 
     # Create a custom logger with a specific format.
@@ -90,31 +86,28 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
         bar_events.append(bar_event)
         logger.info("%s %s", bar_event.bar.pair, bar_event.bar.close)
 
-    async def impl():
-        e = exchange.Exchange(
-            backtesting_dispatcher,
-            {
-                "IBM": Decimal("0"),
-                "USD": Decimal("1000"),
-            }
-        )
-        p = Pair("IBM", "USD")
-        e.add_bar_source(bars.CSVBarSource(p, abs_data_path("orcl-2001-yahoo.csv"), sort=True))
-        e.subscribe_to_bar_events(p, on_bar)
+    e = exchange.Exchange(
+        backtesting_dispatcher,
+        {
+            "IBM": Decimal("0"),
+            "USD": Decimal("1000"),
+        }
+    )
+    p = Pair("IBM", "USD")
+    e.add_bar_source(bars.CSVBarSource(p, abs_data_path("orcl-2001-yahoo.csv"), sort=True))
+    e.subscribe_to_bar_events(p, on_bar)
 
-        await backtesting_dispatcher.run()
-        assert backtesting_dispatcher.now().date() == datetime.date(2002, 1, 1)
-        # This will soon be deprecated.
-        assert backtesting_dispatcher.current_event_dt.date() == datetime.date(2002, 1, 1)
+    await backtesting_dispatcher.run()
+    assert backtesting_dispatcher.now().date() == datetime.date(2002, 1, 1)
+    # This will soon be deprecated.
+    assert backtesting_dispatcher.current_event_dt.date() == datetime.date(2002, 1, 1)
 
-        assert bar_events[0].when == datetime.datetime(2001, 1, 3, tzinfo=tz.tzlocal())
-        assert bar_events[0].bar.open == Decimal("29.56")
-        assert bar_events[0].bar.high == Decimal("29.75")
-        assert bar_events[0].bar.low == Decimal("25.62")
-        assert bar_events[0].bar.close == Decimal("26.37")
-        assert bar_events[0].bar.volume == Decimal("46285300")
-
-    asyncio.run(impl())
+    assert bar_events[0].when == datetime.datetime(2001, 1, 3, tzinfo=tz.tzlocal())
+    assert bar_events[0].bar.open == Decimal("29.56")
+    assert bar_events[0].bar.high == Decimal("29.75")
+    assert bar_events[0].bar.low == Decimal("25.62")
+    assert bar_events[0].bar.close == Decimal("26.37")
+    assert bar_events[0].bar.volume == Decimal("46285300")
 
     # Get the log output.
     buff.flush()
@@ -125,52 +118,67 @@ def test_bar_events_from_csv_and_backtesting_log_mode(backtesting_dispatcher, ca
     assert "2002-01-01 00:00:00,000 INFO" in output
 
 
-def test_pair_info(backtesting_dispatcher):
-    async def impl():
-        e = exchange.Exchange(
-            backtesting_dispatcher,
-            {
-                "USD": Decimal("1e6"),
-            },
-            fee_strategy=fees.Percentage(percentage=Decimal("0.25"))
-        )
+async def test_pair_info(backtesting_dispatcher):
+    e = exchange.Exchange(
+        backtesting_dispatcher,
+        {
+            "USD": Decimal("1e6"),
+        },
+        fee_strategy=fees.Percentage(percentage=Decimal("0.25"))
+    )
 
-        pair_info = await e.get_pair_info(Pair("ORCL", "USD"))
-        assert pair_info.base_precision == 0
-        assert pair_info.quote_precision == 2
+    pair_info = await e.get_pair_info(Pair("ORCL", "USD"))
+    assert pair_info.base_precision == 0
+    assert pair_info.quote_precision == 2
 
-        e.set_pair_info(Pair("ORCL", "EUR"), PairInfo(0, 3))
-        pair_info = await e.get_pair_info(Pair("ORCL", "EUR"))
-        assert pair_info.base_precision == 0
-        assert pair_info.quote_precision == 3
-
-    asyncio.run(impl())
+    e.set_pair_info(Pair("ORCL", "EUR"), PairInfo(0, 3))
+    pair_info = await e.get_pair_info(Pair("ORCL", "EUR"))
+    assert pair_info.base_precision == 0
+    assert pair_info.quote_precision == 3
 
 
-def test_bid_ask(backtesting_dispatcher):
+async def test_bid_ask(backtesting_dispatcher):
     e = exchange.Exchange(backtesting_dispatcher, {})
 
-    async def impl():
-        p = Pair("ORCL", "USD")
-        bs = event.FifoQueueEventSource(events=[
-            bar.BarEvent(
-                dt.local_datetime(2000, 1, 3, 23, 59, 59),
-                bar.Bar(
-                    dt.local_datetime(2000, 1, 3), p,
-                    Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"), Decimal("98122000"),
-                    datetime.timedelta(days=1)
-                )
+    p = Pair("ORCL", "USD")
+    bs = event.FifoQueueEventSource(events=[
+        bar.BarEvent(
+            dt.local_datetime(2000, 1, 3, 23, 59, 59),
+            bar.Bar(
+                dt.local_datetime(2000, 1, 3), p,
+                Decimal("124.62"), Decimal("125.19"), Decimal("111.62"), Decimal("118.12"), Decimal("98122000"),
+                datetime.timedelta(days=1)
             )
-        ])
-        e.add_bar_source(bs)
+        )
+    ])
+    e.add_bar_source(bs)
 
-        with pytest.raises(errors.Error, match="No price for"):
-            await e.get_bid_ask(p)
+    with pytest.raises(errors.Error, match="No price for"):
+        await e.get_bid_ask(p)
 
+    await backtesting_dispatcher.run()
+
+    bid, ask = await e.get_bid_ask(p)
+    assert bid == Decimal("117.83")
+    assert ask == Decimal("118.41")
+
+
+async def test_backtesting_log_mode(backtesting_dispatcher, caplog):
+    caplog.set_level(logging.INFO)
+
+    async def on_event(event: event.Event):
+        logging.info("test_backtesting_log_mode")  # Should have the even'ts datetime
+
+    event_source = event.FifoQueueEventSource(events=[
+        event.Event(dt.local_datetime(2000, 1, 1)),
+    ])
+    backtesting_dispatcher.subscribe(event_source, on_event)
+
+    logging.info("test_backtesting_log_mode")
+    with logs.backtesting_log_mode(backtesting_dispatcher):
+        logging.info("test_backtesting_log_mode")
         await backtesting_dispatcher.run()
+        logging.info("test_backtesting_log_mode")  # Should have the even'ts datetime
 
-        bid, ask = await e.get_bid_ask(p)
-        assert bid == Decimal("117.83")
-        assert ask == Decimal("118.41")
-
-    asyncio.run(impl())
+    assert caplog.text.count("test_backtesting_log_mode") == 4
+    assert caplog.text.count("2000-01-01") == 2

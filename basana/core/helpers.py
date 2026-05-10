@@ -20,12 +20,14 @@ import asyncio
 import contextlib
 import decimal
 import logging
-import uuid
 import warnings
 
 import aiohttp
 
 from basana.core import logs
+
+
+QUANTIZERS_CACHE: Dict[int, Decimal] = {}
 
 
 class TaskGroup:
@@ -80,9 +82,10 @@ class TaskPool:
         self._queue = LazyProxy(
             lambda: asyncio.Queue(maxsize=max_tasks if max_queue_size is None else max_queue_size)
         )
-        self._tasks: Dict[str, asyncio.Task] = {}
+        self._tasks: Dict[int, asyncio.Task] = {}
         self._queue_timeout = 1.0
         self._active = 0
+        self._next_task_id = 1
 
     @property
     def idle(self) -> bool:
@@ -104,12 +107,13 @@ class TaskPool:
         # Create a new task if necessary.
         idle_tasks = len(self._tasks) - self._active
         if idle_tasks == 0 and len(self._tasks) < self._max_tasks:
-            task_name = uuid.uuid4().hex
-            task = asyncio.create_task(self._task_main(task_name))
+            task_id = self._next_task_id
+            self._next_task_id += 1
+            task = asyncio.create_task(self._task_main(task_id))
             # We check before registering the task because if eager tasks are enabled (Python >= 3.12) the task may
             # have already ran by the time we got here.
-            if not task.done() and task_name not in self._tasks:
-                self._tasks[task_name] = task
+            if not task.done() and task_id not in self._tasks:
+                self._tasks[task_id] = task
 
     def cancel(self):
         """
@@ -139,12 +143,12 @@ class TaskPool:
             pass
         return ret
 
-    async def _task_main(self, task_name: str):
+    async def _task_main(self, task_id: int):
         current_task = asyncio.current_task()
         # Register ourselves in the task registry if not already there. This happens with eager tasks (Python >= 3.12).
         if current_task not in self._tasks:
             assert current_task is not None
-            self._tasks[task_name] = current_task
+            self._tasks[task_id] = current_task
 
         try:
             eof = False
@@ -171,7 +175,7 @@ class TaskPool:
                     self._queue.task_done()
         finally:
             # Remove ourselves from the task registry once we're done.
-            self._tasks.pop(task_name)
+            self._tasks.pop(task_id)
 
 
 @contextlib.contextmanager
@@ -201,7 +205,11 @@ def round_decimal(value: Decimal, precision: int, rounding=None) -> Decimal:
     :param rounding: An optional rounding option from the :mod:`decimal` module.
     :returns: The rounded value.
     """
-    return value.quantize(Decimal(f"1e-{precision}"), rounding=rounding)
+    quantizer = QUANTIZERS_CACHE.get(precision)
+    if quantizer is None:
+        quantizer = Decimal(f"1e-{precision}")
+        QUANTIZERS_CACHE[precision] = quantizer
+    return value.quantize(quantizer, rounding=rounding)
 
 
 def truncate_decimal(value: Decimal, precision: int) -> Decimal:
