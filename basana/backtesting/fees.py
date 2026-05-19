@@ -22,6 +22,7 @@ import enum
 from . import orders
 
 
+@enum.unique
 class FeeCurrency(enum.Enum):
     """The currency in which fees are charged."""
 
