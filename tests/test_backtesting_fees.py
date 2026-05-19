@@ -73,7 +73,7 @@ def test_percentage_fee_base_currency_with_partial_fills():
     fee_strategy = fees.Percentage(Decimal("1"), fee_currency=fees.FeeCurrency.BASE)
     order = orders.MarketOrder("1", OrderOperation.BUY, btc_pair, btc_pair_info, Decimal("0.01"))
 
-    # Fill #1 - fee = 0.001 * 1% = 0.00001
+    # Fill #1 - base amount: 0.001 BTC, fee = 0.001 * 1% = 0.00001 BTC
     balance_updates = {
         "BTC": Decimal("0.001"),
         "USD": Decimal("-0.9"),
@@ -128,7 +128,7 @@ def test_percentage_fee_base_currency_with_partial_fills_for_sell():
         Fill(dt.utc_now(), balance_updates, {"BTC": Decimal("-0.00001")}, Decimal(900))
     )
 
-    # Fill #3 - cumulative base = -0.01, total fee = 0.0001, already charged 0.00002, pending = 0.00008
+    # Fill #3 - cumulative base = -0.01, total fee = 0.00010, already charged 0.00002, pending = 0.00008
     balance_updates = {
         "BTC": Decimal("-0.008"),
         "USD": Decimal("7.2"),
