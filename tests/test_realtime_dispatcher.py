@@ -227,3 +227,25 @@ async def test_cancelation_is_forwarded(realtime_dispatcher):
         await asyncio.wait_for(test_main(), 1)
     except asyncio.TimeoutError:
         pass
+
+
+async def test_subscribe_idle_same_handler_twice(realtime_dispatcher):
+    idle_calls = 0
+
+    async def on_idle():
+        nonlocal idle_calls
+        idle_calls += 1
+        realtime_dispatcher.stop()
+
+    # Subscribe the same handler twice; it should only be registered once.
+    realtime_dispatcher.subscribe_idle(on_idle)
+    realtime_dispatcher.subscribe_idle(on_idle)
+
+    await asyncio.wait_for(realtime_dispatcher.run(), 2)
+    assert idle_calls == 1
+
+
+async def test_stop_before_run(realtime_dispatcher):
+    # Stopping the dispatcher before run() makes the dispatch loop exit immediately.
+    realtime_dispatcher.stop()
+    await asyncio.wait_for(realtime_dispatcher.run(), 2)

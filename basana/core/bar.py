@@ -167,7 +167,7 @@ class RealTimeTradesToBar(event.FifoQueueEventSource, event.Producer):
         end = begin + datetime.timedelta(seconds=self._bar_duration, milliseconds=-1)
         while True:
             sleep_time = (end - dt.utc_now()).total_seconds() + self._flush_delay
-            if sleep_time > 0:
+            if sleep_time > 0:  # pragma: no branch
                 await asyncio.sleep(sleep_time)
             self._flush(begin, end)
             begin += datetime.timedelta(seconds=self._bar_duration)

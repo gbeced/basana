@@ -437,6 +437,40 @@ async def test_error_retrieving_order_info(binance_http_api_mock, binance_exchan
     assert excinfo.value.http_reason == "Internal Server Error"
 
 
+async def test_order_info_without_trades(binance_http_api_mock, binance_exchange):
+    order_payload = {
+        "symbol": "BTCUSDT",
+        "orderId": 15456494165,
+        "orderListId": -1,
+        "clientOrderId": "test_client_id",
+        "price": "17498.00000000",
+        "origQty": "0.00100000",
+        "executedQty": "0.00000000",
+        "cummulativeQuoteQty": "0.00000000",
+        "status": "CANCELED",
+        "timeInForce": "GTC",
+        "type": "LIMIT",
+        "side": "SELL",
+    }
+    binance_http_api_mock.get(
+        re.compile(r"http://binance.mock/api/v3/order\\?.*"), status=200, payload=order_payload
+    )
+
+    order_info = await binance_exchange.spot_account.get_order_info(
+        pair.Pair("BTC", "USDT"), order_id="15456494165", include_trades=False
+    )
+    assert order_info is not None
+    assert order_info.trades == []
+
+
+async def test_get_open_orders_no_pair(binance_http_api_mock, binance_exchange):
+    binance_http_api_mock.get(
+        re.compile(r"http://binance.mock/api/v3/openOrders\\?.*"), status=200, payload=[]
+    )
+    open_orders = await binance_exchange.spot_account.get_open_orders()
+    assert open_orders == []
+
+
 @pytest.mark.parametrize("pair, order_id, client_order_id, response_payload, expected_attrs", [
     (
         pair.Pair("BTC", "USDT"), "15456494165", None,

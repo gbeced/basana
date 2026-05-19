@@ -139,6 +139,30 @@ def test_percentage_fee_base_currency_with_partial_fills_for_sell():
     )
 
 
+def test_percentage_fee_no_pending_fee():
+    # Test that when charged_fee already covers the total, pending_fee >= 0 and no additional fee is returned.
+    fee_strategy = fees.Percentage(Decimal("1"))
+    order = orders.MarketOrder("1", OrderOperation.BUY, btc_pair, btc_pair_info, Decimal("0.01"))
+
+    # Fill #1: charge a higher fee than 1% (simulating rounding overcharge).
+    balance_updates = {
+        "BTC": Decimal("0.001"),
+        "USD": Decimal("-0.9"),
+    }
+    # Manually overcharge by setting charged_fee to more than the 1% of total.
+    order.add_fill(
+        Fill(dt.utc_now(), balance_updates, {"USD": Decimal("-0.10")}, Decimal(9))
+    )
+
+    # Fill #2: the total fee is less than already charged, so pending_fee >= 0 (no extra fee returned).
+    balance_updates2 = {
+        "BTC": Decimal("0.001"),
+        "USD": Decimal("-0.9"),
+    }
+    result = fee_strategy.calculate_fees(order, balance_updates2)
+    assert result == {}
+
+
 def test_percentage_fee_base_currency_with_minimum():
     fee_strategy = fees.Percentage(Decimal("1"), min_fee=Decimal("0.001"), fee_currency=fees.FeeCurrency.BASE)
     order = orders.MarketOrder("1", OrderOperation.BUY, btc_pair, btc_pair_info, Decimal("0.05"))

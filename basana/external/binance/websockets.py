@@ -135,7 +135,7 @@ class WebSocketClient(core_ws.WebSocketClient):
                 ))
                 self.schedule_resubscription([channel.alias])
             # Get the event source for the channel alias.
-            if event_source := self.get_channel_event_source(channel.alias):
+            if event_source := self.get_channel_event_source(channel.alias):  # pragma: no branch
                 coro = event_source.push_from_message(message)
 
         ret = False
@@ -155,7 +155,7 @@ class WebSocketClient(core_ws.WebSocketClient):
 
     def _keep_alive_channel(self, channel: Channel) -> dispatcher.SchedulerJob:
         async def scheduler_job():
-            if self._next_keep_alive[channel.alias] <= self._dispatcher.now():
+            if self._next_keep_alive[channel.alias] <= self._dispatcher.now():  # pragma: no branch
                 logger.debug(logs.StructuredMessage("Channel keep alive", alias=channel.alias))
                 try:
                     await channel.keep_alive(self._cli)

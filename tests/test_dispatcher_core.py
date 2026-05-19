@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import datetime
 
 from basana.core import dt, event
@@ -95,3 +96,31 @@ async def test_no_concurrency_pool():
 
     c.cancel_pool()
     await c.push_pool(should_not_get_here)
+
+
+async def test_stop_before_run(backtesting_dispatcher):
+    # Stopping the dispatcher before run() should not raise.
+    backtesting_dispatcher.stop()
+    # run() should complete quickly since it's already stopped.
+    await asyncio.wait_for(backtesting_dispatcher.run(), 1)
+
+
+async def test_subscribe_all_same_handler_twice(backtesting_dispatcher):
+    events_received = []
+
+    async def on_event(event):
+        events_received.append(event)
+
+    # Subscribe the same handler twice; it should only be registered once as a sniffer.
+    backtesting_dispatcher.subscribe_all(on_event)
+    backtesting_dispatcher.subscribe_all(on_event)
+
+    src = event.FifoQueueEventSource(events=[
+        event.Event(datetime.datetime(2000, 1, 1, tzinfo=datetime.timezone.utc))
+    ])
+    backtesting_dispatcher.subscribe(src, on_event)
+    await backtesting_dispatcher.run()
+
+    # on_event should be called twice: once as sniffer and once as regular subscriber.
+    # If the sniffer were registered twice, on_event would be called three times.
+    assert len(events_received) == 2

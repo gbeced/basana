@@ -87,3 +87,48 @@ async def test_download_ohlc(binance_http_api_mock, capsys):
     assert capsys.readouterr().out == """datetime,open,high,low,close,volume
 2020-01-01 00:00:00,7195.24000000,7255.00000000,7175.15000000,7200.85000000,16792.38816500
 """
+
+
+async def test_download_ohlc_multiple_pages(binance_http_api_mock, capsys):
+    # First page: two valid candlesticks (Jan 1 and Jan 2).
+    binance_http_api_mock.get(
+        re.compile(r"http://binance.mock/api/v3/klines\\?.*"),
+        status=200,
+        payload=[
+            [
+                1577836800000,
+                "7195.24000000",
+                "7255.00000000",
+                "7175.15000000",
+                "7200.85000000",
+                "16792.38816500",
+                1577923199999,
+                "0", 0, "0", "0", "0"
+            ],
+            [
+                1577923200000,
+                "7200.77000000",
+                "7212.50000000",
+                "6924.74000000",
+                "6965.71000000",
+                "31951.48393200",
+                1578009599999,
+                "0", 0, "0", "0", "0"
+            ],
+        ]
+    )
+    # Second page: empty response (covers eof=True branch in the loop).
+    binance_http_api_mock.get(
+        re.compile(r"http://binance.mock/api/v3/klines\\?.*"),
+        status=200,
+        payload=[]
+    )
+
+    await download_bars.main(
+        params=["-c", "BTCUSDT", "-p", "1d", "-s", "2020-01-01", "-e", "2020-01-03"],
+        config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+    )
+    output = capsys.readouterr().out
+    lines = output.strip().split("\n")
+    assert lines[0] == "datetime,open,high,low,close,volume"
+    assert len(lines) == 3  # Header + 2 data rows

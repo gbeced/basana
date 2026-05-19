@@ -71,3 +71,50 @@ async def test_error_parsing(status_code, response_body, expected, bitstamp_http
     with pytest.raises(client.Error) as excinfo:
         await c.get_order_book("btcusd")
     assert str(excinfo.value) == expected
+
+
+async def test_non_json_response(bitstamp_http_api_mock):
+    # Respond without application/json content type – json_response should be None and raise_for_error triggers.
+    bitstamp_http_api_mock.get(
+        "http://bitstamp.mock/api/v2/order_book/btcusd/",
+        status=403, body="Forbidden", content_type="text/plain"
+    )
+    c = client.APIClient(
+        config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+    )
+    with pytest.raises(client.Error):
+        await c.get_order_book("btcusd")
+
+
+async def test_create_market_order_no_client_order_id(bitstamp_http_api_mock):
+    bitstamp_http_api_mock.post(
+        "http://bitstamp.mock/api/v2/buy/market/btcusd/",
+        status=200,
+        payload={"id": "123", "datetime": "2020-01-01 00:00:00.000000", "type": "0", "price": "0",
+                 "amount": "0.001", "client_order_id": ""}
+    )
+    c = client.APIClient(
+        api_key="key", api_secret="secret",
+        config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+    )
+    # Without client_order_id, the request should not include that field.
+    result = await c.create_market_order("buy", "btcusd", __import__("decimal").Decimal("0.001"))
+    assert result["id"] == "123"
+
+
+async def test_create_limit_order_no_client_order_id(bitstamp_http_api_mock):
+    bitstamp_http_api_mock.post(
+        "http://bitstamp.mock/api/v2/buy/btcusd/",
+        status=200,
+        payload={"id": "456", "datetime": "2020-01-01 00:00:00.000000", "type": "0", "price": "30000",
+                 "amount": "0.001", "client_order_id": ""}
+    )
+    c = client.APIClient(
+        api_key="key", api_secret="secret",
+        config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+    )
+    # Without client_order_id, the request should not include that field.
+    result = await c.create_limit_order(
+        "buy", "btcusd", __import__("decimal").Decimal("0.001"), __import__("decimal").Decimal("30000")
+    )
+    assert result["id"] == "456"

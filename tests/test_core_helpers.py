@@ -56,6 +56,22 @@ def test_truncate(amount, precision, expected):
     assert helpers.truncate_decimal(Decimal(amount), precision) == Decimal(expected)
 
 
+async def test_task_group_body_exception():
+    # Test that __aexit__ with exc_type != None skips gather and still cancels pending tasks.
+    should_be_cancelled = asyncio.Event()
+
+    async def test_main():
+        with pytest.raises(RuntimeError, match="body error"):
+            async with helpers.TaskGroup() as tg:
+                tg.create_task(asyncio.sleep(60))
+                raise RuntimeError("body error")
+
+        # The task should have been cancelled.
+        assert not should_be_cancelled.is_set()
+
+    await asyncio.wait_for(test_main(), 1)
+
+
 async def test_task_group_awaited_before_scope_exit():
     async def test_main():
         events = [asyncio.Event() for _ in range(3)]

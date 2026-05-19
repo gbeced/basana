@@ -145,6 +145,8 @@ async def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatc
         message = json.loads(await websocket.recv())
         assert message["method"] == "SUBSCRIBE"
         await websocket.send(json.dumps({"result": None, "id": message["id"]}))
+        # Send an unknown message (no "stream" and no "result"/"id") to exercise the 128->141 branch.
+        await websocket.send(json.dumps({"unknown_key": "some_value"}))
 
         while websocket.state == websockets.protocol.State.OPEN:
             await websocket.send(json.dumps(OTHER_MSG))
@@ -229,6 +231,27 @@ async def test_websocket_ok(account_attr, user_data_stream_url, realtime_dispatc
 
     assert has_request(binance_http_api_mock, "POST", user_data_stream_url)
     assert has_request(binance_http_api_mock, "PUT", user_data_stream_url)
+
+
+def test_order_update_no_commission():
+    # Test fees property when no commission asset is present (N key missing).
+    order_update_json = dict(EXECUTION_REPORT_MSG["data"])
+    order_update_json.pop("N", None)
+    order_update_json.pop("n", None)
+    from basana.external.binance import user_data
+    order_update = user_data.OrderUpdate(order_update_json)
+    assert order_update.fees == {}
+
+
+def test_order_update_no_fills():
+    # Test fill_price property when amount_filled is 0.
+    order_update_json = dict(EXECUTION_REPORT_MSG["data"])
+    order_update_json["z"] = "0.00000000"
+    order_update_json["Z"] = "0.00000000"
+    from basana.external.binance import user_data
+    order_update = user_data.OrderUpdate(order_update_json)
+    assert order_update.amount_filled == 0
+    assert order_update.fill_price is None
 
 
 def has_request(mock: aioresponses.aioresponses, method: str, url: str) -> bool:

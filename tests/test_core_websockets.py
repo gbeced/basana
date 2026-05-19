@@ -134,3 +134,40 @@ async def test_schedule_reconnection(realtime_dispatcher):
             assert subscriptions == 4
 
     await asyncio.wait_for(test_main(), 5)
+
+
+async def test_non_text_message(realtime_dispatcher):
+    unknown_messages = []
+    ws = None
+
+    async def server_main(ws_server):
+        # Send a binary message first to trigger on_unknown_message, then handle subscription.
+        await ws_server.send(b"binary data")
+        while ws_server.state == websockets.protocol.State.OPEN:
+            message = json.loads(await ws_server.recv())
+            if message["request"] == "subscribe":
+                await ws_server.send(json.dumps({"response": "subscription_ok", "channel": message["channel"]}))
+
+    class TrackingWebSocketClient(WebSocketClient):
+        async def on_unknown_message(self, message):
+            unknown_messages.append(message)
+
+    async def on_event(event: Event):
+        if event.message.get("response") == "subscription_ok":
+            realtime_dispatcher.stop()
+
+    async def test_main():
+        nonlocal ws
+
+        async with websockets.serve(server_main, "127.0.0.1", 0) as server:
+            ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
+            ws = TrackingWebSocketClient(ws_uri)
+            event_source = ChannelEventSource(producer=ws)
+            ws.set_channel_event_source("channel1", event_source)
+            realtime_dispatcher.subscribe(event_source, on_event)
+
+            await realtime_dispatcher.run()
+
+        assert len(unknown_messages) >= 1
+
+    await asyncio.wait_for(test_main(), 5)

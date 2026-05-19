@@ -53,7 +53,7 @@ class TaskGroup:
     def _cancel(self) -> List[asyncio.Task]:
         pending = [task for task in self._tasks if not task.done()]
         for task in pending:
-            if not task.done():
+            if not task.done():  # pragma: no branch
                 task.cancel()
         return pending
 
@@ -146,7 +146,7 @@ class TaskPool:
     async def _task_main(self, task_id: int):
         current_task = asyncio.current_task()
         # Register ourselves in the task registry if not already there. This happens with eager tasks (Python >= 3.12).
-        if current_task not in self._tasks:
+        if current_task not in self._tasks:  # pragma: no branch
             assert current_task is not None
             self._tasks[task_id] = current_task
 

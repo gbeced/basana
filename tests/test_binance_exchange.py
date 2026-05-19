@@ -85,6 +85,10 @@ async def test_pair_info_explicit_session(binance_http_api_mock, realtime_dispat
         assert pair_info.quote_precision == 2
         assert "SPOT" in pair_info.permissions
 
+        # Second call should use the cache (no additional HTTP request needed).
+        pair_info2 = await e.get_pair_info(pair.Pair("BTC", "USDT"))
+        assert pair_info2 is pair_info
+
 
 async def test_symbol_to_pair(binance_http_api_mock, realtime_dispatcher):
     binance_http_api_mock.get(
@@ -100,3 +104,7 @@ async def test_symbol_to_pair(binance_http_api_mock, realtime_dispatcher):
 
         p = await e.symbol_to_pair("BTCUSDT")
         assert p == pair.Pair("BTC", "USDT")
+
+        # Second call should use the cache (no additional HTTP request needed).
+        p2 = await e.symbol_to_pair("BTCUSDT")
+        assert p2 == p

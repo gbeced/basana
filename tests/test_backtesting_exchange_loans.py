@@ -198,6 +198,11 @@ async def test_borrow_and_repay(
     loans = await e.get_loans(borrowed_symbol=loan_symbol, is_open=True)
     assert loans == []
 
+    # Also test get_loans without is_open filter (covers the is_open is None branch).
+    all_loans = await e.get_loans(borrowed_symbol=loan_symbol)
+    assert len(all_loans) == 1
+    assert not all_loans[0].is_open
+
     loan = await e.get_loan(loan.id)
     assert not loan.is_open
     assert loan.borrowed_symbol == loan_symbol

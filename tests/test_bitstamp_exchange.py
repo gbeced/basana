@@ -416,3 +416,100 @@ async def test_bid_ask(bitstamp_http_api_mock, bitstamp_exchange):
 
 async def test_get_pair_info(bitstamp_http_api_mock, bitstamp_exchange):
     assert await bitstamp_exchange.get_pair_info(pair.Pair("BTC", "USD")) == pair.PairInfo(8, 0)
+    # Second call should use the cache (no additional HTTP request needed).
+    assert await bitstamp_exchange.get_pair_info(pair.Pair("BTC", "USD")) == pair.PairInfo(8, 0)
+
+
+async def test_order_info_not_found(bitstamp_exchange):
+    # Override the order_status mock for this test to return a response with
+    # reason="Order not found." so that get_order_status returns None.
+    with aioresponses.aioresponses() as m:
+        m.post(
+            "http://bitstamp.mock/api/v2/order_status/",
+            status=200,
+            payload={"status": "error", "reason": "Order not found."},
+            reason="Order not found."
+        )
+        order_info = await bitstamp_exchange.get_order_info(pair.Pair("USDT", "USD"), order_id="1234567")
+        assert order_info is None
+
+
+async def test_order_status_not_found_suppressed(bitstamp_exchange):
+    # When the API returns reason="Order not found.", exchange should return None (not raise).
+    with aioresponses.aioresponses() as m:
+        m.post(
+            "http://bitstamp.mock/api/v2/order_status/",
+            status=200,
+            payload={"status": "error", "reason": "Order not found."},
+            reason="Order not found."
+        )
+        order_status = await bitstamp_exchange.get_order_status(order_id="1234567")
+        assert order_status is None
+
+
+async def test_order_status_with_client_order_id(bitstamp_exchange):
+    # Test get_order_status without order_id (using client_order_id only).
+    with aioresponses.aioresponses() as m:
+        m.post(
+            "http://bitstamp.mock/api/v2/order_status/",
+            status=200,
+            payload={**ORDER_STATUS_1536137941123072, "transactions": ORDER_TRANSACTIONS_1536137941123072}
+        )
+        order_status = await bitstamp_exchange.get_order_status(client_order_id="some_client_id")
+        assert order_status is not None
+
+
+async def test_order_info_fill_price_no_fills(bitstamp_exchange):
+    # Test OrderInfo.fill_price when amount_filled is 0 (no transactions).
+    with aioresponses.aioresponses() as m:
+        m.post(
+            "http://bitstamp.mock/api/v2/order_status/",
+            status=200,
+            payload={
+                "status": "Canceled",
+                "id": 1111111111,
+                "amount_remaining": "1.0",
+                "transactions": []
+            }
+        )
+        order_info = await bitstamp_exchange.get_order_info(pair.Pair("USDT", "USD"), order_id="1111111111")
+        assert order_info is not None
+        assert order_info.fill_price is None
+
+
+def test_subscribe_to_bar_events_twice(bitstamp_exchange):
+    events_received = []
+
+    async def on_bar(event):
+        events_received.append(event)
+
+    # First call creates the event source and registers trade subscription.
+    bitstamp_exchange.subscribe_to_bar_events(pair.Pair("BTC", "USD"), 60, on_bar)
+    # Second call should use the cached event source (covers 521->527 branch).
+    bitstamp_exchange.subscribe_to_bar_events(pair.Pair("BTC", "USD"), 60, on_bar)
+
+
+def test_subscribe_to_ws_channel_twice(bitstamp_exchange):
+    events_received = []
+
+    async def handler1(event):
+        pass
+
+    async def handler2(event):
+        pass
+
+    # First call creates the event source.
+    bitstamp_exchange.subscribe_to_public_trade_events(pair.Pair("BTC", "USD"), handler1)
+    # Second call should use the existing event source (covers 601->606 branch).
+    bitstamp_exchange.subscribe_to_public_trade_events(pair.Pair("BTC", "USD"), handler2)
+    # Also calls _get_pub_ws_client twice (covers 609->613 branch).
+
+
+def test_get_priv_ws_client_twice(bitstamp_exchange):
+    async def handler(event):
+        pass
+
+    # First call creates the private WS client.
+    bitstamp_exchange.subscribe_to_private_trade_events(pair.Pair("BTC", "USD"), handler)
+    # Second call should use the existing private WS client (covers 618->622 branch).
+    bitstamp_exchange.subscribe_to_private_trade_events(pair.Pair("BTC", "USD"), handler)

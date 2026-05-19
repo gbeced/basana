@@ -557,6 +557,40 @@ async def test_get_open_orders(
     helpers.assert_expected_attrs(open_orders[0], expected_first_open_order)
 
 
+async def test_order_info_without_trades(binance_http_api_mock, binance_exchange):
+    order_payload = {
+        "symbol": "BTCUSDT",
+        "orderId": 16582318135,
+        "orderListId": -1,
+        "clientOrderId": "test_client_id",
+        "price": "15000.00000000",
+        "origQty": "0.00100000",
+        "executedQty": "0.00000000",
+        "cummulativeQuoteQty": "0.00000000",
+        "status": "CANCELED",
+        "timeInForce": "GTC",
+        "type": "LIMIT",
+        "side": "BUY",
+    }
+    binance_http_api_mock.get(
+        re.compile(r"http://binance.mock/sapi/v1/margin/order\\?.*"), status=200, payload=order_payload
+    )
+
+    order_info = await binance_exchange.cross_margin_account.get_order_info(
+        Pair("BTC", "USDT"), order_id="16582318135", include_trades=False
+    )
+    assert order_info is not None
+    assert order_info.trades == []
+
+
+async def test_get_open_orders_no_pair(binance_http_api_mock, binance_exchange):
+    binance_http_api_mock.get(
+        re.compile(r"http://binance.mock/sapi/v1/margin/openOrders\\?.*"), status=200, payload=[]
+    )
+    open_orders = await binance_exchange.cross_margin_account.get_open_orders()
+    assert open_orders == []
+
+
 @pytest.mark.parametrize("pair, order_id, client_order_id, response_payload, expected_attrs", [
     (
         Pair("BTC", "USDT"), "16582318135", None,

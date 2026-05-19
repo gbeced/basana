@@ -303,6 +303,22 @@ pair_info = PairInfo(8, 2)
             quote_currency: Decimal("43870.10"),
         }
     ),
+    # Sell stop limit: stop hit during bar but limit price is outside the bar range (below bar low).
+    (
+        StopLimitOrder(
+            uuid4().hex, OrderOperation.SELL, pair, pair_info, Decimal("1"), Decimal("35000"), Decimal("25000")
+        ),
+        (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
+        {}
+    ),
+    # Buy stop limit: stop hit during bar but limit price is outside the bar range (above bar high).
+    (
+        StopLimitOrder(
+            uuid4().hex, OrderOperation.BUY, pair, pair_info, Decimal("1"), Decimal("41000"), Decimal("60000")
+        ),
+        (Decimal("40001.76"), Decimal("50401.01"), Decimal("30000"), Decimal("45157.09"), Decimal("1000.3")),
+        {}
+    ),
 ])
 def test_try_fill_with_infinite_liquidity(order, ohlcv, expected_balance_updates, backtesting_dispatcher):
     e = exchange.Exchange(backtesting_dispatcher, {})  # Just for rounding purposes
