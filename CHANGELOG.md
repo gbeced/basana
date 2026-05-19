@@ -4,7 +4,7 @@
 
 ### Features
 
-* `fees.Percentage` now supports charging fees in base currency via the `fee_currency` parameter (defaults to `fees.FeeCurrency.QUOTE` for backwards compatibility).
+* `fees.Percentage` now supports charging fees in base currency.
 
 ## 1.10.2
 
