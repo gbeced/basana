@@ -92,5 +92,8 @@ def test_build_figure_no_charts(backtesting_dispatcher):
     line_charts = charts.LineCharts(e)
     # When no charts are added, _build_figure returns None and save is a no-op.
     assert line_charts._build_figure() is None
-    line_charts.save("/tmp/this_file_should_not_be_created.png")
-    assert not os.path.exists("/tmp/this_file_should_not_be_created.png")
+    with helpers.temp_file_name(suffix=".png", delete=False) as tmp_file_name:
+        # Delete the file first so we can verify save() doesn't create it.
+        os.unlink(tmp_file_name)
+        line_charts.save(tmp_file_name)
+        assert not os.path.exists(tmp_file_name)
