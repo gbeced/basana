@@ -1,5 +1,11 @@
 # Changelog
 
+## TBD
+
+### Features
+
+* `fees.Percentage` now supports charging fees in base currency.
+
 ## 1.10.2
 
 ### Bug fixes
