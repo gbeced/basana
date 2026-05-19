@@ -108,7 +108,7 @@ def test_percentage_fee_base_currency_with_partial_fills_for_sell():
     fee_strategy = fees.Percentage(Decimal("1"), fee_currency=fees.FeeCurrency.BASE)
     order = orders.MarketOrder("1", OrderOperation.SELL, btc_pair, btc_pair_info, Decimal("0.01"))
 
-    # Fill #1 - fee = 0.001 * 1% = 0.00001
+    # Fill #1 - base amount: 0.001 BTC, fee = 0.001 * 1% = 0.00001 BTC
     balance_updates = {
         "BTC": Decimal("-0.001"),
         "USD": Decimal("0.9"),
