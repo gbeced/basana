@@ -246,7 +246,11 @@ async def test_duplicate_loop_started_subscription_is_ignored(backtesting_dispat
         started.append(True)
 
     src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
-    backtesting_dispatcher.subscribe(src, lambda e: None)
+
+    async def on_event(_event):
+        pass
+
+    backtesting_dispatcher.subscribe(src, on_event)
     backtesting_dispatcher.subscribe_event_loop_started(on_started)
     backtesting_dispatcher.subscribe_event_loop_started(on_started)
     await backtesting_dispatcher.run()
