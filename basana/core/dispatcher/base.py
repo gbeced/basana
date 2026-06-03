@@ -182,7 +182,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
             sniffers.append(event_handler)
 
     def subscribe_event_loop_started(self, handler: LoopStartedHandler):
-        """Registers an async callable that will be called once when the event loop starts.
+        """Registers an async callable that will be called once when the dispatch loop starts.
 
         :param handler: An async callable that receives no arguments.
         """
