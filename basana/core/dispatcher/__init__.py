@@ -19,6 +19,7 @@
 from .base import (
     EventDispatcher,
     EventHandler,
+    LoopStartedHandler,
     SchedulerJob,
 )
 
