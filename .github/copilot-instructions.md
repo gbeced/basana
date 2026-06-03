@@ -13,7 +13,8 @@ Key data flows: Bar events → Strategies → Trading signals → Position manag
 ## Development Workflow
 - **Dependencies**: Use Poetry (`poetry install --all-extras`). Python 3.10+ required.
 - **Linting**: `invoke lint` runs mypy and ruff (line length 120, excludes `pocs/`)
-- **Testing**: `invoke test` runs pytest with 100% coverage requirement. Use `--html_report` for coverage HTML.
+- **Testing**: `invoke test` runs lint + pytest with 100% line coverage required.
+- **Single test**: `poetry run pytest tests/test_file.py::test_name -vv --no-cov`
 - **Cleaning**: `invoke clean` removes caches and build artifacts
 - **Documentation**: `invoke build_docs` generates Sphinx docs in `docs/_build/html/`
 
@@ -43,6 +44,12 @@ Key data flows: Bar events → Strategies → Trading signals → Position manag
 - **Live Trading**: Requires API keys. Use `realtime_dispatcher()` instead of `backtesting_dispatcher()`.
 - **Precision Handling**: Use `round_decimal()`/`truncate_decimal()` for display/calculation precision.
 
+## Testing Conventions
+- `asyncio_mode = auto` (setup.cfg) — async test functions run without `@pytest.mark.asyncio`.
+- Pytest fixtures `backtesting_dispatcher` and `realtime_dispatcher` are available globally via `tests/conftest.py`.
+- Shared test pairs/pair-infos live in `tests/common.py` (e.g. `btc_pair`, `btc_pair_info`).
+- 100% line coverage is required; use `# pragma: no cover` only for unreachable/platform-specific branches.
+
 ## Common Pitfalls
 - Naive datetimes cause issues - always use timezone-aware (`dt.utc_now()`).
 - Concurrent position modifications require locks (`asyncio.Lock` per pair).
@@ -50,6 +57,4 @@ Key data flows: Bar events → Strategies → Trading signals → Position manag
 - Borrowing disabled by default in samples - set `borrowing_disabled=False` to enable shorts.</content>
 
 ## Permissions
-- Do not run git commit, git add, are create any branches. Let me stage and/or commit manually.
-- Always ask before installing new packages and never do it unless its inside a virtual environment.
-
+- Always ask before installing new packages and do it inside a virtual environment.
