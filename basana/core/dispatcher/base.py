@@ -33,6 +33,7 @@ from .scheduler import SchedulerJob, SchedulerQueue
 
 logger = logging.getLogger(__name__)
 EventHandler = Callable[[core_event.Event], Awaitable[Any]]
+LoopStartedHandler = Callable[[], Awaitable[Any]]
 
 
 # Indices for prefetched event tuples stored in the EventMultiplexer heap.
@@ -114,6 +115,7 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         self._event_handlers: Dict[core_event.EventSource, List[EventHandler]] = defaultdict(list)
         self._sniffers_pre: List[EventHandler] = []
         self._sniffers_post: List[EventHandler] = []
+        self._loop_started_handlers: List[LoopStartedHandler] = []
         self._producers: Set[core_event.Producer] = set()
         # Task group for core tasks like producers and dispatch loop.
         self._core_tasks: Optional[helpers.TaskGroup] = None
@@ -178,6 +180,17 @@ class EventDispatcher(metaclass=abc.ABCMeta):
         sniffers = self._sniffers_pre if front_run else self._sniffers_post
         if event_handler not in sniffers:
             sniffers.append(event_handler)
+
+    def subscribe_event_loop_started(self, handler: LoopStartedHandler):
+        """Registers an async callable that will be called once when the event loop starts.
+
+        :param handler: An async callable that receives no arguments.
+        """
+
+        assert not self._running, "Subscribing once we're running is not currently supported."
+
+        if handler not in self._loop_started_handlers:
+            self._loop_started_handlers.append(handler)
 
     def schedule(self, when: datetime.datetime, job: SchedulerJob):
         """Schedules a function to be executed at a given time.
@@ -247,6 +260,10 @@ class EventDispatcher(metaclass=abc.ABCMeta):
                 yield tg
         finally:
             self._core_tasks = None
+
+    async def _notify_loop_started(self):
+        if self._loop_started_handlers:
+            await gather_no_raise(*[handler() for handler in self._loop_started_handlers])
 
     async def _dispatch_event(self, event: core_event.Event, handlers: List[EventHandler]):
         if self._debug_enabled:

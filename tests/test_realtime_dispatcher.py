@@ -218,6 +218,24 @@ async def test_stop_dispatcher_when_idle(realtime_dispatcher):
     assert handler_calls == 2
 
 
+async def test_event_loop_started(realtime_dispatcher):
+    started = []
+
+    async def on_started():
+        started.append(True)
+
+    async def on_idle():
+        realtime_dispatcher.stop()
+
+    async def test_main():
+        realtime_dispatcher.subscribe_event_loop_started(on_started)
+        realtime_dispatcher.subscribe_idle(on_idle)
+        await realtime_dispatcher.run()
+        assert len(started) == 1
+
+    await asyncio.wait_for(test_main(), 2)
+
+
 async def test_cancelation_is_forwarded(realtime_dispatcher):
     async def test_main():
         with pytest.raises(asyncio.CancelledError):
