@@ -11,12 +11,12 @@ Basana is an async event-driven framework for algorithmic trading focused on cry
 Key data flows: Bar events → Strategies → Trading signals → Position managers → Orders → Exchange execution.
 
 ## Development Workflow
-- **Dependencies**: Use Poetry (`poetry install --all-extras`). Python 3.10+ required.
-- **Linting**: `invoke lint` runs mypy and ruff (line length 120, excludes `pocs/`)
-- **Testing**: `invoke test` runs lint + pytest with 100% line coverage required.
-- **Single test**: `poetry run pytest tests/test_file.py::test_name -vv --no-cov`
-- **Cleaning**: `invoke clean` removes caches and build artifacts
-- **Documentation**: `invoke build_docs` generates Sphinx docs in `docs/_build/html/`
+- **Dependencies**: Use uv (`uv sync --locked --all-extras`). Python 3.10+ required.
+- **Linting**: `uv run inv lint` runs mypy and ruff (line length 120, excludes `pocs/`)
+- **Testing**: `uv run inv test` runs lint + pytest with 100% line coverage required.
+- **Single test**: `uv run pytest tests/test_file.py::test_name -vv --no-cov`
+- **Cleaning**: `uv run inv clean` removes caches and build artifacts
+- **Documentation**: `uv run inv build-docs` generates Sphinx docs in `docs/_build/html/`
 
 ## Code Patterns
 - **Async Everywhere**: All trading logic is async. Use `asyncio.gather()` for concurrent operations.
@@ -54,7 +54,7 @@ Key data flows: Bar events → Strategies → Trading signals → Position manag
 - Naive datetimes cause issues - always use timezone-aware (`dt.utc_now()`).
 - Concurrent position modifications require locks (`asyncio.Lock` per pair).
 - WebSocket reconnections handled automatically, but monitor for gaps.
-- Borrowing disabled by default in samples - set `borrowing_disabled=False` to enable shorts.</content>
+- Borrowing disabled by default in samples - set `borrowing_disabled=False` to enable shorts.
 
 ## Permissions
 - Always ask before installing new packages and do it inside a virtual environment.

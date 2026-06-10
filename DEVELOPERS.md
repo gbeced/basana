@@ -3,50 +3,49 @@
 ## Requirements
 
 * Python 3.10 or greater.
-* [Poetry](https://python-poetry.org/) for dependency and package management.
-* Optionally, [Invoke](https://www.pyinvoke.org/).
+* [uv](https://docs.astral.sh/uv/) for dependency and package management.
 
 ## Environment setup and testing
 
-### Using Poetry
+### Using uv
 
 1. Initialize the virtual environment and install dependencies.
 
 	```
-	$ poetry install --all-extras
+	$ uv sync --locked --all-extras
 	```
 
 1. Static checks
 
 	```
-	$ poetry run -- mypy basana
-	$ poetry run -- ruff check
+	$ uv run mypy basana
+	$ uv run ruff check
 	```
 
 1. Execute testcases
 
 	```
-	$ poetry run pytest -vv --cov --cov-config=setup.cfg --durations=10
+	$ uv run pytest -vv --cov --cov-config=setup.cfg --durations=10
 	```
 
 ### Using Invoke
 
-Instead of running those commands manually, a couple of Invoke tasks are provided to wrap those.
+Instead of running those commands manually, a couple of Invoke tasks are provided to wrap those. Invoke is installed as a dev dependency via `uv sync`.
 
 1. Initialize the virtual environment and install dependencies.
 
 	```
-	$ inv create-virtualenv
+	$ uv run inv create-virtualenv
 	```
 
 1. Execute static checks and testcases 
 
 	```
-	$ inv test
+	$ uv run inv test
 	```
 
 ## Building docs
 
 ```
-$ inv build-docs
+$ uv run inv build-docs
 ```

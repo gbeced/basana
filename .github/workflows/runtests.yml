@@ -33,25 +33,22 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v6
+    - name: Install uv and set up Python ${{ matrix.python-version }}
+      uses: astral-sh/setup-uv@v6
       with:
         python-version: ${{ matrix.python-version }}
+        enable-cache: true
     - name: Update system
       if: ${{ matrix.os == 'ubuntu-latest' }}
       run: |
         sudo apt-get update
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install poetry
-    - name: Initialize the virtual environment.
-      run: |
-        poetry install --no-root --all-extras --without=docs
+        uv sync --locked --all-extras --no-group docs --no-install-project
     - name: Static checks
       run: |
-        poetry run -- mypy basana
-        poetry run -- ruff check
+        uv run mypy basana
+        uv run ruff check
     - name: Run testcases
       run: |
-        poetry run pytest -vv --cov --cov-config=setup.cfg --durations=10
+        uv run pytest -vv --cov --cov-config=setup.cfg --durations=10
