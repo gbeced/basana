@@ -13,16 +13,16 @@ def clean(c):
         "*.pyc",
     ]
     for pattern in patterns:
-        c.run("find . -d -name '{}' -exec rm -rf {{}} \\;".format(pattern), pty=True, echo=cmd_echo)
+        c.run("find . -d -name '{}' -exec rm -rf {{}} \\;".format(pattern), echo=cmd_echo)
 
     with c.cd("docs"):
-        c.run("make clean", pty=True, echo=cmd_echo)
+        c.run("make clean", echo=cmd_echo)
 
 
 @task
 def lint(c):
-    c.run("mypy basana", pty=True, echo=cmd_echo)
-    c.run("ruff check", pty=True, echo=cmd_echo)
+    c.run("mypy basana", echo=cmd_echo)
+    c.run("ruff check", echo=cmd_echo)
 
 
 @task(lint)
@@ -31,15 +31,15 @@ def test(c, html_report=False):
     cmd = "pytest -vv --cov --cov-config=setup.cfg --durations=10"
     if html_report:
         cmd += " --cov-report=html:cov_html"
-    c.run(cmd, pty=True, echo=cmd_echo)
+    c.run(cmd, echo=cmd_echo)
 
 
 @task
 def build_docs(c):
     with c.cd("docs"):
-        c.run("make html", pty=True, echo=cmd_echo)
+        c.run("make html", echo=cmd_echo)
 
 
 @task
 def build_dist(c):
-    c.run("rm -rf dist && uv build", pty=True, echo=cmd_echo)
+    c.run("rm -rf dist && uv build", echo=cmd_echo)
