@@ -7,42 +7,29 @@
 
 ## Environment setup and testing
 
-### Using uv
+### Initialize the virtual environment and install dependencies.
 
-1. Initialize the virtual environment and install dependencies.
+```
+$ uv sync --locked --all-extras
+```
 
-	```
-	$ uv sync --locked --all-extras
-	```
+### Execute static checks
 
-1. Static checks
+```
+$ uv run inv lint
+```
 
-	```
-	$ uv run mypy basana
-	$ uv run ruff check
-	```
+### Execute testcases (will also execute static checks)
 
-1. Execute testcases
+```
+$ uv run inv test
+```
 
-	```
-	$ uv run pytest -vv --cov --cov-config=setup.cfg --durations=10
-	```
+### Execute a single test
 
-### Using Invoke
-
-Instead of running those commands manually, a couple of Invoke tasks are provided to wrap those. Invoke is installed as a dev dependency via `uv sync`.
-
-1. Initialize the virtual environment and install dependencies.
-
-	```
-	$ uv run inv create-virtualenv
-	```
-
-1. Execute static checks and testcases 
-
-	```
-	$ uv run inv test
-	```
+```
+$ uv run pytest tests/test_backtesting_exchange.py::test_bid_ask -vv --no-cov
+```
 
 ## Building docs
 
