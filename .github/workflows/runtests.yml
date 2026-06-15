@@ -45,10 +45,6 @@ jobs:
     - name: Install dependencies
       run: |
         uv sync --locked --all-extras --no-group docs --no-install-project
-    - name: Static checks
-      run: |
-        uv run mypy basana
-        uv run ruff check
     - name: Run testcases
       run: |
-        uv run pytest -vv --cov --cov-config=setup.cfg --durations=10
+        uv run inv test
