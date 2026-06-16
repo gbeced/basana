@@ -23,6 +23,9 @@ charts = [
     "plotly>=6.7.0,<7",
     "kaleido>=1.2.0,<2",
 ]
+cctx = [
+    "ccxt>=4.4,<5",
+]
 
 [project.urls]
 Homepage = "https://github.com/gbeced/basana"
