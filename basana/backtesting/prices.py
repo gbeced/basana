@@ -18,7 +18,6 @@ from decimal import Decimal
 from typing import Dict, Tuple
 
 from basana.backtesting import config, errors, value_map
-from basana.core import helpers as core_helpers
 from basana.core.bar import Bar, BarEvent
 from basana.core.pair import Pair
 
@@ -44,9 +43,8 @@ class Prices:
 
         last_price = last_bar.close
         pair_info = self._config.get_pair_info(pair)
-        half_spread = core_helpers.truncate_decimal(
-            (last_price * self._bid_ask_spread_pct / Decimal("100")) / Decimal(2),
-            pair_info.quote_precision
+        half_spread = pair_info.truncate_quote(
+            (last_price * self._bid_ask_spread_pct / Decimal("100")) / Decimal(2)
         )
         bid = last_price - half_spread
         ask = last_price + half_spread

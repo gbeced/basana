@@ -26,7 +26,7 @@ import logging
 from basana.backtesting import helpers, liquidity, value_map
 from basana.core import bar, logs
 from basana.core.enums import OrderOperation
-from basana.core.helpers import round_decimal, truncate_decimal
+
 from basana.core.pair import Pair, PairInfo
 
 
@@ -262,7 +262,7 @@ class MarketOrder(Order):
             when=bar.begin,
             balance_updates={
                 self.pair.base_symbol: amount * base_sign,
-                self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                self.pair.quote_symbol: self.pair_info.round_quote(price * amount * -base_sign)
             },
             fees={},
             price=price
@@ -281,7 +281,7 @@ class LimitOrder(Order):
 
     def try_fill(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Optional[Fill]:
         amount = min(self.amount_pending, liquidity_strategy.available_liquidity)
-        amount = truncate_decimal(amount, self.pair_info.base_precision)
+        amount = self.pair_info.truncate_base(amount)
         if not amount:
             return None
 
@@ -314,7 +314,7 @@ class LimitOrder(Order):
                 when=fill_dt,
                 balance_updates={
                     self.pair.base_symbol: amount * base_sign,
-                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                    self.pair.quote_symbol: self.pair_info.round_quote(price * amount * -base_sign)
                 },
                 fees={},
                 price=price
@@ -391,7 +391,7 @@ class StopOrder(Order):
                 when=fill_dt,
                 balance_updates={
                     self.pair.base_symbol: amount * base_sign,
-                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                    self.pair.quote_symbol: self.pair_info.round_quote(price * amount * -base_sign)
                 },
                 fees={},
                 price=price
@@ -487,7 +487,7 @@ class StopLimitOrder(Order):
                 when=fill_dt,
                 balance_updates={
                     self.pair.base_symbol: amount * base_sign,
-                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                    self.pair.quote_symbol: self.pair_info.round_quote(price * amount * -base_sign)
                 },
                 fees={},
                 price=price
@@ -526,7 +526,7 @@ class StopLimitOrder(Order):
                 when=fill_dt,
                 balance_updates={
                     self.pair.base_symbol: amount * base_sign,
-                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                    self.pair.quote_symbol: self.pair_info.round_quote(price * amount * -base_sign)
                 },
                 fees={},
                 price=price
@@ -535,7 +535,7 @@ class StopLimitOrder(Order):
 
     def try_fill(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Optional[Fill]:
         amount = min(self.amount_pending, liquidity_strategy.available_liquidity)
-        amount = truncate_decimal(amount, self.pair_info.base_precision)
+        amount = self.pair_info.truncate_base(amount)
         if not amount:
             return None
 
@@ -578,4 +578,4 @@ def slipped_price(
     if cap_high is not None:
         price = min(price, cap_high)
 
-    return round_decimal(price, order.pair_info.quote_precision)
+    return order.pair_info.round_quote(price)

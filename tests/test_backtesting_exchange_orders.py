@@ -27,7 +27,8 @@ from .backtesting_exchange_orders_test_data import \
     test_order_requests_data, test_invalid_requests_data
 from basana.backtesting import errors, exchange, fees, requests
 from basana.core import bar, dt, event, helpers
-from basana.core.enums import OrderOperation
+from basana.core.enums import OrderOperation, PrecisionMode
+from basana.core.pair import PairInfo
 from basana.core.pair import Pair
 from basana.external.yahoo import bars
 
@@ -502,3 +503,53 @@ async def test_balance_is_on_hold_while_order_is_open(backtesting_dispatcher):
     # There should be no holds in place since orders got canceled.
     assert sum(e._balances.holds.values()) == 0
     assert len(e._order_mgr._holds_by_order) == 0
+
+
+async def test_tick_size_precision_limits(backtesting_dispatcher):
+    tick_pair_info = PairInfo(
+        2, 2,
+        precision_mode=PrecisionMode.TICK_SIZE,
+        base_tick_size=Decimal("0.05"),
+        quote_tick_size=Decimal("0.01"),
+    )
+    e = exchange.Exchange(
+        backtesting_dispatcher,
+        {
+            "USD": Decimal("1e6"),
+            "BTC": Decimal("10"),
+        },
+    )
+    e.set_pair_info(btc_pair, tick_pair_info)
+
+    await e.create_order(requests.MarketOrder(
+        OrderOperation.BUY, btc_pair, tick_pair_info, Decimal("0.10")
+    ))
+    await e.create_order(requests.LimitOrder(
+        OrderOperation.BUY, btc_pair, tick_pair_info, Decimal("0.05"), Decimal("100.01")
+    ))
+    await e.create_order(requests.StopOrder(
+        OrderOperation.BUY, btc_pair, tick_pair_info, Decimal("0.15"), Decimal("99.99")
+    ))
+    await e.create_order(requests.StopLimitOrder(
+        OrderOperation.BUY, btc_pair, tick_pair_info, Decimal("0.20"), Decimal("99.99"), Decimal("100.01")
+    ))
+
+    with pytest.raises(exchange.Error, match="0.06 exceeds maximum precision of 0.05 tick size"):
+        await e.create_order(requests.MarketOrder(
+            OrderOperation.BUY, btc_pair, tick_pair_info, Decimal("0.06")
+        ))
+
+    with pytest.raises(exchange.Error, match="100.001 exceeds maximum precision of 0.01 tick size"):
+        await e.create_order(requests.LimitOrder(
+            OrderOperation.BUY, btc_pair, tick_pair_info, Decimal("0.05"), Decimal("100.001")
+        ))
+
+    with pytest.raises(exchange.Error, match="99.995 exceeds maximum precision of 0.01 tick size"):
+        await e.create_order(requests.StopOrder(
+            OrderOperation.BUY, btc_pair, tick_pair_info, Decimal("0.05"), Decimal("99.995")
+        ))
+
+    with pytest.raises(exchange.Error, match="100.002 exceeds maximum precision of 0.01 tick size"):
+        await e.create_order(requests.StopLimitOrder(
+            OrderOperation.BUY, btc_pair, tick_pair_info, Decimal("0.05"), Decimal("99.99"), Decimal("100.002")
+        ))

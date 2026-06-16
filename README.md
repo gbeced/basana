@@ -11,7 +11,7 @@
 ## Key Features
 
 * Backtesting exchange so you can try your trading strategies before using real funds.
-* Live trading at [Binance](https://www.binance.com/) and [Bitstamp](https://www.bitstamp.net/) crypto currency exchanges.
+* Live trading at [Binance](https://www.binance.com/), [Bitstamp](https://www.bitstamp.net/) and 100+ crypto currency exchanges via [CCXT](https://docs.ccxt.com) integration.
 * Asynchronous I/O and event driven.
 
 ## Getting Started
@@ -19,7 +19,7 @@
 ### Installation
 
 ```
-$ pip install basana[charts]
+$ pip install basana[charts,ccxt]
 ```
 
 The examples use [TALIpp](https://github.com/nardew/talipp) for the technical indicators, pandas, statsmodels and also [Textual](https://textual.textualize.io/) if you want to run the Binance order book mirror.

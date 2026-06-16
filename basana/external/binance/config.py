@@ -37,11 +37,6 @@ DEFAULTS = {
         "ws_api": {
             "base_url": "wss://ws-api.binance.com:443",
             "heartbeat": 30,
-            "spot": {
-                "user_data_stream": {
-                    "heartbeat": 15 * 60,
-                },
-            },
         },
     }
 }
