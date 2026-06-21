@@ -240,14 +240,20 @@ class CreatedOrder:
 
 
 class Exchange:
-    """
-    A client for crypto currency exchanges through `CCXT <https://github.com/ccxt/ccxt>`_.
+    """A client for crypto currency exchanges through `CCXT <https://github.com/ccxt/ccxt>`_.
+
+    This class wraps a subset of the `unified CCXT API
+    <https://docs.ccxt.com/#/README?id=unified-api>`_, exposing the most common trading operations
+    with an interface that is consistent with the rest of the exchanges in Basana. Any other CCXT
+    functionality can still be accessed through the underlying exchange instance, available via
+    :attr:`ccxt`.
 
     :param dispatcher: The event dispatcher.
     :param exchange_id: The CCXT exchange id (e.g. ``binance``, ``bitstamp``).
     :param api_key: An optional api key.
     :param api_secret: An optional api secret.
     :param session: An optional client session, in case you want to reuse connections.
+    :type session: aiohttp.ClientSession
     :param config: An optional dictionary for overriding CCXT config settings.
     """
 
@@ -271,8 +277,9 @@ class Exchange:
 
     @property
     def ccxt(self):
-        """
-        Returns the underlying CCXT exchange instance.
+        """The underlying CCXT exchange instance.
+
+        Use this to call any CCXT method not wrapped by this class.
         """
         return self._cli
 
