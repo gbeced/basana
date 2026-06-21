@@ -49,6 +49,7 @@ from .core.event_sources.trading_signal import (
 from .core.enums import (
     OrderOperation,
     Position,
+    PrecisionMode,
 )
 
 from .core.helpers import (

@@ -25,9 +25,18 @@ import warnings
 import aiohttp
 
 from basana.core import logs
+from basana.core.enums import PrecisionMode
 
 
 QUANTIZERS_CACHE: Dict[int, Decimal] = {}
+
+
+def get_quantizer(precision: int) -> Decimal:
+    ret = QUANTIZERS_CACHE.get(precision)
+    if ret is None:
+        ret = Decimal(f"1e-{precision}")
+        QUANTIZERS_CACHE[precision] = ret
+    return ret
 
 
 class TaskGroup:
@@ -205,11 +214,7 @@ def round_decimal(value: Decimal, precision: int, rounding=None) -> Decimal:
     :param rounding: An optional rounding option from the :mod:`decimal` module.
     :returns: The rounded value.
     """
-    quantizer = QUANTIZERS_CACHE.get(precision)
-    if quantizer is None:
-        quantizer = Decimal(f"1e-{precision}")
-        QUANTIZERS_CACHE[precision] = quantizer
-    return value.quantize(quantizer, rounding=rounding)
+    return round_with_precision(value, precision, PrecisionMode.DECIMAL_PLACES, rounding=rounding)
 
 
 def truncate_decimal(value: Decimal, precision: int) -> Decimal:
@@ -219,7 +224,96 @@ def truncate_decimal(value: Decimal, precision: int) -> Decimal:
     :param precision: The number of digits after the decimal point.
     :returns: The truncated value.
     """
-    return round_decimal(value, precision, rounding=decimal.ROUND_DOWN)
+    return truncate_with_precision(value, precision, PrecisionMode.DECIMAL_PLACES)
+
+
+def decimal_places_from_tick_size(tick_size: Decimal) -> int:
+    normalized = tick_size.normalize()
+    exp = normalized.as_tuple().exponent
+    if not isinstance(exp, int):
+        return 0
+    return 0 if exp >= 0 else -exp
+
+
+def truncate_to_tick_size(value: Decimal, tick_size: Decimal) -> Decimal:
+    if value.is_zero():
+        return value
+    missing = abs(value) % tick_size
+    if missing == 0:
+        return value
+    if value < 0:
+        return value + missing
+    return value - missing
+
+
+def round_to_tick_size(value: Decimal, tick_size: Decimal, rounding=None) -> Decimal:
+    if value.is_zero():
+        return value
+    missing = abs(value) % tick_size
+    if missing == 0:
+        return value
+    if rounding == decimal.ROUND_DOWN:
+        return truncate_to_tick_size(value, tick_size)
+    if rounding == decimal.ROUND_UP:
+        if value > 0:
+            return value - missing + tick_size
+        return value + missing - tick_size
+    half_tick = tick_size / 2
+    if value > 0:
+        if missing >= half_tick:
+            return value - missing + tick_size
+        return value - missing
+    if missing >= half_tick:
+        return value + missing - tick_size
+    return value + missing
+
+
+def round_with_precision(
+        value: Decimal, precision: int, precision_mode: PrecisionMode, rounding=None,
+        tick_size: Optional[Decimal] = None
+) -> Decimal:
+    """Rounds a decimal value using the given precision mode.
+
+    :param value: The value to round.
+    :param precision: The precision.
+    :param precision_mode: The precision mode.
+    :param rounding: An optional rounding option from the :mod:`decimal` module.
+    :param tick_size: The tick size, if precision_mode is TICK_SIZE.
+    :returns: The rounded value.
+    """
+    if precision_mode == PrecisionMode.TICK_SIZE:
+        assert tick_size is not None
+        return round_to_tick_size(value, tick_size, rounding=rounding)
+    if precision_mode == PrecisionMode.DECIMAL_PLACES:
+        return value.quantize(get_quantizer(precision), rounding=rounding)
+    assert precision_mode == PrecisionMode.SIGNIFICANT_DIGITS
+    if value.is_zero():
+        return value
+    decimal_places = decimal_places_for_significant_digits(value.copy_abs(), precision)
+    return value.quantize(get_quantizer(decimal_places), rounding=rounding)
+
+
+def truncate_with_precision(
+        value: Decimal, precision: int, precision_mode: PrecisionMode, tick_size: Optional[Decimal] = None
+) -> Decimal:
+    """Truncates a decimal value using the given precision mode.
+
+    :param value: The value to truncate.
+    :param precision: The precision.
+    :param precision_mode: The precision mode.
+    :returns: The truncated value.
+    """
+    return round_with_precision(
+        value, precision, precision_mode, rounding=decimal.ROUND_DOWN, tick_size=tick_size
+    )
+
+
+def decimal_places_for_significant_digits(value: Decimal, significant_digits: int) -> int:
+    return significant_digits - log10_floor(value) - 1
+
+
+def log10_floor(value: Decimal) -> int:
+    return int(value.log10().to_integral_value(rounding=decimal.ROUND_FLOOR))
 
 
 def deprecation_warning(message: str):

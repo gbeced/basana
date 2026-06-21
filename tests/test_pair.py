@@ -14,7 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+from decimal import Decimal
+
 from basana.core import pair
+from basana.core.enums import PrecisionMode
 
 
 def test_str():
@@ -24,3 +27,45 @@ def test_str():
 def test_eq():
     assert pair.Pair("BTC", "USD") == pair.Pair("BTC", "USD")
     assert pair.Pair("BTC", "USD") != pair.Pair("ARS", "USD")
+
+
+def test_pair_info_decimal_places():
+    pair_info = pair.PairInfo(2, 3)
+    assert pair_info.precision_mode == PrecisionMode.DECIMAL_PLACES
+    assert pair_info.precision_unit == "decimal digits"
+    assert pair_info.truncate_base(Decimal("1.239")) == Decimal("1.23")
+    assert pair_info.truncate_quote(Decimal("1.2399")) == Decimal("1.239")
+    assert pair_info.round_base(Decimal("1.235")) == Decimal("1.24")
+    assert pair_info.round_quote(Decimal("1.2395")) == Decimal("1.240")
+
+
+def test_pair_info_significant_digits():
+    pair_info = pair.PairInfo(5, 5, precision_mode=PrecisionMode.SIGNIFICANT_DIGITS)
+    assert pair_info.precision_unit == "significant digits"
+    assert pair_info.truncate_base(Decimal("1.23456789")) == Decimal("1.2345")
+    assert pair_info.truncate_quote(Decimal("12345.678")) == Decimal("12345")
+    assert pair_info.round_base(Decimal("1.23456789")) == Decimal("1.2346")
+    assert pair_info.round_quote(Decimal("0.002395114")) == Decimal("0.0023951")
+
+
+def test_pair_info_tick_size():
+    pair_info = pair.PairInfo(
+        2, 2,
+        precision_mode=PrecisionMode.TICK_SIZE,
+        base_tick_size=Decimal("0.05"),
+        quote_tick_size=Decimal("0.05"),
+    )
+    assert pair_info.precision_unit == "tick size"
+    assert pair_info.base_tick_size == Decimal("0.05")
+    assert pair_info.quote_tick_size == Decimal("0.05")
+
+    assert pair_info.truncate_base(Decimal("1.2341")) == Decimal("1.2")
+    assert pair_info.truncate_quote(Decimal("1.24")) == Decimal("1.2")
+    assert pair_info.truncate_base(Decimal("1.25")) == Decimal("1.25")
+    assert pair_info.truncate_quote(Decimal("1.257")) == Decimal("1.25")
+    assert pair_info.truncate_base(Decimal("1.27")) == Decimal("1.25")
+    assert pair_info.round_quote(Decimal("12.22")) == Decimal("12.2")
+    assert pair_info.round_base(Decimal("12.24")) == Decimal("12.25")
+    assert pair_info.round_quote(Decimal("12.25")) == Decimal("12.25")
+    assert pair_info.round_base(Decimal("12.26")) == Decimal("12.25")
+    assert pair_info.round_quote(Decimal("12.28")) == Decimal("12.3")

@@ -15,12 +15,26 @@
 # limitations under the License.
 
 from decimal import Decimal
+from typing import Union
 import abc
 
 from basana.backtesting import errors, orders
-from basana.core import helpers
-from basana.core.enums import OrderOperation
+from basana.core.enums import OrderOperation, PrecisionMode
 from basana.core.pair import Pair, PairInfo
+
+
+def base_precision_limit(pair_info: PairInfo) -> Union[int, Decimal]:
+    if pair_info.precision_mode == PrecisionMode.TICK_SIZE:
+        assert pair_info.base_tick_size is not None
+        return pair_info.base_tick_size
+    return pair_info.base_precision
+
+
+def quote_precision_limit(pair_info: PairInfo) -> Union[int, Decimal]:
+    if pair_info.precision_mode == PrecisionMode.TICK_SIZE:
+        assert pair_info.quote_tick_size is not None
+        return pair_info.quote_tick_size
+    return pair_info.quote_precision
 
 
 class ExchangeOrder(metaclass=abc.ABCMeta):
@@ -62,9 +76,11 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
     def validate(self, pair_info: PairInfo):
         if self.amount <= Decimal(0):
             raise errors.Error("Amount must be > 0")
-        if self.amount != helpers.truncate_decimal(self.amount, pair_info.base_precision):
+        if self.amount != pair_info.truncate_base(self.amount):
             raise errors.Error(
-                "{} exceeds maximum precision of {} decimal digits".format(self.amount, pair_info.base_precision)
+                "{} exceeds maximum precision of {} {}".format(
+                    self.amount, base_precision_limit(pair_info), pair_info.precision_unit
+                )
             )
 
     @abc.abstractmethod
@@ -113,9 +129,11 @@ class LimitOrder(ExchangeOrder):
         super().validate(pair_info)
         if self.limit_price <= Decimal(0):
             raise errors.Error("Limit price must be > 0")
-        if self.limit_price != helpers.truncate_decimal(self.limit_price, pair_info.quote_precision):
+        if self.limit_price != pair_info.truncate_quote(self.limit_price):
             raise errors.Error(
-                "{} exceeds maximum precision of {} decimal digits".format(self.limit_price, pair_info.quote_precision)
+                "{} exceeds maximum precision of {} {}".format(
+                    self.limit_price, quote_precision_limit(pair_info), pair_info.precision_unit
+                )
             )
 
     def create_order(self, id: str) -> orders.Order:
@@ -152,9 +170,11 @@ class StopOrder(ExchangeOrder):
         super().validate(pair_info)
         if self.stop_price <= Decimal(0):
             raise errors.Error("Stop price must be > 0")
-        if self.stop_price != helpers.truncate_decimal(self.stop_price, pair_info.quote_precision):
+        if self.stop_price != pair_info.truncate_quote(self.stop_price):
             raise errors.Error(
-                "{} exceeds maximum precision of {} decimal digits".format(self.stop_price, pair_info.quote_precision)
+                "{} exceeds maximum precision of {} {}".format(
+                    self.stop_price, quote_precision_limit(pair_info), pair_info.precision_unit
+                )
             )
 
     def create_order(self, id: str) -> orders.Order:
@@ -197,9 +217,11 @@ class StopLimitOrder(ExchangeOrder):
         if self.limit_price <= Decimal(0):
             raise errors.Error("Limit price must be > 0")
         for value in [self.stop_price, self.limit_price]:
-            if value != helpers.truncate_decimal(value, pair_info.quote_precision):
+            if value != pair_info.truncate_quote(value):
                 raise errors.Error(
-                    "{} exceeds maximum precision of {} decimal digits".format(value, pair_info.quote_precision)
+                    "{} exceeds maximum precision of {} {}".format(
+                        value, quote_precision_limit(pair_info), pair_info.precision_unit
+                    )
                 )
 
     def create_order(self, id: str) -> orders.Order:

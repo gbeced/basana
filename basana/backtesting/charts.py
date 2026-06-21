@@ -164,7 +164,7 @@ class PairLineChart(LineChart):
             for fill in order.fills:
                 base_amount = fill.balance_updates[order.pair.base_symbol]
                 quote_amount = fill.balance_updates[order.pair.quote_symbol]
-                price = -helpers.truncate_decimal(quote_amount / base_amount, pair_info.quote_precision)
+                price = -pair_info.truncate_quote(quote_amount / base_amount)
                 ret.add_value(fill.when, price)
         return ret
 
