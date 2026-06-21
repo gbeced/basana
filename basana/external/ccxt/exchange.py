@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Any, Dict, Optional, Tuple
+from typing import cast, Any, Dict, List, Optional, Tuple
 import datetime
 
 from dateutil.parser import parse as dt_parse
@@ -96,8 +96,8 @@ class OrderInfo:
         return helpers.to_decimal(self.json.get("cost", 0))
 
     @property
-    def price(self) -> Optional[Decimal]:
-        """The price."""
+    def limit_price(self) -> Optional[Decimal]:
+        """The limit price."""
         return helpers.optional_decimal(self.json.get("price"))
 
     @property
@@ -133,9 +133,64 @@ class CanceledOrder:
         return helpers.to_decimal(self.json["amount"])
 
     @property
-    def price(self) -> Optional[Decimal]:
-        """The price."""
+    def limit_price(self) -> Optional[Decimal]:
+        """The limit price."""
         return helpers.optional_decimal(self.json.get("price"))
+
+    @property
+    def client_order_id(self) -> Optional[str]:
+        """The client order id."""
+        return self.json.get("clientOrderId")
+
+
+class OpenOrder:
+    def __init__(self, json: dict):
+        self.json = json
+
+    @property
+    def id(self) -> str:
+        """The order id."""
+        return str(self.json["id"])
+
+    @property
+    def datetime(self) -> datetime.datetime:
+        """The creation datetime."""
+        return dt_parse(self.json["datetime"]).replace(tzinfo=datetime.timezone.utc)
+
+    @property
+    def operation(self) -> OrderOperation:
+        """The operation."""
+        return helpers.side_to_order_operation(self.json["side"])
+
+    @property
+    def type(self) -> str:
+        """The type of order."""
+        return self.json["type"]
+
+    @property
+    def limit_price(self) -> Optional[Decimal]:
+        """The limit price."""
+        return helpers.optional_decimal(self.json.get("price"))
+
+    @property
+    def stop_price(self) -> Optional[Decimal]:
+        """The stop price."""
+        return helpers.optional_decimal(self.json.get("stopPrice"))
+
+    @property
+    def amount(self) -> Decimal:
+        """The amount."""
+        return helpers.to_decimal(self.json["amount"])
+
+    @property
+    def amount_filled(self) -> Decimal:
+        """The amount filled."""
+        return helpers.to_decimal(self.json.get("filled", 0))
+
+    @property
+    def pair(self) -> Pair:
+        """The trading pair."""
+        return helpers.symbol_to_pair(self.json["symbol"])
 
     @property
     def client_order_id(self) -> Optional[str]:
@@ -163,8 +218,8 @@ class CreatedOrder:
         return helpers.side_to_order_operation(self.json["side"])
 
     @property
-    def price(self) -> Optional[Decimal]:
-        """The price."""
+    def limit_price(self) -> Optional[Decimal]:
+        """The limit price."""
         return helpers.optional_decimal(self.json.get("price"))
 
     @property
@@ -368,6 +423,19 @@ class Exchange:
             lookup_id = cast(str, order_id)
         canceled_order = await self._cli.cancel_order(lookup_id, symbol, params)
         return CanceledOrder(canceled_order)
+
+    async def get_open_orders(
+            self, pair: Optional[Pair] = None, **kwargs: Any
+    ) -> List[OpenOrder]:
+        """Returns open orders.
+
+        :param pair: If set, only open orders matching this pair will be returned, otherwise all open orders will be
+            returned.
+        :param kwargs: Additional keyword arguments that will be forwarded.
+        """
+        symbol = None if pair is None else helpers.pair_to_symbol(pair)
+        orders = await self._cli.fetch_open_orders(symbol, params=dict(kwargs))
+        return [OpenOrder(order) for order in orders]
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Decimal, Decimal]:
         """

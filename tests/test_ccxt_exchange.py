@@ -157,7 +157,7 @@ async def test_order_requests(
     )
     assert order_created.operation == OrderOperation.BUY
     assert order_created.amount == expected_amount
-    assert order_created.price == expected_price
+    assert order_created.limit_price == expected_price
     assert order_created.stop_price == expected_stop_price
     assert order_created.client_order_id == CLIENT_ORDER_ID
 
@@ -205,7 +205,7 @@ async def test_get_order_info(order_id, client_order_id, expected_lookup_id, ccx
     assert order_info.amount_filled == Decimal("0.5")
     assert order_info.amount_remaining == Decimal("0.5")
     assert order_info.quote_amount_filled == Decimal("5")
-    assert order_info.price == Decimal("10")
+    assert order_info.limit_price == Decimal("10")
     assert order_info.fill_price == Decimal("10")
 
     ccxt_exchange._cli.fetch_order.assert_awaited_once_with(
@@ -226,12 +226,35 @@ async def test_cancel_order(order_id, client_order_id, expected_lookup_id, ccxt_
     assert canceled_order.client_order_id == CLIENT_ORDER_ID
     assert canceled_order.operation == OrderOperation.BUY
     assert canceled_order.amount == Decimal("1")
-    assert canceled_order.price == Decimal("10")
+    assert canceled_order.limit_price == Decimal("10")
 
     ccxt_exchange._cli.cancel_order.assert_awaited_once_with(
         expected_lookup_id, "BTC/USDT",
         {} if client_order_id is None else {"clientOrderId": CLIENT_ORDER_ID}
     )
+
+
+@pytest.mark.parametrize("trading_pair, expected_symbol", [
+    (None, None),
+    (pair.Pair("BTC", "USDT"), "BTC/USDT"),
+])
+async def test_get_open_orders(trading_pair, expected_symbol, ccxt_exchange):
+    open_orders = await ccxt_exchange.get_open_orders(trading_pair)
+    assert len(open_orders) == 1
+    open_order = open_orders[0]
+    assert open_order.id == "1539419698798592"
+    assert open_order.datetime == datetime.datetime(2022, 9, 30, 16, 47, 12, 583000).replace(
+        tzinfo=datetime.timezone.utc
+    )
+    assert open_order.operation == OrderOperation.BUY
+    assert open_order.type == "limit"
+    assert open_order.limit_price == Decimal("10")
+    assert open_order.amount == Decimal("1")
+    assert open_order.amount_filled == Decimal("0.5")
+    assert open_order.pair == pair.Pair("BTC", "USDT")
+    assert open_order.client_order_id == CLIENT_ORDER_ID
+
+    ccxt_exchange._cli.fetch_open_orders.assert_awaited_once_with(expected_symbol, params={})
 
 
 async def test_ccxt_property_unwrapped_method(ccxt_exchange):
@@ -253,6 +276,10 @@ def test_invalid_exchange_id(realtime_dispatcher):
 
 def test_pair_to_symbol():
     assert helpers.pair_to_symbol(pair.Pair("BTC", "USDT")) == "BTC/USDT"
+
+
+def test_symbol_to_pair():
+    assert helpers.symbol_to_pair("BTC/USDT") == pair.Pair("BTC", "USDT")
 
 
 def test_exchange_with_credentials(realtime_dispatcher):
@@ -290,7 +317,7 @@ def test_order_info_optional_fields():
         "filled": 0,
         "remaining": "1",
     })
-    assert order_info.price is None
+    assert order_info.limit_price is None
     assert order_info.stop_price is None
     assert order_info.fill_price is None
 
@@ -306,13 +333,28 @@ def test_order_info_optional_fields():
     assert order_info_with_stop.stop_price == Decimal("100")
 
 
+def test_open_order_optional_fields():
+    open_order = exchange.OpenOrder({
+        "id": "1",
+        "datetime": "2022-09-30T16:47:12.583Z",
+        "symbol": "BTC/USDT",
+        "type": "market",
+        "side": "buy",
+        "amount": "1",
+        "filled": 0,
+    })
+    assert open_order.limit_price is None
+    assert open_order.stop_price is None
+    assert open_order.client_order_id is None
+
+
 def test_canceled_order_optional_price():
     canceled_order = exchange.CanceledOrder({
         "id": "1",
         "side": "buy",
         "amount": "1",
     })
-    assert canceled_order.price is None
+    assert canceled_order.limit_price is None
 
 
 def test_pair_info_from_market_significant_digits():

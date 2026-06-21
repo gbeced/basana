@@ -91,6 +91,19 @@ def ccxt_cli_mock():
         "cost": "5",
         "status": "open",
     })
+    cli.fetch_open_orders = mock.AsyncMock(return_value=[{
+        "id": "1539419698798592",
+        "clientOrderId": "51557545381C4997BC452AE1E48E0D88",
+        "datetime": "2022-09-30T16:47:12.583Z",
+        "symbol": "BTC/USDT",
+        "type": "limit",
+        "side": "buy",
+        "price": "10",
+        "amount": "1",
+        "filled": "0.5",
+        "remaining": "0.5",
+        "status": "open",
+    }])
     cli.cancel_order = mock.AsyncMock(return_value={
         "id": "1539419698798592",
         "clientOrderId": "51557545381C4997BC452AE1E48E0D88",

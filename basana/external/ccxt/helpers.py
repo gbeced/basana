@@ -39,6 +39,11 @@ def pair_to_symbol(pair: Pair) -> str:
     return "{}/{}".format(pair.base_symbol, pair.quote_symbol)
 
 
+def symbol_to_pair(symbol: str) -> Pair:
+    base, quote = symbol.split("/")
+    return Pair(base, quote)
+
+
 def order_operation_to_side(operation: OrderOperation) -> str:
     return {
         OrderOperation.BUY: "buy",
