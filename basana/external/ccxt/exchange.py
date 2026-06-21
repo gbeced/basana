@@ -19,6 +19,7 @@ from typing import cast, Any, Dict, List, Optional, Tuple
 import datetime
 
 from dateutil.parser import parse as dt_parse
+import aiohttp
 import ccxt.async_support as ccxt  # type: ignore[import-untyped]
 
 from . import helpers, requests
@@ -246,12 +247,14 @@ class Exchange:
     :param exchange_id: The CCXT exchange id (e.g. ``binance``, ``bitstamp``).
     :param api_key: An optional api key.
     :param api_secret: An optional api secret.
+    :param session: An optional client session, in case you want to reuse connections.
     :param config: An optional dictionary for overriding CCXT config settings.
     """
 
     def __init__(
             self, dispatcher: dispatcher.EventDispatcher, exchange_id: str,
-            api_key: Optional[str] = None, api_secret: Optional[str] = None, config: Optional[dict] = None
+            api_key: Optional[str] = None, api_secret: Optional[str] = None,
+            session: Optional[aiohttp.ClientSession] = None, config: Optional[dict] = None
     ):
         self._dispatcher = dispatcher
         self._pair_info_cache: Dict[Pair, PairInfo] = {}
@@ -261,6 +264,8 @@ class Exchange:
             ccxt_config["apiKey"] = api_key
         if api_secret is not None:
             ccxt_config["secret"] = api_secret
+        if session is not None:
+            ccxt_config["session"] = session
 
         self._cli = getattr(ccxt, exchange_id)(ccxt_config)
 

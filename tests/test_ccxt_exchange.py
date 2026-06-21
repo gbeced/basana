@@ -18,6 +18,7 @@ import datetime
 from decimal import Decimal
 from unittest import mock
 
+import aiohttp
 import ccxt.async_support as ccxt
 import pytest
 
@@ -286,6 +287,13 @@ def test_exchange_with_credentials(realtime_dispatcher):
     e = exchange.Exchange(realtime_dispatcher, "binance", api_key="key", api_secret="secret")
     assert e._cli.apiKey == "key"
     assert e._cli.secret == "secret"
+
+
+async def test_exchange_with_session(realtime_dispatcher):
+    async with aiohttp.ClientSession() as session:
+        e = exchange.Exchange(realtime_dispatcher, "binance", session=session)
+        assert e._cli.session is session
+        assert e._cli.own_session is False
 
 
 def test_pair_info_from_market_tick_size():
