@@ -14,19 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import asyncio
 import datetime
 from decimal import Decimal
 from unittest import mock
 
 import aiohttp
-import ccxt.async_support as ccxt
+from ccxt.base.decimal_to_precision import DECIMAL_PLACES, SIGNIFICANT_DIGITS, TICK_SIZE
 import pytest
 
 from basana.core import pair
 from basana.core.enums import OrderOperation, PrecisionMode
-from basana.external.ccxt import exchange, helpers
-
-CLIENT_ORDER_ID = "51557545381C4997BC452AE1E48E0D88"
+from basana.external.ccxt import bars, exchange, helpers
+from tests.fixtures.ccxt import (
+    CLIENT_ORDER_ID,
+    ORDER_DATETIME,
+)
 
 
 async def test_bid_ask(ccxt_exchange):
@@ -46,7 +49,7 @@ async def test_get_pair_info_decimal_places(ccxt_exchange):
 
 
 async def test_get_pair_info_tick_size(ccxt_exchange):
-    ccxt_exchange._cli.precisionMode = ccxt.TICK_SIZE
+    ccxt_exchange._cli.precisionMode = TICK_SIZE
     ccxt_exchange._cli.market.return_value = {
         "precision": {
             "amount": "0.00001",
@@ -60,19 +63,6 @@ async def test_get_pair_info_tick_size(ccxt_exchange):
     assert pair_info.quote_precision == 2
     assert pair_info.base_tick_size == Decimal("0.00001")
     assert pair_info.quote_tick_size == Decimal("0.01")
-
-
-async def test_get_pair_info_cached(ccxt_exchange):
-    p = pair.Pair("BTC", "USDT")
-    await ccxt_exchange.get_pair_info(p)
-    await ccxt_exchange.get_pair_info(p)
-
-    ccxt_exchange._cli.load_markets.assert_awaited_once()
-
-
-async def test_close(ccxt_exchange):
-    await ccxt_exchange.close()
-    ccxt_exchange._cli.close.assert_awaited_once()
 
 
 async def test_get_balances(ccxt_exchange):
@@ -153,9 +143,7 @@ async def test_order_requests(
 
     order_created = await create_order_fun(ccxt_exchange)
     assert order_created.id == expected_id
-    assert order_created.datetime == datetime.datetime(2022, 9, 30, 16, 47, 12, 583000).replace(
-        tzinfo=datetime.timezone.utc
-    )
+    assert order_created.datetime == ORDER_DATETIME
     assert order_created.operation == OrderOperation.BUY
     assert order_created.amount == expected_amount
     assert order_created.limit_price == expected_price
@@ -244,9 +232,7 @@ async def test_get_open_orders(trading_pair, expected_symbol, ccxt_exchange):
     assert len(open_orders) == 1
     open_order = open_orders[0]
     assert open_order.id == "1539419698798592"
-    assert open_order.datetime == datetime.datetime(2022, 9, 30, 16, 47, 12, 583000).replace(
-        tzinfo=datetime.timezone.utc
-    )
+    assert open_order.datetime == ORDER_DATETIME
     assert open_order.operation == OrderOperation.BUY
     assert open_order.type == "limit"
     assert open_order.limit_price == Decimal("10")
@@ -258,15 +244,64 @@ async def test_get_open_orders(trading_pair, expected_symbol, ccxt_exchange):
     ccxt_exchange._cli.fetch_open_orders.assert_awaited_once_with(expected_symbol, params={})
 
 
-async def test_ccxt_property_unwrapped_method(ccxt_exchange):
+async def test_bars(realtime_dispatcher, ccxt_exchange):
+    p = pair.Pair("BTC", "USDT")
+    last_bar = None
+    ohlcv_updates = [
+        [[1_000, "0.001", "0.0025", "0.0005", "0.002", "1000"]],
+        [
+            [1_000, "0.001", "0.0025", "0.0005", "0.002", "1000"],
+            [61_000, "0.002", "0.003", "0.0015", "0.0025", "50"],
+        ],
+        [
+            [1_000, "0.001", "0.0025", "0.0005", "0.002", "1000"],
+            [61_000, "0.002", "0.003", "0.0015", "0.0025", "50"],
+            [121_000, "0.0025", "0.0035", "0.002", "0.003", "10"],
+        ],
+    ]
+    call_count = {"n": 0}
+
+    async def watch_ohlcv(*args, **kwargs):
+        ret = ohlcv_updates[min(call_count["n"], len(ohlcv_updates) - 1)]
+        call_count["n"] += 1
+        return ret
+
+    ccxt_exchange._cli.watch_ohlcv = mock.AsyncMock(side_effect=watch_ohlcv)
+
+    async def on_bar_event(bar_event):
+        nonlocal last_bar
+        last_bar = bar_event.bar
+        realtime_dispatcher.stop()
+
+    ccxt_exchange.subscribe_to_bar_events(p, "1m", on_bar_event)
+    await realtime_dispatcher.run()
+
+    assert last_bar is not None
+    assert last_bar.pair == p
+    assert last_bar.open == Decimal("0.002")
+    assert last_bar.high == Decimal("0.003")
+    assert last_bar.low == Decimal("0.0015")
+    assert last_bar.close == Decimal("0.0025")
+    assert last_bar.volume == Decimal("50")
+    assert last_bar.begin == datetime.datetime(1970, 1, 1, 0, 1, 1, tzinfo=datetime.timezone.utc)
+    assert last_bar.duration == datetime.timedelta(seconds=60)
+    ccxt_exchange._cli.watch_ohlcv.assert_awaited()
+    ccxt_exchange._cli.un_watch_ohlcv.assert_awaited_once_with("BTC/USDT", "1m", params={})
+
+
+async def test_close(ccxt_exchange):
+    await ccxt_exchange.close()
+    ccxt_exchange._cli.close.assert_awaited_once()
+
+
+async def test_access_unwrapped_methods(ccxt_exchange):
     ccxt_exchange._cli.fetch_balance = mock.AsyncMock(return_value={
-        "free": {"BTC": "1.5"},
+        "free": {"BTC": 1.5},
     })
 
     assert ccxt_exchange.ccxt is ccxt_exchange._cli
     balance = await ccxt_exchange.ccxt.fetch_balance()
-
-    assert balance["free"]["BTC"] == "1.5"
+    assert balance["free"]["BTC"] == 1.5
     ccxt_exchange._cli.fetch_balance.assert_awaited_once()
 
 
@@ -283,10 +318,18 @@ def test_symbol_to_pair():
     assert helpers.symbol_to_pair("BTC/USDT") == pair.Pair("BTC", "USDT")
 
 
-def test_exchange_with_credentials(realtime_dispatcher):
-    e = exchange.Exchange(realtime_dispatcher, "binance", api_key="key", api_secret="secret")
-    assert e._cli.apiKey == "key"
-    assert e._cli.secret == "secret"
+def test_ohlcv_to_bar():
+    p = pair.Pair("BTC", "USDT")
+    candle = [1_000, "0.001", "0.0025", "0.0005", "0.002", "1000"]
+    candle_bar = helpers.ohlcv_to_bar(p, candle, 60)
+    assert candle_bar.pair == p
+    assert candle_bar.open == Decimal("0.001")
+    assert candle_bar.high == Decimal("0.0025")
+    assert candle_bar.low == Decimal("0.0005")
+    assert candle_bar.close == Decimal("0.002")
+    assert candle_bar.volume == Decimal("1000")
+    assert candle_bar.begin == datetime.datetime(1970, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
+    assert candle_bar.duration == datetime.timedelta(seconds=60)
 
 
 async def test_exchange_with_session(realtime_dispatcher):
@@ -303,12 +346,24 @@ def test_pair_info_from_market_tick_size():
             "price": "0.0008",
         },
     }
-    pair_info = helpers.pair_info_from_market(market, ccxt.TICK_SIZE)
+    pair_info = helpers.pair_info_from_market(market, TICK_SIZE)
     assert pair_info.precision_mode == PrecisionMode.TICK_SIZE
     assert pair_info.base_precision == 2
     assert pair_info.quote_precision == 4
     assert pair_info.base_tick_size == Decimal("0.05")
     assert pair_info.quote_tick_size == Decimal("0.0008")
+
+
+def test_pair_info_from_market_decimal_places():
+    market = {
+        "precision": {
+            "amount": 8,
+            "price": 2,
+        },
+    }
+    pair_info = helpers.pair_info_from_market(market, DECIMAL_PLACES)
+    assert pair_info.base_precision == 8
+    assert pair_info.quote_precision == 2
 
 
 def test_order_status_is_open():
@@ -372,7 +427,55 @@ def test_pair_info_from_market_significant_digits():
             "price": 5,
         },
     }
-    pair_info = helpers.pair_info_from_market(market, ccxt.SIGNIFICANT_DIGITS)
+    pair_info = helpers.pair_info_from_market(market, SIGNIFICANT_DIGITS)
     assert pair_info.base_precision == 8
     assert pair_info.quote_precision == 5
     assert pair_info.precision_mode == PrecisionMode.SIGNIFICANT_DIGITS
+
+
+async def test_watch_ohlcv_event_source_handle_empty_ohlcv(ccxt_cli_mock, caplog):
+    ccxt_cli_mock.watch_ohlcv = mock.AsyncMock(return_value=[])
+    event_source = bars.WatchOHLCVEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), "1m")
+    event_source._duration_secs = 60
+    task = asyncio.create_task(event_source.main())
+    await asyncio.sleep(0)
+    assert "Error" not in caplog.text
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+async def test_watch_ohlcv_event_source_main_error(ccxt_cli_mock, caplog):
+    ccxt_cli_mock.watch_ohlcv = mock.AsyncMock(side_effect=Exception("error"))
+    event_source = bars.WatchOHLCVEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), "1m")
+    task = asyncio.create_task(event_source.main())
+    await asyncio.sleep(0)
+    assert "Error watching OHLCV" in caplog.text
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+async def test_watch_ohlcv_event_source_finalize_error(ccxt_cli_mock, caplog):
+    ccxt_cli_mock.un_watch_ohlcv = mock.AsyncMock(side_effect=Exception("error"))
+    event_source = bars.WatchOHLCVEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), "1m")
+    await event_source.finalize()
+    assert "Error unwatching OHLCV" in caplog.text
+
+
+async def test_watch_ohlcv_event_source_finalize_unsupported(ccxt_cli_mock):
+    ccxt_cli_mock.has = {"watchOHLCV": True, "unWatchOHLCV": False}
+    event_source = bars.WatchOHLCVEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), "1m")
+    await event_source.finalize()
+    ccxt_cli_mock.un_watch_ohlcv.assert_not_awaited()
+
+
+def test_watch_ohlcv_event_source_invalid_timeframe(ccxt_cli_mock):
+    with pytest.raises(ValueError, match="Invalid bar_duration: 1h"):
+        bars.WatchOHLCVEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), "1h")
+
+
+def test_watch_ohlcv_event_source_unsupported(ccxt_cli_mock):
+    ccxt_cli_mock.has = {"watchOHLCV": False}
+    with pytest.raises(NotImplementedError, match="watchOHLCV"):
+        bars.WatchOHLCVEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), "1m")

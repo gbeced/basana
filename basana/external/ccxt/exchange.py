@@ -20,10 +20,10 @@ import datetime
 
 from dateutil.parser import parse as dt_parse
 import aiohttp
-import ccxt.async_support as ccxt  # type: ignore[import-untyped]
+import ccxt.pro as ccxt  # type: ignore[import-untyped]
 
-from . import helpers, requests
-from basana.core import dispatcher
+from . import bars, helpers, requests
+from basana.core import bar, dispatcher
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair, PairInfo
 
@@ -264,6 +264,7 @@ class Exchange:
     ):
         self._dispatcher = dispatcher
         self._pair_info_cache: Dict[Pair, PairInfo] = {}
+        self._bar_event_sources: Dict[Tuple[Pair, str], bars.WatchOHLCVEventSource] = {}
 
         ccxt_config = dict(config or {})
         if api_key is not None:
@@ -448,6 +449,35 @@ class Exchange:
         symbol = None if pair is None else helpers.pair_to_symbol(pair)
         orders = await self._cli.fetch_open_orders(symbol, params=dict(kwargs))
         return [OpenOrder(order) for order in orders]
+
+    def subscribe_to_bar_events(
+            self, pair: Pair, bar_duration: str, event_handler: bar.BarEventHandler,
+            skip_first_bar: bool = True, **kwargs: Any
+    ):
+        """Registers an async callable that will be called when a new bar is available.
+
+        Uses CCXT Pro's ``watchOHLCV`` websocket method. Only closed candles are reported.
+
+        :param pair: The trading pair.
+        :param bar_duration: The bar duration as a CCXT timeframe (e.g. ``1m``, ``5m``, ``1h``).
+        :param event_handler: An async callable that receives a :class:`basana.BarEvent`.
+        :param skip_first_bar: True if the first closed candle should be skipped. This avoids receiving an
+            incomplete bar if subscription takes place in the middle of the period.
+        :param kwargs: Additional keyword arguments that will be forwarded to CCXT.
+
+        .. note::
+
+          * The target exchange must support ``watchOHLCV``. Check ``exchange.ccxt.has['watchOHLCV']`` after
+            loading markets.
+        """
+        key = (pair, bar_duration)
+        event_source = self._bar_event_sources.get(key)
+        if event_source is None:
+            event_source = bars.WatchOHLCVEventSource(
+                self._cli, pair, bar_duration, skip_first_bar=skip_first_bar, params=dict(kwargs)
+            )
+            self._bar_event_sources[key] = event_source
+        self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Decimal, Decimal]:
         """

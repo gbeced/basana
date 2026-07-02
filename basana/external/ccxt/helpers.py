@@ -15,14 +15,18 @@
 # limitations under the License.
 
 from decimal import Decimal
+import datetime
 
-import ccxt.async_support as ccxt  # type: ignore[import-untyped]
+from ccxt.base.decimal_to_precision import SIGNIFICANT_DIGITS, TICK_SIZE  # type: ignore[import-untyped]
 
-from typing import Any, Optional, Union
+from typing import Any, List, Optional, Union
 
-from basana.core import helpers as core_helpers
+from basana.core import bar, helpers as core_helpers
 from basana.core.enums import OrderOperation, PrecisionMode
 from basana.core.pair import Pair, PairInfo
+
+
+Candle = List[Union[int, float, str]]
 
 
 def to_decimal(value: Union[int, float, str, Decimal]) -> Decimal:
@@ -42,6 +46,19 @@ def pair_to_symbol(pair: Pair) -> str:
 def symbol_to_pair(symbol: str) -> Pair:
     base, quote = symbol.split("/")
     return Pair(base, quote)
+
+
+def timestamp_to_datetime(timestamp: int) -> datetime.datetime:
+    return datetime.datetime.fromtimestamp(timestamp / 1e3, tz=datetime.timezone.utc)
+
+
+def ohlcv_to_bar(pair: Pair, candle: Candle, duration_secs: int) -> bar.Bar:
+    begin = timestamp_to_datetime(int(candle[0]))
+    return bar.Bar(
+        begin, pair,
+        to_decimal(candle[1]), to_decimal(candle[2]), to_decimal(candle[3]), to_decimal(candle[4]),
+        to_decimal(candle[5]), datetime.timedelta(seconds=duration_secs)
+    )
 
 
 def order_operation_to_side(operation: OrderOperation) -> str:
@@ -78,13 +95,13 @@ def balance_symbols(balance: dict) -> set:
 
 def pair_info_from_market(market: dict, precision_mode: int) -> PairInfo:
     precision = market["precision"]
-    if precision_mode == ccxt.SIGNIFICANT_DIGITS:
+    if precision_mode == SIGNIFICANT_DIGITS:
         return PairInfo(
             base_precision=int(precision["amount"]),
             quote_precision=int(precision["price"]),
             precision_mode=PrecisionMode.SIGNIFICANT_DIGITS,
         )
-    if precision_mode == ccxt.TICK_SIZE:
+    if precision_mode == TICK_SIZE:
         base_tick_size = to_decimal(precision["amount"])
         quote_tick_size = to_decimal(precision["price"])
         return PairInfo(
