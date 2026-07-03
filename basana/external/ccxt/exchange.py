@@ -22,10 +22,14 @@ from dateutil.parser import parse as dt_parse
 import aiohttp
 import ccxt.pro as ccxt  # type: ignore[import-untyped]
 
-from . import bars, helpers, requests
+from . import bars, helpers, requests, trades
 from basana.core import bar, dispatcher
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair, PairInfo
+
+
+TradeEvent = trades.TradeEvent
+TradeEventHandler = trades.TradeEventHandler
 
 
 class Balance:
@@ -265,6 +269,7 @@ class Exchange:
         self._dispatcher = dispatcher
         self._pair_info_cache: Dict[Pair, PairInfo] = {}
         self._bar_event_sources: Dict[Tuple[Pair, str], bars.WatchOHLCVEventSource] = {}
+        self._trade_event_sources: Dict[Pair, trades.WatchTradesEventSource] = {}
 
         ccxt_config = dict(config or {})
         if api_key is not None:
@@ -477,6 +482,26 @@ class Exchange:
                 self._cli, pair, bar_duration, skip_first_bar=skip_first_bar, params=dict(kwargs)
             )
             self._bar_event_sources[key] = event_source
+        self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
+
+    def subscribe_to_public_trade_events(self, pair: Pair, event_handler: TradeEventHandler, **kwargs: Any):
+        """Registers an async callable that will be called for every new trade.
+
+        Uses CCXT Pro's ``watchTrades`` websocket method.
+
+        :param pair: The trading pair.
+        :param event_handler: An async callable that receives a :class:`TradeEvent`.
+        :param kwargs: Additional keyword arguments that will be forwarded to CCXT.
+
+        .. note::
+
+          * The target exchange must support ``watchTrades``. Check ``exchange.ccxt.has['watchTrades']`` after
+            loading markets.
+        """
+        event_source = self._trade_event_sources.get(pair)
+        if event_source is None:
+            event_source = trades.WatchTradesEventSource(self._cli, pair, params=dict(kwargs))
+            self._trade_event_sources[pair] = event_source
         self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Decimal, Decimal]:

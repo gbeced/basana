@@ -63,6 +63,7 @@ class WatchOHLCVEventSource(event.FifoQueueEventSource, event.Producer):
                 logger.error(logs.StructuredMessage(
                     "Error watching OHLCV", pair=self._pair, timeframe=self._timeframe, error=e
                 ))
+            # Yield to the event loop to allow other tasks to run.
             await asyncio.sleep(0)
 
     async def finalize(self):
@@ -70,7 +71,7 @@ class WatchOHLCVEventSource(event.FifoQueueEventSource, event.Producer):
             return
 
         try:
-            await self._cli.un_watch_ohlcv(self._symbol, self._timeframe, params=self._params)
+            await self._cli.un_watch_ohlcv(self._symbol, self._timeframe)
         except Exception as error:
             logger.error(logs.StructuredMessage(
                 "Error unwatching OHLCV", pair=self._pair, timeframe=self._timeframe, error=error

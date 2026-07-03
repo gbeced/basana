@@ -25,7 +25,7 @@ import pytest
 
 from basana.core import pair
 from basana.core.enums import OrderOperation, PrecisionMode
-from basana.external.ccxt import bars, exchange, helpers
+from basana.external.ccxt import bars, exchange, helpers, trades
 from tests.fixtures.ccxt import (
     CLIENT_ORDER_ID,
     ORDER_DATETIME,
@@ -286,7 +286,7 @@ async def test_bars(realtime_dispatcher, ccxt_exchange):
     assert last_bar.begin == datetime.datetime(1970, 1, 1, 0, 1, 1, tzinfo=datetime.timezone.utc)
     assert last_bar.duration == datetime.timedelta(seconds=60)
     ccxt_exchange._cli.watch_ohlcv.assert_awaited()
-    ccxt_exchange._cli.un_watch_ohlcv.assert_awaited_once_with("BTC/USDT", "1m", params={})
+    ccxt_exchange._cli.un_watch_ohlcv.assert_awaited_once_with("BTC/USDT", "1m")
 
 
 async def test_close(ccxt_exchange):
@@ -479,3 +479,103 @@ def test_watch_ohlcv_event_source_unsupported(ccxt_cli_mock):
     ccxt_cli_mock.has = {"watchOHLCV": False}
     with pytest.raises(NotImplementedError, match="watchOHLCV"):
         bars.WatchOHLCVEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), "1m")
+
+
+async def test_trades(realtime_dispatcher, ccxt_exchange):
+    p = pair.Pair("BTC", "USDT")
+    last_trade = None
+    trade_updates = [
+        [{
+            "id": "1",
+            "timestamp": 1_000,
+            "price": "100",
+            "amount": "1",
+            "info": {"b": 10, "a": 20},
+        }],
+        [
+            {
+                "id": "1",
+                "timestamp": 1_000,
+                "price": "100",
+                "amount": "1",
+                "info": {"b": 10, "a": 20},
+            },
+            {
+                "id": "2",
+                "timestamp": 2_000,
+                "price": "101",
+                "amount": "2",
+                "info": {"b": 11, "a": 21},
+            },
+        ],
+    ]
+    call_count = {"n": 0}
+
+    async def watch_trades(*args, **kwargs):
+        ret = trade_updates[min(call_count["n"], len(trade_updates) - 1)]
+        call_count["n"] += 1
+        return ret
+
+    ccxt_exchange._cli.watch_trades = mock.AsyncMock(side_effect=watch_trades)
+
+    async def on_trade_event(trade_event):
+        nonlocal last_trade
+        last_trade = trade_event.trade
+        if last_trade.id == "2":
+            realtime_dispatcher.stop()
+
+    ccxt_exchange.subscribe_to_public_trade_events(p, on_trade_event)
+    await realtime_dispatcher.run()
+
+    assert last_trade is not None
+    assert last_trade.pair == p
+    assert last_trade.id == "2"
+    assert last_trade.datetime == datetime.datetime(1970, 1, 1, 0, 0, 2, tzinfo=datetime.timezone.utc)
+    assert last_trade.price == Decimal("101")
+    assert last_trade.amount == Decimal("2")
+    assert last_trade.buy_order_id == "11"
+    assert last_trade.sell_order_id == "21"
+    ccxt_exchange._cli.watch_trades.assert_awaited()
+    ccxt_exchange._cli.un_watch_trades.assert_awaited_once_with("BTC/USDT")
+
+
+def test_trade_optional_order_ids():
+    trade = trades.Trade(pair.Pair("BTC", "USDT"), {
+        "id": "1",
+        "timestamp": 1_000,
+        "price": "100",
+        "amount": "1",
+    })
+    assert trade.buy_order_id is None
+    assert trade.sell_order_id is None
+
+
+async def test_watch_trades_event_source_main_error(ccxt_cli_mock, caplog):
+    ccxt_cli_mock.watch_trades = mock.AsyncMock(side_effect=Exception("error"))
+    event_source = trades.WatchTradesEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
+    task = asyncio.create_task(event_source.main())
+    await asyncio.sleep(0)
+    assert "Error watching trades" in caplog.text
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+async def test_watch_trades_event_source_finalize_error(ccxt_cli_mock, caplog):
+    ccxt_cli_mock.un_watch_trades = mock.AsyncMock(side_effect=Exception("error"))
+    event_source = trades.WatchTradesEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
+    await event_source.finalize()
+    assert "Error unwatching trades" in caplog.text
+
+
+async def test_watch_trades_event_source_finalize_unsupported(ccxt_cli_mock):
+    ccxt_cli_mock.has = {"watchTrades": True, "unWatchTrades": False}
+    event_source = trades.WatchTradesEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
+    await event_source.finalize()
+    ccxt_cli_mock.un_watch_trades.assert_not_awaited()
+
+
+def test_watch_trades_event_source_unsupported(ccxt_cli_mock):
+    ccxt_cli_mock.has = {"watchTrades": False}
+    with pytest.raises(NotImplementedError, match="watchTrades"):
+        trades.WatchTradesEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
