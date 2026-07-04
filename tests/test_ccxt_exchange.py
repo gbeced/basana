@@ -25,7 +25,7 @@ import pytest
 
 from basana.core import pair
 from basana.core.enums import OrderOperation, PrecisionMode
-from basana.external.ccxt import bars, exchange, helpers, trades
+from basana.external.ccxt import bars, exchange, helpers, order_book, trades
 from tests.fixtures.ccxt import (
     CLIENT_ORDER_ID,
     ORDER_DATETIME,
@@ -579,3 +579,102 @@ def test_watch_trades_event_source_unsupported(ccxt_cli_mock):
     ccxt_cli_mock.has = {"watchTrades": False}
     with pytest.raises(NotImplementedError, match="watchTrades"):
         trades.WatchTradesEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
+
+
+async def test_order_book(realtime_dispatcher, ccxt_exchange):
+    p = pair.Pair("BTC", "USDT")
+    last_ob = None
+    order_book_updates = [
+        {
+            "bids": [["16757.47", "0.04893000"]],
+            "asks": [["16758.13", "0.00682000"]],
+            "nonce": 1,
+            "timestamp": 1_000,
+        },
+        {
+            "bids": [["16757.48", "0.04893000"]],
+            "asks": [["16758.14", "0.00682000"]],
+            "nonce": 2,
+            "timestamp": 2_000,
+        },
+    ]
+    call_count = {"n": 0}
+
+    async def watch_order_book(*args, **kwargs):
+        ret = order_book_updates[min(call_count["n"], len(order_book_updates) - 1)]
+        call_count["n"] += 1
+        return ret
+
+    ccxt_exchange._cli.watch_order_book = mock.AsyncMock(side_effect=watch_order_book)
+
+    async def on_order_book_event(order_book_event):
+        nonlocal last_ob
+        last_ob = order_book_event.order_book
+        if last_ob.raw["timestamp"] == 2_000:
+            realtime_dispatcher.stop()
+
+    ccxt_exchange.subscribe_to_order_book_events(p, on_order_book_event)
+    await realtime_dispatcher.run()
+
+    assert last_ob is not None
+    assert last_ob.pair == p
+    assert last_ob.raw["timestamp"] == 2_000
+    assert last_ob.bids[0].price == Decimal("16757.48")
+    assert last_ob.bids[0].volume == Decimal("0.04893000")
+    assert last_ob.asks[0].price == Decimal("16758.14")
+    assert last_ob.asks[0].volume == Decimal("0.00682000")
+    ccxt_exchange._cli.watch_order_book.assert_awaited_with("BTC/USDT", None, params={})
+    ccxt_exchange._cli.un_watch_order_book.assert_awaited_once_with("BTC/USDT", params={})
+
+
+def test_partial_order_book_without_optional_fields():
+    ob = order_book.PartialOrderBook(pair.Pair("BTC", "USDT"), {
+        "bids": [["100", "1"]],
+        "asks": [["101", "2"]],
+    })
+    assert ob.bids[0].price == Decimal("100")
+    assert ob.asks[0].price == Decimal("101")
+
+
+async def test_watch_order_book_event_source_main_error(ccxt_cli_mock, caplog):
+    ccxt_cli_mock.watch_order_book = mock.AsyncMock(side_effect=Exception("error"))
+    event_source = order_book.WatchOrderBookEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), 10)
+    task = asyncio.create_task(event_source.main())
+    await asyncio.sleep(0)
+    assert "Error watching order book" in caplog.text
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+async def test_watch_order_book_event_source_finalize_error(ccxt_cli_mock, caplog):
+    ccxt_cli_mock.un_watch_order_book = mock.AsyncMock(side_effect=Exception("error"))
+    event_source = order_book.WatchOrderBookEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), 10)
+    await event_source.finalize()
+    assert "Error unwatching order book" in caplog.text
+
+
+async def test_watch_order_book_event_source_finalize_unsupported(ccxt_cli_mock):
+    ccxt_cli_mock.has = {"watchOrderBook": True, "unWatchOrderBook": False}
+    event_source = order_book.WatchOrderBookEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), 10)
+    await event_source.finalize()
+    ccxt_cli_mock.un_watch_order_book.assert_not_awaited()
+
+
+def test_watch_order_book_event_source_unsupported(ccxt_cli_mock):
+    ccxt_cli_mock.has = {"watchOrderBook": False}
+    with pytest.raises(NotImplementedError, match="watchOrderBook"):
+        order_book.WatchOrderBookEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), 10)
+
+
+def test_watch_order_book_event_source_without_timestamp(ccxt_cli_mock):
+    event_source = order_book.WatchOrderBookEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), 10)
+    event_source._handle_order_book({
+        "bids": [["100", "1"]],
+        "asks": [["101", "2"]],
+        "nonce": 1,
+    })
+    event = event_source.pop()
+    assert event is not None
+    assert event.order_book.bids[0].price == Decimal("100")
+    assert event.order_book.raw["nonce"] == 1

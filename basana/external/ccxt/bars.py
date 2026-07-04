@@ -57,7 +57,6 @@ class WatchOHLCVEventSource(event.FifoQueueEventSource, event.Producer):
         while True:
             try:
                 ohlcv = await self._cli.watch_ohlcv(self._symbol, self._timeframe, params=self._params)
-                ohlcv.reverse()
                 self._handle_ohlcv(ohlcv)
             except Exception as e:
                 logger.error(logs.StructuredMessage(
@@ -78,6 +77,8 @@ class WatchOHLCVEventSource(event.FifoQueueEventSource, event.Producer):
             ))
 
     def _handle_ohlcv(self, ohlcv: List[helpers.Candle]):
+        # Returns: Array<Array<int>> - A list of candles ordered as timestamp, open, high, low, close, volume
+        ohlcv.reverse()
         for item in ohlcv:
             if self._last_ohlcv and item[0] != self._last_ohlcv[0]:
                 self._push_last()

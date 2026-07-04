@@ -22,7 +22,7 @@ from dateutil.parser import parse as dt_parse
 import aiohttp
 import ccxt.pro as ccxt  # type: ignore[import-untyped]
 
-from . import bars, helpers, requests, trades
+from . import bars, helpers, order_book, requests, trades
 from basana.core import bar, dispatcher
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair, PairInfo
@@ -30,6 +30,9 @@ from basana.core.pair import Pair, PairInfo
 
 TradeEvent = trades.TradeEvent
 TradeEventHandler = trades.TradeEventHandler
+PartialOrderBook = order_book.PartialOrderBook
+PartialOrderBookEvent = order_book.PartialOrderBookEvent
+PartialOrderBookEventHandler = order_book.PartialOrderBookEventHandler
 
 
 class Balance:
@@ -253,7 +256,7 @@ class Exchange:
     :attr:`ccxt`.
 
     :param dispatcher: The event dispatcher.
-    :param exchange_id: The CCXT exchange id (e.g. ``binance``, ``bitstamp``).
+    :param exchange_id: The CCXT exchange id.
     :param api_key: An optional api key.
     :param api_secret: An optional api secret.
     :param session: An optional client session, in case you want to reuse connections.
@@ -270,6 +273,7 @@ class Exchange:
         self._pair_info_cache: Dict[Pair, PairInfo] = {}
         self._bar_event_sources: Dict[Tuple[Pair, str], bars.WatchOHLCVEventSource] = {}
         self._trade_event_sources: Dict[Pair, trades.WatchTradesEventSource] = {}
+        self._order_book_event_sources: Dict[Tuple[Pair, Optional[int]], order_book.WatchOrderBookEventSource] = {}
 
         ccxt_config = dict(config or {})
         if api_key is not None:
@@ -502,6 +506,33 @@ class Exchange:
         if event_source is None:
             event_source = trades.WatchTradesEventSource(self._cli, pair, params=dict(kwargs))
             self._trade_event_sources[pair] = event_source
+        self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
+
+    def subscribe_to_order_book_events(
+            self, pair: Pair, event_handler: PartialOrderBookEventHandler,
+            depth: Optional[int] = None, **kwargs: Any
+    ):
+        """Registers an async callable that will be called with the top bids/asks of the order book.
+
+        Uses CCXT Pro's ``watchOrderBook`` websocket method.
+
+        :param pair: The trading pair.
+        :param event_handler: An async callable that receives a :class:`PartialOrderBookEvent`.
+        :param depth: The order book depth. If not set, CCXT's default depth is used.
+        :param kwargs: Additional keyword arguments that will be forwarded to CCXT.
+
+        .. note::
+
+          * The target exchange must support ``watchOrderBook``. Check ``exchange.ccxt.has['watchOrderBook']`` after
+            loading markets.
+        """
+        key = (pair, depth)
+        event_source = self._order_book_event_sources.get(key)
+        if event_source is None:
+            event_source = order_book.WatchOrderBookEventSource(
+                self._cli, pair, depth, params=dict(kwargs)
+            )
+            self._order_book_event_sources[key] = event_source
         self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Decimal, Decimal]:

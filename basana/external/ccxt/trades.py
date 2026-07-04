@@ -119,6 +119,7 @@ class WatchTradesEventSource(event.FifoQueueEventSource, event.Producer):
             ))
 
     def _handle_trades(self, trades: List[dict]):
+        trades.sort(key=lambda trade: int(trade["timestamp"]))
         for trade in trades:
             when = helpers.timestamp_to_datetime(int(trade["timestamp"]))
             self.push(TradeEvent(when, Trade(self._pair, trade)))

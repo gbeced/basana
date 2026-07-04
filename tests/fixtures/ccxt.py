@@ -158,7 +158,11 @@ async def binance_ccxt_kline_server(websocket, klines, subscribe_params):
 @pytest.fixture()
 def ccxt_cli_mock():
     cli = mock.MagicMock()
-    cli.has = {"watchOHLCV": True, "unWatchOHLCV": True, "watchTrades": True, "unWatchTrades": True}
+    cli.has = {
+        "watchOHLCV": True, "unWatchOHLCV": True,
+        "watchTrades": True, "unWatchTrades": True,
+        "watchOrderBook": True, "unWatchOrderBook": True,
+    }
     cli.precisionMode = DECIMAL_PLACES
     cli.fetch_ticker = mock.AsyncMock(return_value={
         "bid": "16757.47",
@@ -256,6 +260,8 @@ def ccxt_cli_mock():
     cli.un_watch_ohlcv = mock.AsyncMock()
     cli.watch_trades = mock.AsyncMock()
     cli.un_watch_trades = mock.AsyncMock()
+    cli.watch_order_book = mock.AsyncMock()
+    cli.un_watch_order_book = mock.AsyncMock()
     cli.parse_timeframe = mock.Mock(return_value=60)
     cli.timeframes = {
         "1m": "1m",
