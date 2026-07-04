@@ -29,42 +29,42 @@ logger = logging.getLogger(__name__)
 
 
 class Trade:
-    def __init__(self, pair: Pair, json: dict):
+    def __init__(self, pair: Pair, raw: dict):
         #: The trading pair.
         self.pair: Pair = pair
-        #: The JSON representation.
-        self.json: dict = json
+        #: The raw value returned by CCXT.
+        self.raw: dict = raw
 
     @property
     def id(self) -> str:
         """The trade id."""
-        return str(self.json["id"])
+        return str(self.raw["id"])
 
     @property
     def datetime(self) -> datetime.datetime:
         """The trade datetime."""
-        return helpers.timestamp_to_datetime(int(self.json["timestamp"]))
+        return helpers.timestamp_to_datetime(int(self.raw["timestamp"]))
 
     @property
     def price(self) -> Decimal:
         """The price."""
-        return helpers.to_decimal(self.json["price"])
+        return helpers.to_decimal(self.raw["price"])
 
     @property
     def amount(self) -> Decimal:
         """The amount."""
-        return helpers.to_decimal(self.json["amount"])
+        return helpers.to_decimal(self.raw["amount"])
 
     @property
     def buy_order_id(self) -> Optional[str]:
         """The buyer order id."""
-        buy_order_id = self.json.get("info", {}).get("b")
+        buy_order_id = self.raw.get("info", {}).get("b")
         return None if buy_order_id is None else str(buy_order_id)
 
     @property
     def sell_order_id(self) -> Optional[str]:
         """The seller order id."""
-        sell_order_id = self.json.get("info", {}).get("a")
+        sell_order_id = self.raw.get("info", {}).get("a")
         return None if sell_order_id is None else str(sell_order_id)
 
 
