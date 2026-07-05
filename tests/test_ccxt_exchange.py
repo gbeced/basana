@@ -25,7 +25,7 @@ import pytest
 
 from basana.core import pair
 from basana.core.enums import OrderOperation, PrecisionMode
-from basana.external.ccxt import bars, exchange, helpers, order_book, trades
+from basana.external.ccxt import bars, exchange, helpers, order_book, orders, trades
 from tests.fixtures.ccxt import (
     CLIENT_ORDER_ID,
     ORDER_DATETIME,
@@ -223,27 +223,6 @@ async def test_cancel_order(order_id, client_order_id, expected_lookup_id, ccxt_
     )
 
 
-@pytest.mark.parametrize("trading_pair, expected_symbol", [
-    (None, None),
-    (pair.Pair("BTC", "USDT"), "BTC/USDT"),
-])
-async def test_get_open_orders(trading_pair, expected_symbol, ccxt_exchange):
-    open_orders = await ccxt_exchange.get_open_orders(trading_pair)
-    assert len(open_orders) == 1
-    open_order = open_orders[0]
-    assert open_order.id == "1539419698798592"
-    assert open_order.datetime == ORDER_DATETIME
-    assert open_order.operation == OrderOperation.BUY
-    assert open_order.type == "limit"
-    assert open_order.limit_price == Decimal("10")
-    assert open_order.amount == Decimal("1")
-    assert open_order.amount_filled == Decimal("0.5")
-    assert open_order.pair == pair.Pair("BTC", "USDT")
-    assert open_order.client_order_id == CLIENT_ORDER_ID
-
-    ccxt_exchange._cli.fetch_open_orders.assert_awaited_once_with(expected_symbol, params={})
-
-
 async def test_bars(realtime_dispatcher, ccxt_exchange):
     p = pair.Pair("BTC", "USDT")
     last_bar = None
@@ -394,21 +373,6 @@ def test_order_info_optional_fields():
         "stopPrice": "100",
     })
     assert order_info_with_stop.stop_price == Decimal("100")
-
-
-def test_open_order_optional_fields():
-    open_order = exchange.OpenOrder({
-        "id": "1",
-        "datetime": "2022-09-30T16:47:12.583Z",
-        "symbol": "BTC/USDT",
-        "type": "market",
-        "side": "buy",
-        "amount": "1",
-        "filled": 0,
-    })
-    assert open_order.limit_price is None
-    assert open_order.stop_price is None
-    assert open_order.client_order_id is None
 
 
 def test_canceled_order_optional_price():
@@ -678,3 +642,135 @@ def test_watch_order_book_event_source_without_timestamp(ccxt_cli_mock):
     assert event is not None
     assert event.order_book.bids[0].price == Decimal("100")
     assert event.order_book.raw["nonce"] == 1
+
+
+async def test_private_orders(realtime_dispatcher, ccxt_exchange):
+    p = pair.Pair("BTC", "USDT")
+    last_order = None
+    order_updates = [
+        [{
+            "id": "1",
+            "lastTradeTimestamp": 1_000,
+            "symbol": "BTC/USDT",
+            "type": "limit",
+            "side": "buy",
+            "price": "10",
+            "amount": "1",
+            "filled": "0",
+            "remaining": "1",
+            "cost": "0",
+            "status": "open",
+            "clientOrderId": CLIENT_ORDER_ID,
+        }],
+        [{
+            "id": "2",
+            "lastTradeTimestamp": 2_000,
+            "symbol": "BTC/USDT",
+            "type": "limit",
+            "side": "buy",
+            "price": "10",
+            "amount": "1",
+            "filled": "0.5",
+            "remaining": "0.5",
+            "cost": "5",
+            "status": "open",
+            "clientOrderId": CLIENT_ORDER_ID,
+        }],
+    ]
+    call_count = {"n": 0}
+
+    async def watch_orders(*args, **kwargs):
+        ret = order_updates[min(call_count["n"], len(order_updates) - 1)]
+        call_count["n"] += 1
+        return ret
+
+    ccxt_exchange._cli.watch_orders = mock.AsyncMock(side_effect=watch_orders)
+
+    async def on_order_event(order_event):
+        nonlocal last_order
+        last_order = order_event.order
+        if last_order.id == "2":
+            realtime_dispatcher.stop()
+
+    ccxt_exchange.subscribe_to_private_order_events(p, on_order_event)
+    await realtime_dispatcher.run()
+
+    assert last_order is not None
+    assert last_order.pair == p
+    assert last_order.id == "2"
+    assert last_order.operation == OrderOperation.BUY
+    assert last_order.type == "limit"
+    assert last_order.is_open is True
+    assert last_order.amount == Decimal("1")
+    assert last_order.amount_filled == Decimal("0.5")
+    assert last_order.amount_remaining == Decimal("0.5")
+    assert last_order.limit_price == Decimal("10")
+    assert last_order.fill_price == Decimal("10")
+    assert last_order.client_order_id == CLIENT_ORDER_ID
+    ccxt_exchange._cli.watch_orders.assert_awaited_with("BTC/USDT", params={})
+    ccxt_exchange._cli.un_watch_orders.assert_awaited_once_with("BTC/USDT", params={})
+
+
+def test_order_optional_fields():
+    order = orders.Order(pair.Pair("BTC", "USDT"), {
+        "id": "1",
+        "symbol": "BTC/USDT",
+        "type": "market",
+        "side": "buy",
+        "amount": "1",
+        "filled": 0,
+        "remaining": "1",
+        "status": "open",
+    })
+    assert order.limit_price is None
+    assert order.stop_price is None
+    assert order.fill_price is None
+    assert order.client_order_id is None
+
+
+async def test_watch_orders_event_source_main_error(ccxt_cli_mock, caplog):
+    ccxt_cli_mock.watch_orders = mock.AsyncMock(side_effect=Exception("error"))
+    event_source = orders.WatchOrdersEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
+    task = asyncio.create_task(event_source.main())
+    await asyncio.sleep(0)
+    assert "Error watching orders" in caplog.text
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+
+async def test_watch_orders_event_source_finalize_error(ccxt_cli_mock, caplog):
+    ccxt_cli_mock.un_watch_orders = mock.AsyncMock(side_effect=Exception("error"))
+    event_source = orders.WatchOrdersEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
+    await event_source.finalize()
+    assert "Error unwatching orders" in caplog.text
+
+
+async def test_watch_orders_event_source_finalize_unsupported(ccxt_cli_mock):
+    ccxt_cli_mock.has = {"watchOrders": True, "unWatchOrders": False}
+    event_source = orders.WatchOrdersEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
+    await event_source.finalize()
+    ccxt_cli_mock.un_watch_orders.assert_not_awaited()
+
+
+def test_watch_orders_event_source_unsupported(ccxt_cli_mock):
+    ccxt_cli_mock.has = {"watchOrders": False}
+    with pytest.raises(NotImplementedError, match="watchOrders"):
+        orders.WatchOrdersEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
+
+
+def test_watch_orders_event_source_without_timestamp(ccxt_cli_mock):
+    event_source = orders.WatchOrdersEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
+    event_source._handle_orders([{
+        "id": "1",
+        "symbol": "BTC/USDT",
+        "type": "market",
+        "side": "buy",
+        "amount": "1",
+        "filled": 0,
+        "remaining": "1",
+        "status": "open",
+    }])
+    event = event_source.pop()
+    assert event is not None
+    assert event.order.id == "1"

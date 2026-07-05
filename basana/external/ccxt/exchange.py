@@ -15,14 +15,14 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import cast, Any, Dict, List, Optional, Tuple
+from typing import cast, Any, Dict, Optional, Tuple
 import datetime
 
 from dateutil.parser import parse as dt_parse
 import aiohttp
 import ccxt.pro as ccxt  # type: ignore[import-untyped]
 
-from . import bars, helpers, order_book, requests, trades
+from . import bars, helpers, order_book, orders, requests, trades
 from basana.core import bar, dispatcher
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair, PairInfo
@@ -33,6 +33,8 @@ TradeEventHandler = trades.TradeEventHandler
 PartialOrderBook = order_book.PartialOrderBook
 PartialOrderBookEvent = order_book.PartialOrderBookEvent
 PartialOrderBookEventHandler = order_book.PartialOrderBookEventHandler
+OrderEvent = orders.OrderEvent
+OrderEventHandler = orders.OrderEventHandler
 
 
 class Balance:
@@ -151,61 +153,6 @@ class CanceledOrder:
         return self.json.get("clientOrderId")
 
 
-class OpenOrder:
-    def __init__(self, json: dict):
-        self.json = json
-
-    @property
-    def id(self) -> str:
-        """The order id."""
-        return str(self.json["id"])
-
-    @property
-    def datetime(self) -> datetime.datetime:
-        """The creation datetime."""
-        return dt_parse(self.json["datetime"]).replace(tzinfo=datetime.timezone.utc)
-
-    @property
-    def operation(self) -> OrderOperation:
-        """The operation."""
-        return helpers.side_to_order_operation(self.json["side"])
-
-    @property
-    def type(self) -> str:
-        """The type of order."""
-        return self.json["type"]
-
-    @property
-    def limit_price(self) -> Optional[Decimal]:
-        """The limit price."""
-        return helpers.optional_decimal(self.json.get("price"))
-
-    @property
-    def stop_price(self) -> Optional[Decimal]:
-        """The stop price."""
-        return helpers.optional_decimal(self.json.get("stopPrice"))
-
-    @property
-    def amount(self) -> Decimal:
-        """The amount."""
-        return helpers.to_decimal(self.json["amount"])
-
-    @property
-    def amount_filled(self) -> Decimal:
-        """The amount filled."""
-        return helpers.to_decimal(self.json.get("filled", 0))
-
-    @property
-    def pair(self) -> Pair:
-        """The trading pair."""
-        return helpers.symbol_to_pair(self.json["symbol"])
-
-    @property
-    def client_order_id(self) -> Optional[str]:
-        """The client order id."""
-        return self.json.get("clientOrderId")
-
-
 class CreatedOrder:
     def __init__(self, json: dict):
         self.json = json
@@ -274,6 +221,7 @@ class Exchange:
         self._bar_event_sources: Dict[Tuple[Pair, str], bars.WatchOHLCVEventSource] = {}
         self._trade_event_sources: Dict[Pair, trades.WatchTradesEventSource] = {}
         self._order_book_event_sources: Dict[Tuple[Pair, Optional[int]], order_book.WatchOrderBookEventSource] = {}
+        self._order_event_sources: Dict[Pair, orders.WatchOrdersEventSource] = {}
 
         ccxt_config = dict(config or {})
         if api_key is not None:
@@ -446,19 +394,6 @@ class Exchange:
         canceled_order = await self._cli.cancel_order(lookup_id, symbol, params)
         return CanceledOrder(canceled_order)
 
-    async def get_open_orders(
-            self, pair: Optional[Pair] = None, **kwargs: Any
-    ) -> List[OpenOrder]:
-        """Returns open orders.
-
-        :param pair: If set, only open orders matching this pair will be returned, otherwise all open orders will be
-            returned.
-        :param kwargs: Additional keyword arguments that will be forwarded.
-        """
-        symbol = None if pair is None else helpers.pair_to_symbol(pair)
-        orders = await self._cli.fetch_open_orders(symbol, params=dict(kwargs))
-        return [OpenOrder(order) for order in orders]
-
     def subscribe_to_bar_events(
             self, pair: Pair, bar_duration: str, event_handler: bar.BarEventHandler,
             skip_first_bar: bool = True, **kwargs: Any
@@ -533,6 +468,29 @@ class Exchange:
                 self._cli, pair, depth, params=dict(kwargs)
             )
             self._order_book_event_sources[key] = event_source
+        self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
+
+    def subscribe_to_private_order_events(
+            self, pair: Pair, event_handler: OrderEventHandler, **kwargs: Any
+    ):
+        """Registers an async callable that will be called when your own orders are updated.
+
+        Uses CCXT Pro's ``watchOrders`` websocket method.
+
+        :param pair: The trading pair.
+        :param event_handler: An async callable that receives an :class:`OrderEvent`.
+        :param kwargs: Additional keyword arguments that will be forwarded to CCXT.
+
+        .. note::
+
+          * The target exchange must support ``watchOrders``. Check ``exchange.ccxt.has['watchOrders']`` after
+            loading markets.
+          * API credentials must be configured when creating the exchange.
+        """
+        event_source = self._order_event_sources.get(pair)
+        if event_source is None:
+            event_source = orders.WatchOrdersEventSource(self._cli, pair, params=dict(kwargs))
+            self._order_event_sources[pair] = event_source
         self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
 
     async def get_bid_ask(self, pair: Pair) -> Tuple[Decimal, Decimal]:
