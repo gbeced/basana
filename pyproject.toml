@@ -23,7 +23,7 @@ charts = [
     "plotly>=6.7.0,<7",
     "kaleido>=1.2.0,<2",
 ]
-cctx = [
+ccxt = [
     "ccxt>=4.4,<5",
 ]
 

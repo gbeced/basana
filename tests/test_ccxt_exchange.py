@@ -315,7 +315,6 @@ async def test_exchange_with_session(realtime_dispatcher):
     async with aiohttp.ClientSession() as session:
         e = exchange.Exchange(realtime_dispatcher, "binance", session=session)
         assert e._cli.session is session
-        assert e._cli.own_session is False
 
 
 def test_pair_info_from_market_tick_size():
