@@ -12,7 +12,7 @@ Basana requires Python 3.10 or above and to install the package you can use the 
 
 .. code-block:: console
 
-   $ pip install basana[charts]
+   $ pip install basana[charts,ccxt]
 
 The `examples at GitHub <https://github.com/gbeced/basana/tree/master/samples>`_ take advantage of TALIpp, Pandas and statsmodels.
 These can be installed using the following command:

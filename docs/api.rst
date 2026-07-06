@@ -23,3 +23,7 @@ API Reference
     bitstamp_order_book
     bitstamp_orders
     bitstamp_trades
+    ccxt_exchange
+    ccxt_order_book
+    ccxt_orders
+    ccxt_trades
