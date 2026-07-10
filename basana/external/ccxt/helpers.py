@@ -19,14 +19,11 @@ import datetime
 
 from ccxt.base.decimal_to_precision import SIGNIFICANT_DIGITS, TICK_SIZE  # type: ignore[import-untyped]
 
-from typing import Any, List, Optional, Union
+from typing import Any, Optional, Union
 
-from basana.core import bar, helpers as core_helpers
+from basana.core import helpers as core_helpers
 from basana.core.enums import OrderOperation, PrecisionMode
 from basana.core.pair import Pair, PairInfo
-
-
-Candle = List[Union[int, float, str]]
 
 
 def to_decimal(value: Union[int, float, str, Decimal]) -> Decimal:
@@ -50,15 +47,6 @@ def symbol_to_pair(symbol: str) -> Pair:
 
 def timestamp_to_datetime(timestamp: int) -> datetime.datetime:
     return datetime.datetime.fromtimestamp(timestamp / 1e3, tz=datetime.timezone.utc)
-
-
-def ohlcv_to_bar(pair: Pair, candle: Candle, duration_secs: int) -> bar.Bar:
-    begin = timestamp_to_datetime(int(candle[0]))
-    return bar.Bar(
-        begin, pair,
-        to_decimal(candle[1]), to_decimal(candle[2]), to_decimal(candle[3]), to_decimal(candle[4]),
-        to_decimal(candle[5]), datetime.timedelta(seconds=duration_secs)
-    )
 
 
 def order_operation_to_side(operation: OrderOperation) -> str:

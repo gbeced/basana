@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import asyncio
 import datetime
 import logging
@@ -27,12 +27,25 @@ from basana.core.pair import Pair
 logger = logging.getLogger(__name__)
 
 
+class Candle:
+    def __init__(self, ohlcv: List[Union[int, float, str]]):
+        self.raw = ohlcv
+        self.timestamp = int(ohlcv[0])
+        # Smaller timestamps, and smaller volumes go first
+        self.sort_key = (self.timestamp, helpers.to_decimal(self.raw[5]))
+
+    def to_bar(self, pair: Pair, duration: datetime.timedelta):
+        begin = helpers.timestamp_to_datetime(self.timestamp)
+        return bar.Bar(
+            begin, pair,
+            helpers.to_decimal(self.raw[1]), helpers.to_decimal(self.raw[2]),
+            helpers.to_decimal(self.raw[3]), helpers.to_decimal(self.raw[4]),
+            helpers.to_decimal(self.raw[5]), duration
+        )
+
 
 class WatchOHLCVEventSource(event.FifoQueueEventSource, event.Producer):
-    def __init__(
-            self, cli: Any, pair: Pair, timeframe: str, skip_first_bar: bool = True,
-            params: Optional[Dict[str, Any]] = None
-    ):
+    def __init__( self, cli: Any, pair: Pair, timeframe: str, params: Optional[Dict[str, Any]] = None):
         if timeframe not in cli.timeframes:
             raise ValueError(f"Invalid bar_duration: {timeframe}")
 
@@ -44,14 +57,12 @@ class WatchOHLCVEventSource(event.FifoQueueEventSource, event.Producer):
         self._pair = pair
         self._symbol = helpers.pair_to_symbol(pair)
         self._timeframe = timeframe
-        self._skip_first_bar = skip_first_bar
         self._params = dict(params or {})
-        self._duration_secs: Optional[int] = None
-        self._last_ohlcv: Optional[helpers.Candle] = None
+        self._duration_secs = self._cli.parse_timeframe(self._timeframe)
+        self._last_candle: Optional[Candle] = None
 
     async def initialize(self):
         await self._cli.load_markets()
-        self._duration_secs = self._cli.parse_timeframe(self._timeframe)
 
     async def main(self):
         while True:
@@ -76,20 +87,25 @@ class WatchOHLCVEventSource(event.FifoQueueEventSource, event.Producer):
                 "Error unwatching OHLCV", pair=self._pair, timeframe=self._timeframe, error=error
             ))
 
-    def _handle_ohlcv(self, ohlcv: List[helpers.Candle]):
-        # Returns: Array<Array<int>> - A list of candles ordered as timestamp, open, high, low, close, volume
-        ohlcv.reverse()
-        for item in ohlcv:
-            if self._last_ohlcv and item[0] != self._last_ohlcv[0]:
+    def _handle_ohlcv(self, ohlcv: list):
+        candles = list(map(Candle, ohlcv))
+        candles.sort(key=lambda candle: candle.sort_key)
+        for candle in candles:
+            if self._last_candle is None:
+                self._last_candle = candle
+            elif candle.timestamp > self._last_candle.timestamp:
                 self._push_last()
-            self._last_ohlcv = item
+                self._last_candle = candle
+            elif candle.timestamp == self._last_candle.timestamp:
+                self._last_candle = candle
+            else:
+                logger.error(logs.StructuredMessage(
+                    "Ignoring out of order candle", previous=self._last_candle.raw, received=candle.raw
+                ))
 
     def _push_last(self):
-        assert self._last_ohlcv is not None
+        assert self._last_candle is not None
 
-        if self._skip_first_bar:
-            self._skip_first_bar = False
-        else:
-            candle_bar = helpers.ohlcv_to_bar(self._pair, self._last_ohlcv, self._duration_secs)
-            when = candle_bar.begin + datetime.timedelta(seconds=self._duration_secs)
-            self.push(bar.BarEvent(when, candle_bar))
+        candle_bar = self._last_candle.to_bar(self._pair, datetime.timedelta(seconds=self._duration_secs))
+        when = candle_bar.begin + candle_bar.duration
+        self.push(bar.BarEvent(when, candle_bar))

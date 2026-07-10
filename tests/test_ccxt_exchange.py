@@ -14,10 +14,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import asyncio
-import datetime
 from decimal import Decimal
 from unittest import mock
+import asyncio
+import datetime
 
 import aiohttp
 from ccxt.base.decimal_to_precision import DECIMAL_PLACES, SIGNIFICANT_DIGITS, TICK_SIZE
@@ -225,45 +225,63 @@ async def test_cancel_order(order_id, client_order_id, expected_lookup_id, ccxt_
 
 async def test_bars(realtime_dispatcher, ccxt_exchange):
     p = pair.Pair("BTC", "USDT")
+    first_bar = None
     last_bar = None
+
     ohlcv_updates = [
-        [[1_000, "0.001", "0.0025", "0.0005", "0.002", "1000"]],
         [
-            [1_000, "0.001", "0.0025", "0.0005", "0.002", "1000"],
-            [61_000, "0.002", "0.003", "0.0015", "0.0025", "50"],
+            [1_000, "0.001", "0.0025", "0.0005", "0.002", "1000"]
         ],
         [
-            [1_000, "0.001", "0.0025", "0.0005", "0.002", "1000"],
-            [61_000, "0.002", "0.003", "0.0015", "0.0025", "50"],
+            [1_000, "0.001", "0.0025", "0.0005", "0.002", "1111"],  # This should be the first bar event.
+            [61_000, "0.002", "0.003", "0.0015", "0.0025", "49"],
+        ],
+        [
+            [1_000, "0.001", "0.0025", "0.0005", "0.002", "1112"],  # Out of order, should get ignored.
+            [61_000, "0.002", "0.003", "0.0015", "0.0029", "2222"],  # This should be the last bar event.
             [121_000, "0.0025", "0.0035", "0.002", "0.003", "10"],
         ],
     ]
     call_count = {"n": 0}
 
     async def watch_ohlcv(*args, **kwargs):
-        ret = ohlcv_updates[min(call_count["n"], len(ohlcv_updates) - 1)]
+        ret = ohlcv_updates[call_count["n"]] if call_count["n"] < len(ohlcv_updates) else []
         call_count["n"] += 1
+        await asyncio.sleep(0)
         return ret
 
     ccxt_exchange._cli.watch_ohlcv = mock.AsyncMock(side_effect=watch_ohlcv)
 
     async def on_bar_event(bar_event):
+        nonlocal first_bar
         nonlocal last_bar
+
+        if first_bar is None:
+            first_bar = bar_event.bar
         last_bar = bar_event.bar
-        realtime_dispatcher.stop()
+
+        if first_bar is not None and last_bar is not None and first_bar != last_bar:
+            realtime_dispatcher.stop()
 
     ccxt_exchange.subscribe_to_bar_events(p, "1m", on_bar_event)
     await realtime_dispatcher.run()
 
+    assert first_bar is not None
     assert last_bar is not None
+    assert first_bar != last_bar
+
+    assert first_bar.begin == datetime.datetime(1970, 1, 1, 0, 0, 1, tzinfo=datetime.timezone.utc)
+    assert first_bar.volume == Decimal("1111")
+
+    assert last_bar.begin == datetime.datetime(1970, 1, 1, 0, 1, 1, tzinfo=datetime.timezone.utc)
+    assert last_bar.volume == Decimal("2222")
     assert last_bar.pair == p
     assert last_bar.open == Decimal("0.002")
     assert last_bar.high == Decimal("0.003")
     assert last_bar.low == Decimal("0.0015")
-    assert last_bar.close == Decimal("0.0025")
-    assert last_bar.volume == Decimal("50")
-    assert last_bar.begin == datetime.datetime(1970, 1, 1, 0, 1, 1, tzinfo=datetime.timezone.utc)
+    assert last_bar.close == Decimal("0.0029")
     assert last_bar.duration == datetime.timedelta(seconds=60)
+
     ccxt_exchange._cli.watch_ohlcv.assert_awaited()
     ccxt_exchange._cli.un_watch_ohlcv.assert_awaited_once_with("BTC/USDT", "1m")
 
@@ -299,8 +317,8 @@ def test_symbol_to_pair():
 
 def test_ohlcv_to_bar():
     p = pair.Pair("BTC", "USDT")
-    candle = [1_000, "0.001", "0.0025", "0.0005", "0.002", "1000"]
-    candle_bar = helpers.ohlcv_to_bar(p, candle, 60)
+    candle = bars.Candle([1_000, "0.001", "0.0025", "0.0005", "0.002", "1000"])
+    candle_bar = candle.to_bar(p, datetime.timedelta(seconds=60))
     assert candle_bar.pair == p
     assert candle_bar.open == Decimal("0.001")
     assert candle_bar.high == Decimal("0.0025")
@@ -679,8 +697,9 @@ async def test_private_orders(realtime_dispatcher, ccxt_exchange):
     call_count = {"n": 0}
 
     async def watch_orders(*args, **kwargs):
-        ret = order_updates[min(call_count["n"], len(order_updates) - 1)]
+        ret = order_updates[call_count["n"]] if call_count["n"] < len(order_updates) else []
         call_count["n"] += 1
+        await asyncio.sleep(0)
         return ret
 
     ccxt_exchange._cli.watch_orders = mock.AsyncMock(side_effect=watch_orders)
@@ -706,6 +725,63 @@ async def test_private_orders(realtime_dispatcher, ccxt_exchange):
     assert last_order.limit_price == Decimal("10")
     assert last_order.fill_price == Decimal("10")
     assert last_order.client_order_id == CLIENT_ORDER_ID
+    ccxt_exchange._cli.watch_orders.assert_awaited_with("BTC/USDT", params={})
+    ccxt_exchange._cli.un_watch_orders.assert_awaited_once_with("BTC/USDT", params={})
+
+
+async def test_private_orders_sort_key(realtime_dispatcher, ccxt_exchange):
+    p = pair.Pair("BTC", "USDT")
+    orders = []
+    call_count = {"n": 0}
+    order_updates = [[
+        # The sort key should be the current time.
+        {
+            "id": "4",
+            "symbol": "BTC/USDT",
+        },
+        # The sort key should be 1000.
+        {
+            "id": "1",
+            "lastUpdateTimestamp": 1000,
+            "lastTradeTimestamp": 8888,
+            "timestamp": 9999,
+            "symbol": "BTC/USDT",
+        },
+        # The sort key should be 3000.
+        {
+            "id": "3",
+            "timestamp": 3000,
+            "symbol": "BTC/USDT",
+        },
+        # The sort key should be 2000.
+        {
+            "id": "2",
+            "lastTradeTimestamp": 2000,
+            "timestamp": 9999,
+            "symbol": "BTC/USDT",
+        },
+    ]]
+
+    async def watch_orders(*args, **kwargs):
+        ret = order_updates[call_count["n"]] if call_count["n"] < len(order_updates) else []
+        call_count["n"] += 1
+        await asyncio.sleep(0)
+        return ret
+
+    async def on_order_event(order_event):
+        orders.append(order_event.order)
+        if len(orders) == 4:
+            realtime_dispatcher.stop()
+
+    ccxt_exchange._cli.watch_orders = mock.AsyncMock(side_effect=watch_orders)
+    ccxt_exchange.subscribe_to_private_order_events(p, on_order_event)
+
+    await realtime_dispatcher.run()
+
+    assert len(orders) == 4
+    for i, expected_order_id in enumerate(["1", "2", "3", "4"]):
+        assert orders[i].id == expected_order_id
+
     ccxt_exchange._cli.watch_orders.assert_awaited_with("BTC/USDT", params={})
     ccxt_exchange._cli.un_watch_orders.assert_awaited_once_with("BTC/USDT", params={})
 

@@ -394,10 +394,7 @@ class Exchange:
         canceled_order = await self._cli.cancel_order(lookup_id, symbol, params)
         return CanceledOrder(canceled_order)
 
-    def subscribe_to_bar_events(
-            self, pair: Pair, bar_duration: str, event_handler: bar.BarEventHandler,
-            skip_first_bar: bool = True, **kwargs: Any
-    ):
+    def subscribe_to_bar_events(self, pair: Pair, bar_duration: str, event_handler: bar.BarEventHandler, **kwargs: Any):
         """Registers an async callable that will be called when a new bar is available.
 
         Uses CCXT Pro's ``watchOHLCV`` websocket method. Only closed candles are reported.
@@ -405,8 +402,6 @@ class Exchange:
         :param pair: The trading pair.
         :param bar_duration: The bar duration as a CCXT timeframe (e.g. ``1m``, ``5m``, ``1h``).
         :param event_handler: An async callable that receives a :class:`basana.BarEvent`.
-        :param skip_first_bar: True if the first closed candle should be skipped. This avoids receiving an
-            incomplete bar if subscription takes place in the middle of the period.
         :param kwargs: Additional keyword arguments that will be forwarded to CCXT.
 
         .. note::
@@ -417,9 +412,7 @@ class Exchange:
         key = (pair, bar_duration)
         event_source = self._bar_event_sources.get(key)
         if event_source is None:
-            event_source = bars.WatchOHLCVEventSource(
-                self._cli, pair, bar_duration, skip_first_bar=skip_first_bar, params=dict(kwargs)
-            )
+            event_source = bars.WatchOHLCVEventSource(self._cli, pair, bar_duration, params=dict(kwargs))
             self._bar_event_sources[key] = event_source
         self._dispatcher.subscribe(event_source, cast(dispatcher.EventHandler, event_handler))
 

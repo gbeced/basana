@@ -18,6 +18,7 @@ from decimal import Decimal
 from typing import Any, Awaitable, Callable, Dict, List, Optional
 import asyncio
 import datetime
+import functools
 import logging
 
 from . import helpers
@@ -35,6 +36,14 @@ class Order:
         self.pair: Pair = pair
         #: The raw value returned by CCXT.
         self.raw: dict = raw
+
+        # Sort key, for internal use.
+        for key in ["lastUpdateTimestamp", "lastTradeTimestamp", "timestamp"]:
+            if (value := raw.get(key)) is not None:
+                self._sort_key = helpers.timestamp_to_datetime(int(value))
+                break
+        else:
+            self._sort_key = dt.utc_now(monotonic=True)
 
     @property
     def id(self) -> str:
@@ -148,19 +157,11 @@ class WatchOrdersEventSource(event.FifoQueueEventSource, event.Producer):
                 "Error unwatching orders", pair=self._pair, error=error
             ))
 
-    def _handle_orders(self, orders: List[dict]):
-        def sort_key(order: dict) -> int:
-            ret = order.get("lastTradeTimestamp")
-            return 0 if ret is None else ret
-
-        orders.sort(key=sort_key)
+    def _handle_orders(self, raw_orders: List[dict]):
+        orders = list(map(functools.partial(Order, self._pair), raw_orders))
+        orders.sort(key=lambda order: order._sort_key)
         for order in orders:
-            timestamp = order.get("lastTradeTimestamp")
-            if timestamp is not None:
-                when = helpers.timestamp_to_datetime(int(timestamp))
-            else:
-                when = dt.utc_now(monotonic=True)
-            self.push(OrderEvent(when, Order(self._pair, order)))
+            self.push(OrderEvent(dt.utc_now(monotonic=True), order))
 
 
 OrderEventHandler = Callable[[OrderEvent], Awaitable[Any]]
