@@ -188,6 +188,17 @@ def test_created_order_datetime_naive():
     assert created_order.datetime == ORDER_DATETIME
 
 
+@pytest.mark.parametrize("method_name", ["get_order_info", "cancel_order"])
+@pytest.mark.parametrize("order_id, client_order_id", [
+    (None, None),
+    ("1539419698798592", CLIENT_ORDER_ID),
+])
+async def test_order_lookup_requires_exactly_one_id(method_name, order_id, client_order_id, ccxt_exchange):
+    method = getattr(ccxt_exchange, method_name)
+    with pytest.raises(ValueError, match="Either order_id or client_order_id should be set"):
+        await method(pair.Pair("BTC", "USDT"), order_id=order_id, client_order_id=client_order_id)
+
+
 @pytest.mark.parametrize("order_id, client_order_id, expected_lookup_id", [
     ("1539419698798592", None, "1539419698798592"),
     (None, CLIENT_ORDER_ID, CLIENT_ORDER_ID),
