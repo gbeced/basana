@@ -193,7 +193,7 @@ class CreatedOrder:
     @property
     def client_order_id(self) -> Optional[str]:
         """The client order id."""
-        return self.json.get("clientOrderId")
+        return None if (client_order_id := self.json.get("clientOrderId")) is None else str(client_order_id)
 
 
 class Exchange:
