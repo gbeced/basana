@@ -16,6 +16,8 @@
 
 from decimal import Decimal
 
+import pytest
+
 from basana.core import pair
 from basana.core.enums import PrecisionMode
 
@@ -46,6 +48,29 @@ def test_pair_info_significant_digits():
     assert pair_info.truncate_quote(Decimal("12345.678")) == Decimal("12345")
     assert pair_info.round_base(Decimal("1.23456789")) == Decimal("1.2346")
     assert pair_info.round_quote(Decimal("0.002395114")) == Decimal("0.0023951")
+
+
+def test_pair_info_tick_size_requires_tick_sizes():
+    with pytest.raises(
+            ValueError, match="base_tick_size and quote_tick_size must be set when precision_mode is TICK_SIZE"
+    ):
+        pair.PairInfo(2, 2, precision_mode=PrecisionMode.TICK_SIZE)
+
+
+@pytest.mark.parametrize("base_tick_size, quote_tick_size", [
+    ("0", "0.05"),
+    ("-0.05", "0.05"),
+    ("0.05", "0"),
+    ("0.05", "-0.05"),
+])
+def test_pair_info_tick_size_invalid(base_tick_size, quote_tick_size):
+    with pytest.raises(ValueError, match="tick sizes must be > 0"):
+        pair.PairInfo(
+            2, 2,
+            precision_mode=PrecisionMode.TICK_SIZE,
+            base_tick_size=Decimal(base_tick_size),
+            quote_tick_size=Decimal(quote_tick_size),
+        )
 
 
 def test_pair_info_tick_size():

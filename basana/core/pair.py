@@ -68,6 +68,13 @@ class PairInfo:
     #: The tick size for the quote symbol.
     quote_tick_size: Optional[Decimal] = dataclasses.field(default=None, kw_only=True)
 
+    def __post_init__(self):
+        if self.precision_mode == PrecisionMode.TICK_SIZE:
+            if self.base_tick_size is None or self.quote_tick_size is None:
+                raise ValueError("base_tick_size and quote_tick_size must be set when precision_mode is TICK_SIZE")
+            if self.base_tick_size <= 0 or self.quote_tick_size <= 0:
+                raise ValueError("tick sizes must be > 0")
+
     @property
     def precision_unit(self) -> str:
         if self.precision_mode == PrecisionMode.SIGNIFICANT_DIGITS:
