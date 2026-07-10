@@ -45,7 +45,7 @@ class Candle:
 
 
 class WatchOHLCVEventSource(event.FifoQueueEventSource, event.Producer):
-    def __init__( self, cli: Any, pair: Pair, timeframe: str, params: Optional[Dict[str, Any]] = None):
+    def __init__(self, cli: Any, pair: Pair, timeframe: str, params: Optional[Dict[str, Any]] = None):
         if timeframe not in cli.timeframes:
             raise ValueError(f"Invalid bar_duration: {timeframe}")
 
