@@ -282,7 +282,10 @@ def round_with_precision(
     :returns: The rounded value.
     """
     if precision_mode == PrecisionMode.TICK_SIZE:
-        assert tick_size is not None
+        if tick_size is None:
+            raise ValueError("tick_size must be provided when precision_mode is TICK_SIZE")
+        if tick_size <= 0:
+            raise ValueError(f"Invalid tick_size: {tick_size}")
         return round_to_tick_size(value, tick_size, rounding=rounding)
     if precision_mode == PrecisionMode.DECIMAL_PLACES:
         return value.quantize(get_quantizer(precision), rounding=rounding)

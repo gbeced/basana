@@ -123,6 +123,19 @@ def test_round_to_tick_size(amount, tick_size, rounding, expected):
     assert helpers.round_to_tick_size(Decimal(amount), Decimal(tick_size), rounding=rounding) == Decimal(expected)
 
 
+def test_round_with_precision_tick_size_requires_tick_size():
+    with pytest.raises(ValueError, match="tick_size must be provided when precision_mode is TICK_SIZE"):
+        helpers.round_with_precision(Decimal("1.234"), 2, PrecisionMode.TICK_SIZE)
+
+
+@pytest.mark.parametrize("tick_size", ["0", "-0.05"])
+def test_round_with_precision_tick_size_invalid(tick_size):
+    with pytest.raises(ValueError, match=f"Invalid tick_size: {tick_size}"):
+        helpers.round_with_precision(
+            Decimal("1.234"), 2, PrecisionMode.TICK_SIZE, tick_size=Decimal(tick_size)
+        )
+
+
 async def test_task_group_awaited_before_scope_exit():
     async def test_main():
         events = [asyncio.Event() for _ in range(3)]
