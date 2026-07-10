@@ -178,6 +178,16 @@ async def test_order_requests(
     assert params["clientOrderId"] == CLIENT_ORDER_ID
 
 
+def test_created_order_datetime_naive():
+    created_order = exchange.CreatedOrder({
+        "id": "1539419698798592",
+        "datetime": "2022-09-30T16:47:12.583",
+        "side": "buy",
+        "amount": "1",
+    })
+    assert created_order.datetime == ORDER_DATETIME
+
+
 @pytest.mark.parametrize("order_id, client_order_id, expected_lookup_id", [
     ("1539419698798592", None, "1539419698798592"),
     (None, CLIENT_ORDER_ID, CLIENT_ORDER_ID),

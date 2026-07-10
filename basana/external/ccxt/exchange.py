@@ -165,7 +165,10 @@ class CreatedOrder:
     @property
     def datetime(self) -> datetime.datetime:
         """The creation datetime."""
-        return dt_parse(self.json["datetime"]).replace(tzinfo=datetime.timezone.utc)
+        dt = dt_parse(self.json["datetime"])
+        if dt.tzinfo is None:
+            return dt.replace(tzinfo=datetime.timezone.utc)
+        return dt.astimezone(datetime.timezone.utc)
 
     @property
     def operation(self) -> OrderOperation:
