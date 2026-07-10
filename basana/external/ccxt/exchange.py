@@ -356,8 +356,8 @@ class Exchange:
 
           * Either order_id or client_order_id should be set, but not both.
         """
-        assert (order_id is not None) ^ (client_order_id is not None), \
-            "Either order_id or client_order_id should be set"
+        if (order_id is None) == (client_order_id is None):
+            raise ValueError("Either order_id or client_order_id should be set (but not both)")
         symbol = helpers.pair_to_symbol(pair)
         params = dict(kwargs)
         if client_order_id is not None:
