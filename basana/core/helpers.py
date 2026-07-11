@@ -32,10 +32,11 @@ QUANTIZERS_CACHE: Dict[int, Decimal] = {}
 
 
 def get_quantizer(precision: int) -> Decimal:
-    assert precision >= 0, f"Invalid precision {precision}"
     ret = QUANTIZERS_CACHE.get(precision)
     if ret is None:
-        ret = Decimal(f"1e-{precision}")
+        # When precision is negative (possible for significant-digits rounding of large values),
+        # quantize expects a positive exponent (e.g. precision=-1 -> quantizer=1e1).
+        ret = Decimal(f"1e{-precision}")
         QUANTIZERS_CACHE[precision] = ret
     return ret
 
