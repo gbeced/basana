@@ -15,12 +15,12 @@
 # limitations under the License.
 
 from typing import Any, Dict, List, Optional, Union
-import asyncio
 import datetime
 import logging
 
 from . import helpers
-from basana.core import bar, event, logs
+from .watch_event_source import WatchEventSource
+from basana.core import bar, logs
 from basana.core.pair import Pair
 
 
@@ -44,48 +44,23 @@ class Candle:
         )
 
 
-class WatchOHLCVEventSource(event.FifoQueueEventSource, event.Producer):
+class WatchOHLCVEventSource(WatchEventSource):
     def __init__(self, cli: Any, pair: Pair, timeframe: str, params: Optional[Dict[str, Any]] = None):
         if timeframe not in cli.timeframes:
             raise ValueError(f"Invalid bar_duration: {timeframe}")
 
-        if not cli.has.get("watchOHLCV"):
-            raise NotImplementedError("The exchange does not support watchOHLCV")
-
-        super().__init__(producer=self)
-        self._cli = cli
-        self._pair = pair
-        self._symbol = helpers.pair_to_symbol(pair)
+        super().__init__(cli, pair, "watchOHLCV", "unWatchOHLCV")
         self._timeframe = timeframe
         self._params = dict(params or {})
         self._duration_secs = self._cli.parse_timeframe(self._timeframe)
         self._last_candle: Optional[Candle] = None
 
-    async def initialize(self):
-        await self._cli.load_markets()
+    async def watch(self):
+        ohlcv = await self._cli.watch_ohlcv(self._symbol, self._timeframe, params=self._params)
+        self._handle_ohlcv(ohlcv)
 
-    async def main(self):
-        while True:
-            try:
-                ohlcv = await self._cli.watch_ohlcv(self._symbol, self._timeframe, params=self._params)
-                self._handle_ohlcv(ohlcv)
-            except Exception as e:
-                logger.error(logs.StructuredMessage(
-                    "Error watching OHLCV", pair=self._pair, timeframe=self._timeframe, error=e
-                ))
-            # Yield to the event loop to allow other tasks to run.
-            await asyncio.sleep(0)
-
-    async def finalize(self):
-        if not self._cli.has.get("unWatchOHLCV"):
-            return
-
-        try:
-            await self._cli.un_watch_ohlcv(self._symbol, self._timeframe)
-        except Exception as error:
-            logger.error(logs.StructuredMessage(
-                "Error unwatching OHLCV", pair=self._pair, timeframe=self._timeframe, error=error
-            ))
+    async def unwatch(self):
+        await self._cli.un_watch_ohlcv(self._symbol, self._timeframe)
 
     def _handle_ohlcv(self, ohlcv: list):
         candles = list(map(Candle, ohlcv))

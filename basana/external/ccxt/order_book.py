@@ -17,15 +17,11 @@
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Awaitable, Callable, Dict, List, Optional
-import asyncio
-import logging
 
 from . import helpers
-from basana.core import dt, event, logs
+from .watch_event_source import WatchEventSource
+from basana.core import dt, event
 from basana.core.pair import Pair
-
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -75,47 +71,23 @@ class PartialOrderBookEvent(event.Event):
         self.order_book: PartialOrderBook = order_book
 
 
-class WatchOrderBookEventSource(event.FifoQueueEventSource, event.Producer):
+class WatchOrderBookEventSource(WatchEventSource):
     def __init__(
             self, cli: Any, pair: Pair, limit: Optional[int] = None,
             params: Optional[Dict[str, Any]] = None
     ):
-        if not cli.has.get("watchOrderBook"):
-            raise NotImplementedError("The exchange does not support watchOrderBook")
-
-        super().__init__(producer=self)
-        self._cli = cli
-        self._pair = pair
-        self._symbol = helpers.pair_to_symbol(pair)
+        super().__init__(cli, pair, "watchOrderBook", "unWatchOrderBook")
         self._limit = limit
         self._params = dict(params or {})
 
-    async def initialize(self):
-        await self._cli.load_markets()
+    async def watch(self):
+        order_book = await self._cli.watch_order_book(
+            self._symbol, self._limit, params=self._params
+        )
+        self._handle_order_book(order_book)
 
-    async def main(self):
-        while True:
-            try:
-                order_book = await self._cli.watch_order_book(
-                    self._symbol, self._limit, params=self._params
-                )
-                self._handle_order_book(order_book)
-            except Exception as e:
-                logger.error(logs.StructuredMessage(
-                    "Error watching order book", pair=self._pair, error=e
-                ))
-            await asyncio.sleep(0)
-
-    async def finalize(self):
-        if not self._cli.has.get("unWatchOrderBook"):
-            return
-
-        try:
-            await self._cli.un_watch_order_book(self._symbol, params=self._params)
-        except Exception as error:
-            logger.error(logs.StructuredMessage(
-                "Error unwatching order book", pair=self._pair, error=error
-            ))
+    async def unwatch(self):
+        await self._cli.un_watch_order_book(self._symbol, params=self._params)
 
     def _handle_order_book(self, order_book: dict):
         timestamp = order_book.get("timestamp")

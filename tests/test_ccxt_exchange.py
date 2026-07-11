@@ -461,7 +461,7 @@ async def test_watch_ohlcv_event_source_main_error(ccxt_cli_mock, caplog):
     event_source = bars.WatchOHLCVEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), "1m")
     task = asyncio.create_task(event_source.main())
     await asyncio.sleep(0)
-    assert "Error watching OHLCV" in caplog.text
+    assert "Error during watchOHLCV" in caplog.text
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
@@ -471,7 +471,7 @@ async def test_watch_ohlcv_event_source_finalize_error(ccxt_cli_mock, caplog):
     ccxt_cli_mock.un_watch_ohlcv = mock.AsyncMock(side_effect=Exception("error"))
     event_source = bars.WatchOHLCVEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), "1m")
     await event_source.finalize()
-    assert "Error unwatching OHLCV" in caplog.text
+    assert "Error during unWatchOHLCV" in caplog.text
 
 
 async def test_watch_ohlcv_event_source_finalize_unsupported(ccxt_cli_mock):
@@ -566,7 +566,7 @@ async def test_watch_trades_event_source_main_error(ccxt_cli_mock, caplog):
     event_source = trades.WatchTradesEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
     task = asyncio.create_task(event_source.main())
     await asyncio.sleep(0)
-    assert "Error watching trades" in caplog.text
+    assert "Error during watchTrades" in caplog.text
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
@@ -576,7 +576,7 @@ async def test_watch_trades_event_source_finalize_error(ccxt_cli_mock, caplog):
     ccxt_cli_mock.un_watch_trades = mock.AsyncMock(side_effect=Exception("error"))
     event_source = trades.WatchTradesEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
     await event_source.finalize()
-    assert "Error unwatching trades" in caplog.text
+    assert "Error during unWatchTrades" in caplog.text
 
 
 async def test_watch_trades_event_source_finalize_unsupported(ccxt_cli_mock):
@@ -652,7 +652,7 @@ async def test_watch_order_book_event_source_main_error(ccxt_cli_mock, caplog):
     event_source = order_book.WatchOrderBookEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), 10)
     task = asyncio.create_task(event_source.main())
     await asyncio.sleep(0)
-    assert "Error watching order book" in caplog.text
+    assert "Error during watchOrderBook" in caplog.text
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
@@ -662,7 +662,7 @@ async def test_watch_order_book_event_source_finalize_error(ccxt_cli_mock, caplo
     ccxt_cli_mock.un_watch_order_book = mock.AsyncMock(side_effect=Exception("error"))
     event_source = order_book.WatchOrderBookEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"), 10)
     await event_source.finalize()
-    assert "Error unwatching order book" in caplog.text
+    assert "Error during unWatchOrderBook" in caplog.text
 
 
 async def test_watch_order_book_event_source_finalize_unsupported(ccxt_cli_mock):
@@ -838,7 +838,7 @@ async def test_watch_orders_event_source_main_error(ccxt_cli_mock, caplog):
     event_source = orders.WatchOrdersEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
     task = asyncio.create_task(event_source.main())
     await asyncio.sleep(0)
-    assert "Error watching orders" in caplog.text
+    assert "Error during watchOrders" in caplog.text
     task.cancel()
     with pytest.raises(asyncio.CancelledError):
         await task
@@ -848,7 +848,7 @@ async def test_watch_orders_event_source_finalize_error(ccxt_cli_mock, caplog):
     ccxt_cli_mock.un_watch_orders = mock.AsyncMock(side_effect=Exception("error"))
     event_source = orders.WatchOrdersEventSource(ccxt_cli_mock, pair.Pair("BTC", "USDT"))
     await event_source.finalize()
-    assert "Error unwatching orders" in caplog.text
+    assert "Error during unWatchOrders" in caplog.text
 
 
 async def test_watch_orders_event_source_finalize_unsupported(ccxt_cli_mock):

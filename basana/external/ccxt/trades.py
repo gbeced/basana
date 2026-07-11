@@ -16,16 +16,12 @@
 
 from decimal import Decimal
 from typing import Any, Awaitable, Callable, Dict, List, Optional
-import asyncio
 import datetime
-import logging
 
 from . import helpers
-from basana.core import event, logs
+from .watch_event_source import WatchEventSource
+from basana.core import event
 from basana.core.pair import Pair
-
-
-logger = logging.getLogger(__name__)
 
 
 class Trade:
@@ -81,42 +77,17 @@ class TradeEvent(event.Event):
         self.trade: Trade = trade
 
 
-class WatchTradesEventSource(event.FifoQueueEventSource, event.Producer):
+class WatchTradesEventSource(WatchEventSource):
     def __init__(self, cli: Any, pair: Pair, params: Optional[Dict[str, Any]] = None):
-        if not cli.has.get("watchTrades"):
-            raise NotImplementedError("The exchange does not support watchTrades")
-
-        super().__init__(producer=self)
-        self._cli = cli
-        self._pair = pair
-        self._symbol = helpers.pair_to_symbol(pair)
+        super().__init__(cli, pair, "watchTrades", "unWatchTrades")
         self._params = dict(params or {})
 
-    async def initialize(self):
-        await self._cli.load_markets()
+    async def watch(self):
+        trades = await self._cli.watch_trades(self._symbol, params=self._params)
+        self._handle_trades(trades)
 
-    async def main(self):
-        while True:
-            try:
-                trades = await self._cli.watch_trades(self._symbol, params=self._params)
-                self._handle_trades(trades)
-            except Exception as e:
-                logger.error(logs.StructuredMessage(
-                    "Error watching trades", pair=self._pair, error=e
-                ))
-            # Yield to the event loop to allow other tasks to run.
-            await asyncio.sleep(0)
-
-    async def finalize(self):
-        if not self._cli.has.get("unWatchTrades"):
-            return
-
-        try:
-            await self._cli.un_watch_trades(self._symbol)
-        except Exception as error:
-            logger.error(logs.StructuredMessage(
-                "Error unwatching trades", pair=self._pair, error=error
-            ))
+    async def unwatch(self):
+        await self._cli.un_watch_trades(self._symbol)
 
     def _handle_trades(self, trades: List[dict]):
         trades.sort(key=lambda trade: int(trade["timestamp"]))
