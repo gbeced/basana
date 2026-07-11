@@ -53,7 +53,7 @@ class Order:
     @property
     def client_order_id(self) -> Optional[str]:
         """The client order id."""
-        return None if (client_order_id := self.raw.get("clientOrderId")) is None else str(client_order_id)
+        return helpers.optional_client_order_id(self.raw)
 
     @property
     def operation(self) -> OrderOperation:

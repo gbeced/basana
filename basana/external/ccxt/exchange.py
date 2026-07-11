@@ -73,7 +73,7 @@ class OrderInfo:
     @property
     def client_order_id(self) -> Optional[str]:
         """The client order id."""
-        return None if (client_order_id := self.json.get("clientOrderId")) is None else str(client_order_id)
+        return helpers.optional_client_order_id(self.json)
 
     @property
     def operation(self) -> OrderOperation:
@@ -150,7 +150,7 @@ class CanceledOrder:
     @property
     def client_order_id(self) -> Optional[str]:
         """The client order id."""
-        return None if (client_order_id := self.json.get("clientOrderId")) is None else str(client_order_id)
+        return helpers.optional_client_order_id(self.json)
 
 
 class CreatedOrder:
@@ -193,7 +193,7 @@ class CreatedOrder:
     @property
     def client_order_id(self) -> Optional[str]:
         """The client order id."""
-        return None if (client_order_id := self.json.get("clientOrderId")) is None else str(client_order_id)
+        return helpers.optional_client_order_id(self.json)
 
 
 class Exchange:

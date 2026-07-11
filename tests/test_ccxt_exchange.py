@@ -388,6 +388,15 @@ def test_order_status_is_open():
     assert helpers.order_status_is_open("canceled") is False
 
 
+@pytest.mark.parametrize("raw, expected", [
+    ({}, None),
+    ({"clientOrderId": CLIENT_ORDER_ID}, CLIENT_ORDER_ID),
+    ({"clientOrderId": 1539419698798592}, "1539419698798592"),
+])
+def test_optional_client_order_id(raw, expected):
+    assert helpers.optional_client_order_id(raw) == expected
+
+
 def test_order_info_optional_fields():
     order_info = exchange.OrderInfo({
         "id": "1",

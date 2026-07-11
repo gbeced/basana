@@ -36,6 +36,13 @@ def optional_decimal(value: Optional[Union[int, float, str, Decimal]]) -> Option
     return to_decimal(value)
 
 
+def optional_client_order_id(raw: dict) -> Optional[str]:
+    client_order_id = raw.get("clientOrderId")
+    if client_order_id is None:
+        return None
+    return str(client_order_id)
+
+
 def pair_to_symbol(pair: Pair) -> str:
     return "{}/{}".format(pair.base_symbol, pair.quote_symbol)
 
