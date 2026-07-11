@@ -74,6 +74,7 @@ def test_truncate_significant_digits(amount, precision, expected):
 
 @pytest.mark.parametrize("amount, precision, expected", [
     ("1.23456789", 5, "1.2346"),
+    ("123456.789", 5, "123460"),
 ])
 def test_round_significant_digits(amount, precision, expected):
     ret = helpers.round_with_precision(
