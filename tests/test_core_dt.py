@@ -30,5 +30,5 @@ def test_utc_now_mono():
         now_mono_2 = dt.utc_now(monotonic=True)
         assert now_mono_2 >= now_mono_1
 
-    time.sleep(0.01)
+    time.sleep(0.1)
     assert dt.utc_now(monotonic=True) > now_mono
