@@ -26,17 +26,27 @@ from samples.strategies import bbands
 
 
 async def main():
-    logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
+    logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s %(levelname)s] %(message)s")
+
+    # Check https://demo.binance.com/en/my/settings/api-management
+    # demo_mode_config = {
+    #     "api": {
+    #         "http": {"base_url": "https://demo-api.binance.com/"},
+    #         "websockets": {"base_url": "wss://demo-stream.binance.com/"},
+    #     }
+    # }
 
     event_dispatcher = bs.realtime_dispatcher()
     pair = bs.Pair("ETH", "USDT")
     position_amount = Decimal(100)
     stop_loss_pct = Decimal(5)
-    checkpoint_fname = "binance_bbands_positions.json"
     api_key = "YOUR_API_KEY"
     api_secret = "YOUR_API_SECRET"
 
-    exchange = binance_exchange.Exchange(event_dispatcher, api_key=api_key, api_secret=api_secret)
+    exchange = binance_exchange.Exchange(
+        event_dispatcher, api_key=api_key, api_secret=api_secret,
+        # config_overrides=demo_mode_config
+    )
 
     # Connect the strategy to the bar events from the exchange.
     strategy = bbands.Strategy(event_dispatcher, period=20, std_dev=1.5)
@@ -44,7 +54,7 @@ async def main():
 
     # We'll be using the spot account, so there will be no short positions opened.
     position_mgr = position_manager.SpotAccountPositionManager(
-        exchange, position_amount, pair.quote_symbol, stop_loss_pct, checkpoint_fname
+        exchange, position_amount, pair.quote_symbol, stop_loss_pct
     )
     # Connect the position manager to different types of events.
     strategy.subscribe_to_trading_signals(position_mgr.on_trading_signal)
