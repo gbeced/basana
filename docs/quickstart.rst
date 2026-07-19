@@ -91,7 +91,7 @@ exchange we'll use `Binance <https://www.binance.com/>`_ crypto currency exchang
 
 .. literalinclude:: ../samples/binance_bbands.py
    :language: python
-   :lines: 31-52
+   :lines: 42-83
    :dedent: 4
 
 .. note::
