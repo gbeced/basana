@@ -18,6 +18,7 @@ from decimal import Decimal
 import asyncio
 import logging
 
+from basana.core.logs import StructuredMessage
 from basana.external.binance import exchange as binance_exchange
 import basana as bs
 
@@ -26,15 +27,17 @@ from samples.strategies import bbands
 
 
 async def main():
-    logging.basicConfig(level=logging.DEBUG, format="[%(asctime)s %(levelname)s] %(message)s")
+    logging.basicConfig(level=logging.INFO, format="[%(asctime)s %(levelname)s] %(message)s")
 
+    # To skip demo account, just set `config_overrides = {}`
     # Check https://demo.binance.com/en/my/settings/api-management
-    # demo_mode_config = {
-    #     "api": {
-    #         "http": {"base_url": "https://demo-api.binance.com/"},
-    #         "websockets": {"base_url": "wss://demo-stream.binance.com/"},
-    #     }
-    # }
+    config_overrides = {
+        "api": {
+            "http": {"base_url": "https://demo-api.binance.com/"},
+            "ws_stream": {"base_url": "wss://demo-stream.binance.com/"},
+            "ws_api": {"base_url": "wss://demo-ws-api.binance.com/"},
+        }
+    }
 
     event_dispatcher = bs.realtime_dispatcher()
     pair = bs.Pair("ETH", "USDT")
@@ -45,8 +48,20 @@ async def main():
 
     exchange = binance_exchange.Exchange(
         event_dispatcher, api_key=api_key, api_secret=api_secret,
-        # config_overrides=demo_mode_config
+        config_overrides=config_overrides
     )
+
+    # Check initial balances.
+    balances = await exchange.spot_account.get_balances()
+    base_balance = balances[pair.base_symbol]
+    quote_balance = balances[pair.quote_symbol]
+    logging.info(StructuredMessage(
+        "Initial balances",
+        **{
+            pair.base_symbol: base_balance.available,
+            pair.quote_symbol: quote_balance.available
+        }
+    ))
 
     # Connect the strategy to the bar events from the exchange.
     strategy = bbands.Strategy(event_dispatcher, period=20, std_dev=1.5)
