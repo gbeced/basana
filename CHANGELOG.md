@@ -7,6 +7,10 @@
 * `fees.Percentage` now supports charging fees in base currency.
 * Both `BacktestingDispatcher` and `RealtimeDispatcher` now support `subscribe_event_loop_started` to register handlers that are called once when the dispatch loop starts.
 
+### Bug fixes
+
+* Binance spot user data subscriptions now use the WebSocket API (`userDataStream.subscribe.signature`) instead of retired `/api/v3/userDataStream` listen key endpoints.
+
 ## 1.10.2
 
 ### Bug fixes

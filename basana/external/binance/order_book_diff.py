@@ -91,10 +91,9 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         self._pair = pair
 
     async def push_from_message(self, message: dict):
-        event = message["data"]
-        diff = OrderBookDiff(self._pair, event)
+        diff = OrderBookDiff(self._pair, message)
         self.push(OrderBookDiffEvent(
-            helpers.timestamp_to_datetime(int(event["E"])),  # Event time
+            helpers.timestamp_to_datetime(int(message["E"])),  # Event time
             diff
         ))
 

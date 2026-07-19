@@ -16,11 +16,9 @@
 
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
-import datetime
 
-from . import client, common, config, helpers, spot_requests, user_data, websockets, websocket_mgr
+from . import common, helpers, spot_requests, user_data, websockets, websocket_mgr
 from .client import spot as spot_client
-from basana.core.config import get_config_value
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
@@ -84,32 +82,9 @@ class OpenOrder(common.OpenOrder):
         return helpers.get_optional_decimal(self.json, "origQuoteOrderQty", True)
 
 
-class SpotUserDataChannel(websockets.Channel):
+class SpotUserDataChannel(websockets.WSAPIChannel):
     def __init__(self):
-        self._listen_key = None
-
-    @property
-    def alias(self) -> str:
-        return "spot_user_data"
-
-    @property
-    def stream(self) -> str:
-        assert self._listen_key, "resolve_stream_name not called"
-        return self._listen_key
-
-    async def resolve_stream_name(self, api_client: client.APIClient):
-        self._listen_key = (await api_client.spot_account.create_listen_key())["listenKey"]
-
-    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
-        return datetime.timedelta(
-            seconds=get_config_value(
-                config.DEFAULTS, "api.websockets.spot.user_data_stream.heartbeat", overrides=config_overrides
-            )
-        )
-
-    async def keep_alive(self, api_client: client.APIClient):
-        assert self._listen_key, "resolve_stream_name not called"
-        await api_client.spot_account.keep_alive_listen_key(self._listen_key)
+        super().__init__("spot_user_data")
 
 
 class Account:

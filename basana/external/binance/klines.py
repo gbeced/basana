@@ -44,13 +44,12 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         self._pair: Pair = pair
 
     async def push_from_message(self, message: dict):
-        kline_event = message["data"]
-        kline = kline_event["k"]
+        kline = message["k"]
         # Wait for the last update to the kline.
         if kline["x"] is False:
             return
         self.push(bar.BarEvent(
-            helpers.timestamp_to_datetime(int(kline_event["E"])),  # Event time
+            helpers.timestamp_to_datetime(int(message["E"])),  # Event time
             Bar(self._pair, kline)
         ))
 

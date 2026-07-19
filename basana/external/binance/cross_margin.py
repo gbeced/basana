@@ -31,7 +31,7 @@ UserDataEvent = user_data.Event
 UserDataEventHandler = user_data.UserDataEventHandler
 
 
-class CrossMarginUserDataChannel(websockets.Channel):
+class CrossMarginUserDataChannel(websockets.WSStreamChannel):
     def __init__(self):
         self._listen_key = None
 
@@ -50,7 +50,7 @@ class CrossMarginUserDataChannel(websockets.Channel):
     def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
         return datetime.timedelta(
             seconds=get_config_value(
-                config.DEFAULTS, "api.websockets.cross_margin.user_data_stream.heartbeat", overrides=config_overrides
+                config.DEFAULTS, "api.ws_stream.cross_margin.user_data_stream.heartbeat", overrides=config_overrides
             )
         )
 

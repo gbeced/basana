@@ -122,10 +122,9 @@ class WebSocketEventSource(core_ws.ChannelEventSource):
         self._pair = pair
 
     async def push_from_message(self, message: dict):
-        event = message["data"]
         self.push(PartialOrderBookEvent(
             dt.utc_now(monotonic=True),  # The event doesn't include a timestamp.
-            PartialOrderBook(self._pair, event)
+            PartialOrderBook(self._pair, message)
         ))
 
 

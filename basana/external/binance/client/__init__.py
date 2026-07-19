@@ -14,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 import aiohttp
 
@@ -34,6 +34,9 @@ class APIClient:
         self._client = base.BaseClient(
             api_key=api_key, api_secret=api_secret, session=session, tb=tb, config_overrides=config_overrides
         )
+
+    def get_api_credentials(self) -> Tuple[str, str]:
+        return self._client.get_api_credentials()
 
     async def get_exchange_info(self, symbol: Optional[str] = None) -> dict:
         params = {}
