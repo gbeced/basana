@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 import abc
 
 from . import helpers
@@ -26,7 +26,7 @@ from basana.core.pair import Pair
 class ExchangeOrder(metaclass=abc.ABCMeta):
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            client_order_id: Optional[str] = None, **kwargs: Any
     ):
         self._operation = operation
         self._pair = pair
@@ -51,7 +51,7 @@ class MarketOrder(ExchangeOrder):
 class LimitOrder(ExchangeOrder):
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            client_order_id: Optional[str] = None, **kwargs: Any
     ):
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
         self._limit_price = limit_price
@@ -67,7 +67,7 @@ class LimitOrder(ExchangeOrder):
 class StopOrder(ExchangeOrder):
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            client_order_id: Optional[str] = None, **kwargs: Any
     ):
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
         self._stop_price = stop_price
@@ -83,7 +83,7 @@ class StopOrder(ExchangeOrder):
 class StopLimitOrder(ExchangeOrder):
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
-            limit_price: Decimal, client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            limit_price: Decimal, client_order_id: Optional[str] = None, **kwargs: Any
     ):
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
         self._stop_price = stop_price

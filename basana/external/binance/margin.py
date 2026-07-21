@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 import abc
 
 from . import common, helpers, margin_requests
@@ -88,7 +88,7 @@ class Account(metaclass=abc.ABCMeta):
     async def create_market_order(
             self, operation: OrderOperation, pair: Pair, amount: Optional[Decimal] = None,
             quote_amount: Optional[Decimal] = None, client_order_id: Optional[str] = None,
-            side_effect_type: str = "NO_SIDE_EFFECT", **kwargs: Dict[str, Any]
+            side_effect_type: str = "NO_SIDE_EFFECT", **kwargs: Any
     ) -> CreatedOrder:
         """Creates a market order.
 
@@ -116,7 +116,7 @@ class Account(metaclass=abc.ABCMeta):
     async def create_limit_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
             side_effect_type: str = "NO_SIDE_EFFECT", time_in_force: str = "GTC", client_order_id: Optional[str] = None,
-            **kwargs: Dict[str, Any]
+            **kwargs: Any
     ) -> CreatedOrder:
         """Creates a limit order.
 
@@ -141,7 +141,7 @@ class Account(metaclass=abc.ABCMeta):
     async def create_stop_limit_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal, limit_price: Decimal,
             side_effect_type: str = "NO_SIDE_EFFECT", time_in_force: str = "GTC",
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            client_order_id: Optional[str] = None, **kwargs: Any
     ) -> CreatedOrder:
         """Creates a stop limit order.
 
@@ -231,7 +231,7 @@ class Account(metaclass=abc.ABCMeta):
             stop_limit_price: Optional[Decimal] = None, side_effect_type: str = "NO_SIDE_EFFECT",
             stop_limit_time_in_force: str = "GTC", list_client_order_id: Optional[str] = None,
             limit_client_order_id: Optional[str] = None, stop_client_order_id: Optional[str] = None,
-            **kwargs: Dict[str, Any]
+            **kwargs: Any
     ) -> CreatedOCOOrder:
         """Creates an OCO order.
 

@@ -380,7 +380,7 @@ class Exchange:
 
     async def create_market_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, client_order_id: Optional[str] = None,
-            **kwargs: Dict[str, Any]
+            **kwargs: Any
     ) -> CreatedOrder:
         """Creates a market order.
 
@@ -398,7 +398,7 @@ class Exchange:
 
     async def create_limit_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            client_order_id: Optional[str] = None, **kwargs: Any
     ) -> CreatedOrder:
         """Creates a limit order.
 
@@ -417,7 +417,7 @@ class Exchange:
 
     async def create_instant_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, amount_in_counter: bool = False,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            client_order_id: Optional[str] = None, **kwargs: Any
     ) -> CreatedOrder:
         """Creates an instant order.
 

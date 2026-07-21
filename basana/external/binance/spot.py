@@ -104,7 +104,7 @@ class Account:
 
     async def create_market_order(
             self, operation: OrderOperation, pair: Pair, amount: Optional[Decimal] = None,
-            quote_amount: Optional[Decimal] = None, client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            quote_amount: Optional[Decimal] = None, client_order_id: Optional[str] = None, **kwargs: Any
     ) -> CreatedOrder:
         """Creates a market order.
 
@@ -129,7 +129,7 @@ class Account:
 
     async def create_limit_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Any
     ) -> CreatedOrder:
         """Creates a limit order.
 
@@ -152,7 +152,7 @@ class Account:
 
     async def create_stop_limit_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal, limit_price: Decimal,
-            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Any
     ) -> CreatedOrder:
         """Creates a stop limit order.
 
@@ -241,7 +241,7 @@ class Account:
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal, stop_price: Decimal,
             stop_limit_price: Optional[Decimal] = None, stop_limit_time_in_force: str = "GTC",
             list_client_order_id: Optional[str] = None, limit_client_order_id: Optional[str] = None,
-            stop_client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            stop_client_order_id: Optional[str] = None, **kwargs: Any
     ) -> CreatedOCOOrder:
         """Creates an OCO order.
 

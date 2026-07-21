@@ -35,7 +35,7 @@ class MarginAccount(metaclass=abc.ABCMeta):
             self, symbol: str, side: str, type: str, time_in_force: Optional[str] = None,
             quantity: Optional[Decimal] = None, quote_order_qty: Optional[Decimal] = None,
             price: Optional[Decimal] = None, stop_price: Optional[Decimal] = None,
-            new_client_order_id: Optional[str] = None, side_effect_type: Optional[str] = None, **kwargs: Dict[str, Any]
+            new_client_order_id: Optional[str] = None, side_effect_type: Optional[str] = None, **kwargs: Any
     ) -> dict:
         params: Dict[str, Any] = {
             "symbol": symbol,
@@ -109,7 +109,7 @@ class MarginAccount(metaclass=abc.ABCMeta):
             stop_limit_price: Optional[Decimal] = None, stop_limit_time_in_force: Optional[str] = None,
             list_client_order_id: Optional[str] = None, side_effect_type: Optional[str] = None,
             limit_client_order_id: Optional[str] = None, stop_client_order_id: Optional[str] = None,
-            **kwargs: Dict[str, Any]
+            **kwargs: Any
     ) -> dict:
         params: Dict[str, Any] = {
             "symbol": symbol,
