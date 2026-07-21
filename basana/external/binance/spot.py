@@ -174,6 +174,29 @@ class Account:
             client_order_id=client_order_id, **kwargs
         ))
 
+    async def create_stop_order(
+            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
+            client_order_id: Optional[str] = None, **kwargs: Any
+    ) -> CreatedOrder:
+        """Creates a stop order.
+
+        A market order is placed once the stop price is reached.
+
+        Check https://binance-docs.github.io/apidocs/spot/en/#new-order-trade for more information.
+        If the order can't be created a :class:`basana.external.binance.exchange.Error` will be raised.
+
+        :param operation: The order operation.
+        :param pair: The pair to trade.
+        :param amount: The amount to buy/sell in base units.
+        :param stop_price: The stop price.
+        :param client_order_id: A client order id.
+        :param kwargs: Additional keyword arguments that will be forwarded.
+        """
+
+        return await self.create_order(spot_requests.StopOrder(
+            operation, pair, amount, stop_price, client_order_id=client_order_id, **kwargs
+        ))
+
     async def get_order_info(
             self, pair: Pair, order_id: Optional[str] = None, client_order_id: Optional[str] = None,
             include_trades: bool = True

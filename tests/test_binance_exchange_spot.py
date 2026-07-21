@@ -280,6 +280,23 @@ async def test_account_balances(binance_http_api_mock, binance_exchange):
             "client_order_id": "guCHQcaPSzFFEk5Dr7Fsgq",
         },
         [],
+    ),
+    (
+        lambda e: e.spot_account.create_stop_order(
+            exchange.OrderOperation.SELL, pair.Pair("BTC", "USDT"), Decimal("0.001"), Decimal("15000")
+        ),
+        {
+            "symbol": "BTCUSDT",
+            "orderId": 15533662778,
+            "orderListId": -1,
+            "clientOrderId": "guCHQcaPSzFFEk5Dr7Fsgr",
+            "transactTime": 1668475978861
+        },
+        {
+            "id": "15533662778",
+            "client_order_id": "guCHQcaPSzFFEk5Dr7Fsgr",
+        },
+        [],
     )
 ])
 async def test_create_order(
