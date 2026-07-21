@@ -93,6 +93,19 @@ async def test_account_balances(binance_http_api_mock, binance_exchange):
         },
         [],
     ),
+    (
+        lambda e: e.isolated_margin_account.create_stop_order(
+            exchange.OrderOperation.SELL, Pair("BTC", "USDT"), amount=Decimal("0.001"),
+            stop_price=Decimal("14000"), client_order_id="8174E476E48943AE95D005BAFA473792"
+        ),
+        CREATE_ORDER_RESPONSE_16620163621,
+        {
+            "id": "16620163621",
+            "datetime": datetime.datetime(2022, 12, 20, 15, 21, 13, 288000).replace(tzinfo=datetime.timezone.utc),
+            "client_order_id": "8174E476E48943AE95D005BAFA473792",
+        },
+        [],
+    ),
 ])
 async def test_create_order(
         create_order_fun, response_payload, expected_attrs, expected_fills, binance_http_api_mock, binance_exchange

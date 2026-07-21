@@ -98,6 +98,23 @@ class StopLimitOrder(ExchangeOrder):
         )
 
 
+class StopOrder(ExchangeOrder):
+    def __init__(
+            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
+            side_effect_type: str = "NO_SIDE_EFFECT", client_order_id: Optional[str] = None, **kwargs: Any
+    ):
+        super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
+        self._stop_price = stop_price
+        self._side_effect_type = side_effect_type
+
+    async def create_order(self, margin_account_cli) -> dict:
+        return await margin_account_cli.create_order(
+            helpers.pair_to_symbol(self._pair), helpers.order_operation_to_side(self._operation),
+            "STOP_LOSS", quantity=self._amount, stop_price=self._stop_price,
+            new_client_order_id=self._client_order_id, side_effect_type=self._side_effect_type, **self._kwargs
+        )
+
+
 class OCOOrder:
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal, stop_price: Decimal,

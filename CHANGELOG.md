@@ -5,6 +5,7 @@
 ### Features
 
 * [CCXT](https://docs.ccxt.com) integration.
+* Binance spot, cross margin and isolated margin accounts now support stop orders through `create_stop_order`.
 * `fees.Percentage` now supports charging fees in base currency.
 * Both `BacktestingDispatcher` and `RealtimeDispatcher` now support `subscribe_event_loop_started` to register handlers that are called once when the dispatch loop starts.
 
