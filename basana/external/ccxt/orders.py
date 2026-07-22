@@ -98,7 +98,14 @@ class Order:
 
     @property
     def fill_price(self) -> Optional[Decimal]:
-        """The fill price."""
+        """The average fill price.
+
+        Uses the exchange-reported ``average`` price when available; otherwise it is computed as
+        ``quote_amount_filled / amount_filled`` (a volume-weighted average), which may not be exact due to rounding.
+        """
+        average = helpers.optional_decimal(self.raw.get("average"))
+        if average is not None:
+            return average
         if self.amount_filled == 0:
             return None
         return self.quote_amount_filled / self.amount_filled

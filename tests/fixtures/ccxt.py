@@ -228,6 +228,7 @@ def ccxt_cli_mock():
         "filled": "0.5",
         "remaining": "0.5",
         "cost": "5",
+        "average": "10",
         "status": "open",
     })
     cli.cancel_order = mock.AsyncMock(return_value={

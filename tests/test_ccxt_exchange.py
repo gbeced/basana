@@ -422,6 +422,25 @@ def test_order_info_optional_fields():
     assert order_info_with_stop.stop_price == Decimal("100")
 
 
+@pytest.mark.parametrize("build", [
+    lambda raw: exchange.OrderInfo(raw),
+    lambda raw: orders.Order(pair.Pair("BTC", "USDT"), raw),
+])
+def test_fill_price_uses_average_when_available(build):
+    base = {"id": "1", "side": "buy", "status": "open", "amount": "1", "filled": "0.5", "remaining": "0.5"}
+
+    # The exchange-reported average takes precedence over cost / filled.
+    order = build({**base, "cost": "5", "average": "9.9999"})
+    assert order.fill_price == Decimal("9.9999")
+
+    # Falls back to the volume-weighted average when the average is missing or None.
+    assert build({**base, "cost": "5"}).fill_price == Decimal("10")
+    assert build({**base, "cost": "5", "average": None}).fill_price == Decimal("10")
+
+    # Nothing filled yet.
+    assert build({**base, "filled": "0", "remaining": "1"}).fill_price is None
+
+
 def test_canceled_order_optional_price():
     canceled_order = exchange.CanceledOrder({
         "id": "1",
@@ -720,6 +739,7 @@ async def test_private_orders(realtime_dispatcher, ccxt_exchange):
             "filled": "0.5",
             "remaining": "0.5",
             "cost": "5",
+            "average": "10",
             "status": "open",
             "clientOrderId": CLIENT_ORDER_ID,
         }],
