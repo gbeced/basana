@@ -1,6 +1,6 @@
 # Changelog
 
-## TBD
+## 1.11
 
 ### Features
 
