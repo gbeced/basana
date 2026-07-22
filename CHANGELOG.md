@@ -12,6 +12,7 @@
 ### Bug fixes
 
 * Binance spot user data subscriptions now use the WebSocket API (`userDataStream.subscribe.signature`) instead of retired `/api/v3/userDataStream` listen key endpoints.
+* CCXT order `fill_price` now uses the exchange-reported average price when available, instead of always computing a volume-weighted average.
 
 ## 1.10.2
 
