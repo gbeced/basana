@@ -80,7 +80,7 @@ async def test_bars(realtime_dispatcher):
     async def test_main():
         async with websockets.serve(server_main, "127.0.0.1", 0) as server:
             ws_uri = "ws://{}:{}/".format(*server.sockets[0].getsockname())
-            config_overrides = {"api": {"websockets": {"base_url": ws_uri}}}
+            config_overrides = {"api": {"ws_stream": {"base_url": ws_uri}}}
             e = exchange.Exchange(realtime_dispatcher, config_overrides=config_overrides)
             e.subscribe_to_bar_events(p, "1m", on_bar_event)
 

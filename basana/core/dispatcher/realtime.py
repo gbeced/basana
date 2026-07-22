@@ -55,6 +55,7 @@ class RealtimeDispatcher(base.EventDispatcher):
             self._idle_handlers.append(idle_handler)
 
     async def _dispatch_loop(self):
+        await self._notify_loop_started()
         while not self.stopped:
             now = dt.utc_now()
             # Feed the task pool with scheduled jobs and events that are ready for processing.

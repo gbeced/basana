@@ -78,6 +78,11 @@ class BaseClient:
         self._tb = tb
         self._config_overrides = config_overrides
 
+    def get_api_credentials(self) -> Tuple[str, str]:
+        assert self._api_key is not None, "api_key not set"
+        assert self._api_secret is not None, "api_secret not set"
+        return self._api_key, self._api_secret
+
     async def make_request(
             self, method: str, path: str, send_key: bool = False, send_sig: bool = False,
             qs_params: Dict[str, Any] = {}, data: Dict[str, Any] = {}

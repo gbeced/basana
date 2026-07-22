@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 import abc
 
 from . import helpers
@@ -26,7 +26,7 @@ from basana.core.pair import Pair
 class ExchangeOrder(metaclass=abc.ABCMeta):
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Optional[Decimal],
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            client_order_id: Optional[str] = None, **kwargs: Any
     ):
         self._operation = operation
         self._pair = pair
@@ -42,7 +42,7 @@ class ExchangeOrder(metaclass=abc.ABCMeta):
 class MarketOrder(ExchangeOrder):
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Optional[Decimal] = None,
-            quote_amount: Optional[Decimal] = None, client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            quote_amount: Optional[Decimal] = None, client_order_id: Optional[str] = None, **kwargs: Any
     ):
         assert (amount is not None) ^ (quote_amount is not None), "Either amount or quote_amount should be set"
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
@@ -59,7 +59,7 @@ class MarketOrder(ExchangeOrder):
 class LimitOrder(ExchangeOrder):
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Any
     ):
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
         self._limit_price = limit_price
@@ -76,7 +76,7 @@ class LimitOrder(ExchangeOrder):
 class StopLimitOrder(ExchangeOrder):
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal, limit_price: Decimal,
-            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Any
     ):
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
         self._stop_price = stop_price
@@ -91,12 +91,28 @@ class StopLimitOrder(ExchangeOrder):
         )
 
 
+class StopOrder(ExchangeOrder):
+    def __init__(
+            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
+            client_order_id: Optional[str] = None, **kwargs: Any
+    ):
+        super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
+        self._stop_price = stop_price
+
+    async def create_order(self, spot_account_cli) -> dict:
+        return await spot_account_cli.create_order(
+            helpers.pair_to_symbol(self._pair), helpers.order_operation_to_side(self._operation),
+            "STOP_LOSS", quantity=self._amount, stop_price=self._stop_price,
+            new_client_order_id=self._client_order_id, **self._kwargs
+        )
+
+
 class OCOOrder:
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal, stop_price: Decimal,
             stop_limit_price: Optional[Decimal] = None, stop_limit_time_in_force: str = "GTC",
             list_client_order_id: Optional[str] = None, limit_client_order_id: Optional[str] = None,
-            stop_client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            stop_client_order_id: Optional[str] = None, **kwargs: Any
     ):
         self._operation = operation
         self._pair = pair

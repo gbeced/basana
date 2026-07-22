@@ -26,7 +26,8 @@ import logging
 from basana.backtesting import helpers, liquidity, value_map
 from basana.core import bar, logs
 from basana.core.enums import OrderOperation
-from basana.core.helpers import round_decimal, truncate_decimal
+from basana.core.helpers import deprecation_warning
+
 from basana.core.pair import Pair, PairInfo
 
 
@@ -54,6 +55,7 @@ class Fill:
     @property
     def fill_price(self) -> Decimal:
         """Backward-compatible alias for price."""
+        deprecation_warning("Use price instead")
         return self.price
 
 
@@ -88,7 +90,10 @@ class OrderInfo:
 
     @property
     def fill_price(self) -> Optional[Decimal]:
-        """The fill price."""
+        """The fill price.
+
+        Computed as the volume-weighted average of the fill prices, so the returned value may not be exact.
+        """
         wsum = Decimal(0)
         for fill in self.fills:
             fill_amount = abs(fill.balance_updates.get(self.pair.base_symbol, Decimal(0)))
@@ -262,7 +267,7 @@ class MarketOrder(Order):
             when=bar.begin,
             balance_updates={
                 self.pair.base_symbol: amount * base_sign,
-                self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                self.pair.quote_symbol: self.pair_info.round_quote(price * amount * -base_sign)
             },
             fees={},
             price=price
@@ -281,7 +286,7 @@ class LimitOrder(Order):
 
     def try_fill(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Optional[Fill]:
         amount = min(self.amount_pending, liquidity_strategy.available_liquidity)
-        amount = truncate_decimal(amount, self.pair_info.base_precision)
+        amount = self.pair_info.truncate_base(amount)
         if not amount:
             return None
 
@@ -314,7 +319,7 @@ class LimitOrder(Order):
                 when=fill_dt,
                 balance_updates={
                     self.pair.base_symbol: amount * base_sign,
-                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                    self.pair.quote_symbol: self.pair_info.round_quote(price * amount * -base_sign)
                 },
                 fees={},
                 price=price
@@ -391,7 +396,7 @@ class StopOrder(Order):
                 when=fill_dt,
                 balance_updates={
                     self.pair.base_symbol: amount * base_sign,
-                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                    self.pair.quote_symbol: self.pair_info.round_quote(price * amount * -base_sign)
                 },
                 fees={},
                 price=price
@@ -487,7 +492,7 @@ class StopLimitOrder(Order):
                 when=fill_dt,
                 balance_updates={
                     self.pair.base_symbol: amount * base_sign,
-                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                    self.pair.quote_symbol: self.pair_info.round_quote(price * amount * -base_sign)
                 },
                 fees={},
                 price=price
@@ -526,7 +531,7 @@ class StopLimitOrder(Order):
                 when=fill_dt,
                 balance_updates={
                     self.pair.base_symbol: amount * base_sign,
-                    self.pair.quote_symbol: round_decimal(price * amount * -base_sign, self.pair_info.quote_precision)
+                    self.pair.quote_symbol: self.pair_info.round_quote(price * amount * -base_sign)
                 },
                 fees={},
                 price=price
@@ -535,7 +540,7 @@ class StopLimitOrder(Order):
 
     def try_fill(self, bar: bar.Bar, liquidity_strategy: liquidity.LiquidityStrategy) -> Optional[Fill]:
         amount = min(self.amount_pending, liquidity_strategy.available_liquidity)
-        amount = truncate_decimal(amount, self.pair_info.base_precision)
+        amount = self.pair_info.truncate_base(amount)
         if not amount:
             return None
 
@@ -578,4 +583,4 @@ def slipped_price(
     if cap_high is not None:
         price = min(price, cap_high)
 
-    return round_decimal(price, order.pair_info.quote_precision)
+    return order.pair_info.round_quote(price)

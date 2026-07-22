@@ -53,6 +53,9 @@ class BacktestingDispatcher(base.EventDispatcher):
         self._last_dt = now
 
     async def _dispatch_loop(self):
+        self._last_dt = self._event_mux.peek_next_event_dt()
+        await self._notify_loop_started()
+
         while not self.stopped:
             # Time is driven by event timestamps, so "now" advances only when events are processed.
             next_dt = self._event_mux.peek_next_event_dt()

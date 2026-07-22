@@ -5,6 +5,8 @@ Fee strategies are used by the backtesting exchange to support different trading
 
 .. module:: basana.backtesting.fees
 
+.. autoclass:: basana.backtesting.fees.FeeCurrency
+    :members:
 .. autoclass:: basana.backtesting.fees.NoFee
     :show-inheritance:
 .. autoclass:: basana.backtesting.fees.Percentage

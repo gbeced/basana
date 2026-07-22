@@ -33,7 +33,7 @@ class SpotAccount:
             self, symbol: str, side: str, type: str, time_in_force: Optional[str] = None,
             quantity: Optional[Decimal] = None, quote_order_qty: Optional[Decimal] = None,
             price: Optional[Decimal] = None, stop_price: Optional[Decimal] = None,
-            new_client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            new_client_order_id: Optional[str] = None, **kwargs: Any
     ) -> dict:
         params: Dict[str, Any] = {
             "symbol": symbol,
@@ -95,7 +95,7 @@ class SpotAccount:
             self, symbol: str, side: str, quantity: Decimal, price: Decimal, stop_price: Decimal,
             stop_limit_price: Optional[Decimal] = None, stop_limit_time_in_force: Optional[str] = None,
             list_client_order_id: Optional[str] = None, limit_client_order_id: Optional[str] = None,
-            stop_client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            stop_client_order_id: Optional[str] = None, **kwargs: Any
     ) -> dict:
         params: Dict[str, Any] = {
             "symbol": symbol,
@@ -141,12 +141,3 @@ class SpotAccount:
             ("origClientOrderId", client_order_list_id),
         ))
         return await self._client.make_request("GET", "/api/v3/orderList", qs_params=params, send_sig=True)
-
-    async def create_listen_key(self) -> dict:
-        return await self._client.make_request("POST", "/api/v3/userDataStream", send_key=True)
-
-    async def keep_alive_listen_key(self, listen_key: str) -> dict:
-        params: Dict[str, Any] = {
-            "listenKey": listen_key,
-        }
-        return await self._client.make_request("PUT", "/api/v3/userDataStream", send_key=True, data=params)

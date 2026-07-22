@@ -21,6 +21,7 @@ import aiohttp
 
 from . import helpers
 from basana.core import pair
+from basana.core.enums import PrecisionMode
 from basana.external.binance import exchange
 
 
@@ -81,8 +82,11 @@ async def test_pair_info_explicit_session(binance_http_api_mock, realtime_dispat
         )
 
         pair_info = await e.get_pair_info(pair.Pair("BTC", "USDT"))
+        assert pair_info.precision_mode == PrecisionMode.TICK_SIZE
         assert pair_info.base_precision == 5
         assert pair_info.quote_precision == 2
+        assert pair_info.base_tick_size == Decimal("0.00001000")
+        assert pair_info.quote_tick_size == Decimal("0.01000000")
         assert "SPOT" in pair_info.permissions
 
 

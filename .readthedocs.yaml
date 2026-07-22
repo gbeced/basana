@@ -6,12 +6,11 @@ build:
     python: "3.10"
   jobs:
     post_create_environment:
-      # Install poetry
-      # https://python-poetry.org/docs/#installing-manually
-      - pip install poetry
+      # Install uv
+      - pip install uv
       # Build and install basana.
-      - poetry build
-      - pip install dist/basana-`poetry version -s`.tar.gz[charts]
+      - uv build
+      - pip install "dist/basana-$(uv version).tar.gz[charts]"
 
 sphinx:
   configuration: docs/conf.py

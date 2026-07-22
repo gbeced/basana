@@ -17,17 +17,12 @@
 DEFAULTS = {
     "api": {
         "http": {
-            "base_url": "https://api.binance.com/",
+            "base_url": "https://api.binance.com",
             "timeout": 30,
         },
-        "websockets": {
-            "base_url": "wss://stream.binance.com/",
+        "ws_stream": {
+            "base_url": "wss://stream.binance.com",
             "heartbeat": 30,
-            "spot": {
-                "user_data_stream": {
-                    "heartbeat": 15 * 60,
-                },
-            },
             "cross_margin": {
                 "user_data_stream": {
                     "heartbeat": 15 * 60,
@@ -38,6 +33,10 @@ DEFAULTS = {
                     "heartbeat": 15 * 60,
                 },
             },
-        }
+        },
+        "ws_api": {
+            "base_url": "wss://ws-api.binance.com:443",
+            "heartbeat": 30,
+        },
     }
 }

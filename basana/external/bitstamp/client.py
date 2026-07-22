@@ -160,7 +160,7 @@ class APIClient:
 
     async def create_market_order(
             self, action: str, currency_pair: str, amount: Decimal, client_order_id: Optional[str] = None,
-            **kwargs: Dict[str, Any]
+            **kwargs: Any
     ) -> dict:
         assert action in ["buy", "sell"], "Invalid action"
 
@@ -174,7 +174,7 @@ class APIClient:
 
     async def create_limit_order(
             self, action: str, currency_pair: str, amount: Decimal, price: Decimal,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            client_order_id: Optional[str] = None, **kwargs: Any
     ) -> dict:
         assert action in ["buy", "sell"], "Invalid action"
 
@@ -189,7 +189,7 @@ class APIClient:
 
     async def create_instant_order(
             self, action: str, currency_pair: str, amount: Decimal, amount_in_counter: bool = False,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            client_order_id: Optional[str] = None, **kwargs: Any
     ) -> dict:
         assert action in ["buy", "sell"], "Invalid action"
         assert amount_in_counter is False or action == "sell", "amount_in_counter only supported for sell orders"

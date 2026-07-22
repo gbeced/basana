@@ -35,6 +35,18 @@ class OrderOperation(enum.Enum):
 
 
 @enum.unique
+class PrecisionMode(enum.Enum):
+    """Enumeration for precision modes."""
+
+    #:
+    DECIMAL_PLACES = 1
+    #:
+    SIGNIFICANT_DIGITS = 2
+    #:
+    TICK_SIZE = 3
+
+
+@enum.unique
 class Position(enum.Enum):
     """Enumeration for positions."""
 

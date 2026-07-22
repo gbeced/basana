@@ -219,6 +219,45 @@ def test_now_fails_if_no_events_were_processed(backtesting_dispatcher):
         backtesting_dispatcher.now()
 
 
+async def test_event_loop_started(backtesting_dispatcher):
+    started = []
+
+    async def on_started():
+        assert backtesting_dispatcher.now_available
+        started.append(True)
+
+    src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
+
+    async def on_event(_event):
+        pass
+
+    backtesting_dispatcher.subscribe(src, on_event)
+    backtesting_dispatcher.subscribe_event_loop_started(on_started)
+    await backtesting_dispatcher.run()
+
+    assert len(started) == 1
+
+
+async def test_duplicate_loop_started_subscription_is_ignored(backtesting_dispatcher):
+    started = []
+
+    async def on_started():
+        assert backtesting_dispatcher.now_available
+        started.append(True)
+
+    src = event.FifoQueueEventSource(events=[event.Event(dt.utc_now())])
+
+    async def on_event(_event):
+        pass
+
+    backtesting_dispatcher.subscribe(src, on_event)
+    backtesting_dispatcher.subscribe_event_loop_started(on_started)
+    backtesting_dispatcher.subscribe_event_loop_started(on_started)
+    await backtesting_dispatcher.run()
+
+    assert len(started) == 1
+
+
 async def test_recursive_schedule_bug(backtesting_dispatcher):
     jobs_processed = 0
 

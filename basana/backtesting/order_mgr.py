@@ -361,27 +361,23 @@ class OrderManager:
 def round_balance_updates(order: Order, balance_updates: ValueMap):
     # For the base amount we truncate instead of rounding to avoid exceeding available liquidity.
     if (base_amount := balance_updates.get(order.pair.base_symbol)) is not None:
-        balance_updates[order.pair.base_symbol] = core_helpers.truncate_decimal(
-            base_amount, order.pair_info.base_precision
-        )
+        balance_updates[order.pair.base_symbol] = order.pair_info.truncate_base(base_amount)
 
     # For the quote amount we simply round.
     if (quote_amount := balance_updates.get(order.pair.quote_symbol)) is not None:
-        balance_updates[order.pair.quote_symbol] = core_helpers.round_decimal(
-            quote_amount, order.pair_info.quote_precision
-        )
+        balance_updates[order.pair.quote_symbol] = order.pair_info.round_quote(quote_amount)
 
     balance_updates.prune()
 
 
 def round_fees(order: Order, fees: ValueMap):
-    precisions = {
-        order.pair.base_symbol: order.pair_info.base_precision,
-        order.pair.quote_symbol: order.pair_info.quote_precision,
+    round_fns = {
+        order.pair.base_symbol: lambda amount: order.pair_info.round_base(amount, rounding=decimal.ROUND_UP),
+        order.pair.quote_symbol: lambda amount: order.pair_info.round_quote(amount, rounding=decimal.ROUND_UP),
     }
-    for symbol, precision in precisions.items():
+    for symbol, round_fn in round_fns.items():
         if (amount := fees.get(symbol)) is not None:
-            fees[symbol] = core_helpers.round_decimal(amount, precision, rounding=decimal.ROUND_UP)
+            fees[symbol] = round_fn(amount)
 
     fees.prune()
 

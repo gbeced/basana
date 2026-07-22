@@ -16,11 +16,9 @@
 
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
-import datetime
 
-from . import client, common, config, helpers, spot_requests, user_data, websockets, websocket_mgr
+from . import common, helpers, spot_requests, user_data, websockets, websocket_mgr
 from .client import spot as spot_client
-from basana.core.config import get_config_value
 from basana.core.enums import OrderOperation
 from basana.core.pair import Pair
 
@@ -84,32 +82,9 @@ class OpenOrder(common.OpenOrder):
         return helpers.get_optional_decimal(self.json, "origQuoteOrderQty", True)
 
 
-class SpotUserDataChannel(websockets.Channel):
+class SpotUserDataChannel(websockets.WSAPIChannel):
     def __init__(self):
-        self._listen_key = None
-
-    @property
-    def alias(self) -> str:
-        return "spot_user_data"
-
-    @property
-    def stream(self) -> str:
-        assert self._listen_key, "resolve_stream_name not called"
-        return self._listen_key
-
-    async def resolve_stream_name(self, api_client: client.APIClient):
-        self._listen_key = (await api_client.spot_account.create_listen_key())["listenKey"]
-
-    def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
-        return datetime.timedelta(
-            seconds=get_config_value(
-                config.DEFAULTS, "api.websockets.spot.user_data_stream.heartbeat", overrides=config_overrides
-            )
-        )
-
-    async def keep_alive(self, api_client: client.APIClient):
-        assert self._listen_key, "resolve_stream_name not called"
-        await api_client.spot_account.keep_alive_listen_key(self._listen_key)
+        super().__init__("spot_user_data")
 
 
 class Account:
@@ -129,7 +104,7 @@ class Account:
 
     async def create_market_order(
             self, operation: OrderOperation, pair: Pair, amount: Optional[Decimal] = None,
-            quote_amount: Optional[Decimal] = None, client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            quote_amount: Optional[Decimal] = None, client_order_id: Optional[str] = None, **kwargs: Any
     ) -> CreatedOrder:
         """Creates a market order.
 
@@ -154,7 +129,7 @@ class Account:
 
     async def create_limit_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Any
     ) -> CreatedOrder:
         """Creates a limit order.
 
@@ -177,7 +152,7 @@ class Account:
 
     async def create_stop_limit_order(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal, limit_price: Decimal,
-            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            time_in_force: str = "GTC", client_order_id: Optional[str] = None, **kwargs: Any
     ) -> CreatedOrder:
         """Creates a stop limit order.
 
@@ -197,6 +172,29 @@ class Account:
         return await self.create_order(spot_requests.StopLimitOrder(
             operation, pair, amount, stop_price, limit_price, time_in_force=time_in_force,
             client_order_id=client_order_id, **kwargs
+        ))
+
+    async def create_stop_order(
+            self, operation: OrderOperation, pair: Pair, amount: Decimal, stop_price: Decimal,
+            client_order_id: Optional[str] = None, **kwargs: Any
+    ) -> CreatedOrder:
+        """Creates a stop order.
+
+        A market order is placed once the stop price is reached.
+
+        Check https://binance-docs.github.io/apidocs/spot/en/#new-order-trade for more information.
+        If the order can't be created a :class:`basana.external.binance.exchange.Error` will be raised.
+
+        :param operation: The order operation.
+        :param pair: The pair to trade.
+        :param amount: The amount to buy/sell in base units.
+        :param stop_price: The stop price.
+        :param client_order_id: A client order id.
+        :param kwargs: Additional keyword arguments that will be forwarded.
+        """
+
+        return await self.create_order(spot_requests.StopOrder(
+            operation, pair, amount, stop_price, client_order_id=client_order_id, **kwargs
         ))
 
     async def get_order_info(
@@ -266,7 +264,7 @@ class Account:
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal, stop_price: Decimal,
             stop_limit_price: Optional[Decimal] = None, stop_limit_time_in_force: str = "GTC",
             list_client_order_id: Optional[str] = None, limit_client_order_id: Optional[str] = None,
-            stop_client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            stop_client_order_id: Optional[str] = None, **kwargs: Any
     ) -> CreatedOCOOrder:
         """Creates an OCO order.
 

@@ -58,7 +58,7 @@ class IsolatedBalance:
         return margin.Balance(self.json["quoteAsset"])
 
 
-class IsolatedMarginUserDataChannel(websockets.Channel):
+class IsolatedMarginUserDataChannel(websockets.WSStreamChannel):
     def __init__(self, pair: bs.Pair):
         self._pair = pair
         self._listen_key = None
@@ -80,7 +80,7 @@ class IsolatedMarginUserDataChannel(websockets.Channel):
     def keep_alive_period(self, config_overrides: dict = {}) -> Optional[datetime.timedelta]:
         return datetime.timedelta(
             seconds=get_config_value(
-                config.DEFAULTS, "api.websockets.isolated_margin.user_data_stream.heartbeat", overrides=config_overrides
+                config.DEFAULTS, "api.ws_stream.isolated_margin.user_data_stream.heartbeat", overrides=config_overrides
             )
         )
 

@@ -15,7 +15,7 @@
 # limitations under the License.
 
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 import abc
 
 from . import client, helpers
@@ -26,7 +26,7 @@ from basana.core.pair import Pair
 class ExchangeOrder(metaclass=abc.ABCMeta):
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, client_order_id: Optional[str] = None,
-            **kwargs: Dict[str, Any]
+            **kwargs: Any
     ):
         self._operation = operation
         self._pair = pair
@@ -68,7 +68,7 @@ class MarketOrder(ExchangeOrder):
 
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, client_order_id: Optional[str] = None,
-            **kwargs: Dict[str, Any]
+            **kwargs: Any
     ):
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
 
@@ -89,7 +89,7 @@ class LimitOrder(ExchangeOrder):
 
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, limit_price: Decimal,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            client_order_id: Optional[str] = None, **kwargs: Any
     ):
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
         self._limit_price = limit_price
@@ -108,7 +108,7 @@ class LimitOrder(ExchangeOrder):
 class InstantOrder(ExchangeOrder):
     def __init__(
             self, operation: OrderOperation, pair: Pair, amount: Decimal, amount_in_counter: bool = False,
-            client_order_id: Optional[str] = None, **kwargs: Dict[str, Any]
+            client_order_id: Optional[str] = None, **kwargs: Any
     ):
         super().__init__(operation, pair, amount, client_order_id=client_order_id, **kwargs)
         self._amount_in_counter = amount_in_counter

@@ -22,7 +22,8 @@ import aiohttp
 
 from . import client, helpers, order_book, order_book_diff, trades, spot, cross_margin, isolated_margin, \
     websocket_mgr
-from basana.core import bar, dispatcher, enums, token_bucket
+from basana.core import bar, dispatcher, enums, helpers as core_helpers, token_bucket
+from basana.core.enums import PrecisionMode
 from basana.core.pair import Pair, PairInfo
 
 
@@ -55,7 +56,7 @@ class PairInfoEx(PairInfo):
     """
 
     #: The account and pair permissions.
-    permissions: List[str]
+    permissions: List[str] = dataclasses.field(kw_only=True)
 
 
 class Exchange:
@@ -260,9 +261,14 @@ class Exchange:
             assert price_filter, f"PRICE_FILTER not found for {symbol}"
             lot_size = get_filter_from_symbol_info(symbol_info, "LOT_SIZE")
             assert lot_size, f"LOT_SIZE not found for {symbol}"
+            base_tick_size = Decimal(lot_size["stepSize"])
+            quote_tick_size = Decimal(price_filter["tickSize"])
             ret = PairInfoEx(
-                base_precision=get_precision_from_step_size(lot_size["stepSize"]),
-                quote_precision=get_precision_from_step_size(price_filter["tickSize"]),
+                base_precision=core_helpers.decimal_places_from_tick_size(base_tick_size),
+                quote_precision=core_helpers.decimal_places_from_tick_size(quote_tick_size),
+                precision_mode=PrecisionMode.TICK_SIZE,
+                base_tick_size=base_tick_size,
+                quote_tick_size=quote_tick_size,
                 permissions=symbol_info.get("permissions")
             )
             self._symbol_info[symbol] = ret
@@ -276,5 +282,4 @@ def get_filter_from_symbol_info(symbol_info: dict, filter_type: str) -> Optional
     return None if not price_filters else price_filters[0]
 
 
-def get_precision_from_step_size(step_size: str) -> int:
-    return int(-Decimal(step_size).log10() / Decimal(10).log10())
+

@@ -16,11 +16,13 @@
 
 from decimal import Decimal
 import asyncio
+import decimal
 import sys
 
 import pytest
 
 from basana.core import helpers
+from basana.core.enums import PrecisionMode
 
 
 async def set_event(event, wait: float = 0.0):
@@ -54,6 +56,85 @@ async def cancel_task_group(task_group, wait: float = 0.0):
 ])
 def test_truncate(amount, precision, expected):
     assert helpers.truncate_decimal(Decimal(amount), precision) == Decimal(expected)
+
+
+@pytest.mark.parametrize("amount, precision, expected", [
+    ("1.23456789", 5, "1.2345"),
+    ("12345.678", 5, "12345"),
+    ("0.00123456789", 5, "0.0012345"),
+    ("-1.23456789", 5, "-1.2345"),
+    ("0", 5, "0"),
+])
+def test_truncate_significant_digits(amount, precision, expected):
+    ret = helpers.truncate_with_precision(
+        Decimal(amount), precision, PrecisionMode.SIGNIFICANT_DIGITS
+    )
+    assert ret == Decimal(expected)
+
+
+@pytest.mark.parametrize("amount, precision, expected", [
+    ("1.23456789", 5, "1.2346"),
+    ("123456.789", 5, "123460"),
+])
+def test_round_significant_digits(amount, precision, expected):
+    ret = helpers.round_with_precision(
+        Decimal(amount), precision, PrecisionMode.SIGNIFICANT_DIGITS
+    )
+    assert ret == Decimal(expected)
+
+
+@pytest.mark.parametrize("tick_size, expected", [
+    ("0.01", 2),
+    ("0.05", 2),
+    ("0.0008", 4),
+    ("0.0001", 4),
+    ("0.01000000", 2),
+    ("1", 0),
+])
+def test_decimal_places_from_tick_size(tick_size, expected):
+    assert helpers.decimal_places_from_tick_size(Decimal(tick_size)) == expected
+
+
+def test_decimal_places_from_tick_size_non_int_exponent():
+    assert helpers.decimal_places_from_tick_size(Decimal("NaN")) == 0
+
+
+@pytest.mark.parametrize("amount, tick_size, expected", [
+    ("1.234", "0.05", "1.2"),
+    ("1.27", "0.05", "1.25"),
+    ("-1.234", "0.05", "-1.2"),
+    ("0", "0.05", "0"),
+    ("1.25", "0.05", "1.25"),
+])
+def test_truncate_to_tick_size(amount, tick_size, expected):
+    assert helpers.truncate_to_tick_size(Decimal(amount), Decimal(tick_size)) == Decimal(expected)
+
+
+@pytest.mark.parametrize("amount, tick_size, rounding, expected", [
+    ("1.234", "0.05", decimal.ROUND_UP, "1.25"),
+    ("-1.234", "0.05", decimal.ROUND_UP, "-1.25"),
+    ("1.27", "0.05", None, "1.25"),
+    ("1.25", "0.05", None, "1.25"),
+    ("0", "0.05", None, "0"),
+    ("-1.234", "0.05", None, "-1.25"),
+    ("-1.22", "0.05", None, "-1.2"),
+    ("1.22", "0.05", decimal.ROUND_DOWN, "1.2"),
+])
+def test_round_to_tick_size(amount, tick_size, rounding, expected):
+    assert helpers.round_to_tick_size(Decimal(amount), Decimal(tick_size), rounding=rounding) == Decimal(expected)
+
+
+def test_round_with_precision_tick_size_requires_tick_size():
+    with pytest.raises(ValueError, match="tick_size must be provided when precision_mode is TICK_SIZE"):
+        helpers.round_with_precision(Decimal("1.234"), 2, PrecisionMode.TICK_SIZE)
+
+
+@pytest.mark.parametrize("tick_size", ["0", "-0.05"])
+def test_round_with_precision_tick_size_invalid(tick_size):
+    with pytest.raises(ValueError, match=f"Invalid tick_size: {tick_size}"):
+        helpers.round_with_precision(
+            Decimal("1.234"), 2, PrecisionMode.TICK_SIZE, tick_size=Decimal(tick_size)
+        )
 
 
 async def test_task_group_awaited_before_scope_exit():
