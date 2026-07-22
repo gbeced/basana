@@ -10,7 +10,7 @@ build:
       - pip install uv
       # Build and install basana.
       - uv build
-      - pip install "dist/basana-$(uv version).tar.gz[charts]"
+      - pip install "dist/basana-$(uv version --short).tar.gz[charts]"
 
 sphinx:
   configuration: docs/conf.py
