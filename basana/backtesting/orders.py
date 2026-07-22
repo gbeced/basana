@@ -26,6 +26,7 @@ import logging
 from basana.backtesting import helpers, liquidity, value_map
 from basana.core import bar, logs
 from basana.core.enums import OrderOperation
+from basana.core.helpers import deprecation_warning
 
 from basana.core.pair import Pair, PairInfo
 
@@ -54,6 +55,7 @@ class Fill:
     @property
     def fill_price(self) -> Decimal:
         """Backward-compatible alias for price."""
+        deprecation_warning("Use price instead")
         return self.price
 
 
@@ -88,7 +90,10 @@ class OrderInfo:
 
     @property
     def fill_price(self) -> Optional[Decimal]:
-        """The fill price."""
+        """The fill price.
+
+        Computed as the volume-weighted average of the fill prices, so the returned value may not be exact.
+        """
         wsum = Decimal(0)
         for fill in self.fills:
             fill_amount = abs(fill.balance_updates.get(self.pair.base_symbol, Decimal(0)))

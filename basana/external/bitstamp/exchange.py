@@ -215,7 +215,11 @@ class OrderInfo:
 
     @property
     def fill_price(self) -> Optional[Decimal]:
-        """The fill price."""
+        """The fill price.
+
+        Computed as ``quote_amount_filled / amount_filled`` (a volume-weighted average), so the returned value may not
+        be exact.
+        """
         fill_price = None
         if self.amount_filled:
             fill_price = self.quote_amount_filled / self.amount_filled
