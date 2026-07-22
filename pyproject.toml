@@ -1,6 +1,6 @@
 [project]
 name = "basana"
-version = "1.10.2"
+version = "1.11"
 description = "A Python async and event driven framework for algorithmic trading, with a focus on crypto currencies."
 authors = [{ name = "Gabriel Becedillas", email = "gabriel.becedillas@gmail.com" }]
 requires-python = ">=3.10,<4"
