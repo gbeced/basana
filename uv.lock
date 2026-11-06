@@ -401,7 +401,7 @@ wheels = [
 
 [[package]]
 name = "basana"
-version = "1.11"
+version = "1.11.1"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp", extra = ["speedups"] },
