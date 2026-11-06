@@ -21,7 +21,6 @@ import json
 import logging
 import re
 
-import aioresponses
 import pytest
 import websockets
 import websockets.protocol
@@ -30,6 +29,7 @@ from . import helpers
 from basana.external.binance import exchange
 from basana.external.binance import helpers as binance_helpers
 import basana as bs
+from tests import http_mock
 
 
 listen_key = "12345678"
@@ -178,7 +178,7 @@ async def test_websocket_ok_listen_key_channels(
                             },
                         },
                     },
-                    "http": {"base_url": "http://binance.mock/"},
+                    "http": {"base_url": binance_http_api_mock.base_url},
                 }
             }
             e = exchange.Exchange(
@@ -288,7 +288,7 @@ async def test_spot_ws_api_ok(realtime_dispatcher, binance_http_api_mock, caplog
                     "ws_api": {
                         "base_url": ws_uri,
                     },
-                    "http": {"base_url": "http://binance.mock/"},
+                    "http": {"base_url": binance_http_api_mock.base_url},
                 }
             }
             e = exchange.Exchange(
@@ -368,7 +368,7 @@ async def test_spot_ws_api_handling_errors(realtime_dispatcher, caplog):
     await asyncio.wait_for(test_main(), 5)
 
 
-def has_request(mock: aioresponses.aioresponses, method: str, url: str) -> bool:
+def has_request(mock: http_mock.HTTPMock, method: str, url: str) -> bool:
     for r_method, r_url in mock.requests:
         if r_method == method and str(r_url) == url:
             return True

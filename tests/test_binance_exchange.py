@@ -78,7 +78,7 @@ async def test_pair_info_explicit_session(binance_http_api_mock, realtime_dispat
     async with aiohttp.ClientSession() as session:
         e = exchange.Exchange(
             realtime_dispatcher, "api_key", "api_secret", session=session,
-            config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+            config_overrides={"api": {"http": {"base_url": binance_http_api_mock.base_url}}}
         )
 
         pair_info = await e.get_pair_info(pair.Pair("BTC", "USDT"))
@@ -99,7 +99,7 @@ async def test_symbol_to_pair(binance_http_api_mock, realtime_dispatcher):
     async with aiohttp.ClientSession() as session:
         e = exchange.Exchange(
             realtime_dispatcher, "api_key", "api_secret", session=session,
-            config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+            config_overrides={"api": {"http": {"base_url": binance_http_api_mock.base_url}}}
         )
 
         p = await e.symbol_to_pair("BTCUSDT")

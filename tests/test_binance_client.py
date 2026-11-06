@@ -16,15 +16,15 @@
 
 import re
 
-import aioresponses
 import pytest
 
 from basana.external.binance import client
+from tests import http_mock
 
 
 @pytest.fixture()
-def binance_http_api_mock():
-    with aioresponses.aioresponses() as m:
+async def binance_http_api_mock():
+    async with http_mock.HTTPMock("binance.mock") as m:
         yield m
 
 
@@ -42,7 +42,8 @@ async def test_error_parsing(status_code, response_body, expected, binance_http_
     )
 
     c = client.APIClient(
-        api_key="key", api_secret="secret", config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+        api_key="key", api_secret="secret",
+        config_overrides={"api": {"http": {"base_url": binance_http_api_mock.base_url}}}
     )
     with pytest.raises(client.Error) as excinfo:
         await c.spot_account.get_account_information()

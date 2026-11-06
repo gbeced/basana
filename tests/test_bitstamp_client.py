@@ -15,15 +15,15 @@
 # limitations under the License.
 
 
-import aioresponses
 import pytest
 
 from basana.external.bitstamp import client
+from tests import http_mock
 
 
 @pytest.fixture()
-def bitstamp_http_api_mock():
-    with aioresponses.aioresponses() as m:
+async def bitstamp_http_api_mock():
+    async with http_mock.HTTPMock("bitstamp.mock") as m:
         yield m
 
 
@@ -48,7 +48,7 @@ async def test_get_ohlc_data_using_end(bitstamp_http_api_mock):
     )
 
     c = client.APIClient(
-        config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+        config_overrides={"api": {"http": {"base_url": bitstamp_http_api_mock.base_url}}}
     )
     response = await c.get_ohlc_data("btcusd", 60, end=1451606400, limit=1)
     assert len(response["data"]["ohlc"]) == 1
@@ -66,7 +66,7 @@ async def test_error_parsing(status_code, response_body, expected, bitstamp_http
     )
 
     c = client.APIClient(
-        config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+        config_overrides={"api": {"http": {"base_url": bitstamp_http_api_mock.base_url}}}
     )
     with pytest.raises(client.Error) as excinfo:
         await c.get_order_book("btcusd")

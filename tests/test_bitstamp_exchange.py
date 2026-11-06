@@ -19,12 +19,12 @@ import copy
 import datetime
 
 import aiohttp
-import aioresponses
 import pytest
 
 from basana.core import pair, helpers, token_bucket
 from basana.external.bitstamp import exchange
 from .helpers import assert_expected_attrs
+from tests import http_mock
 
 
 ORDER_STATUS_1536137941123072 = {
@@ -92,12 +92,12 @@ ORDER_TRANSACTIONS_99999999 = [
 
 
 @pytest.fixture()
-def bitstamp_http_api_mock():
+async def bitstamp_http_api_mock():
     def order_status(url, **kwargs):
         order_status, order_transactions = {
             1536137941123072: (ORDER_STATUS_1536137941123072, ORDER_TRANSACTIONS_1536137941123072),
             99999999: (ORDER_STATUS_99999999, ORDER_TRANSACTIONS_99999999),
-        }.get(kwargs["data"]["id"], (None, None))
+        }.get(int(kwargs["data"]["id"]), (None, None))
 
         if order_status:
             status = 200
@@ -108,7 +108,7 @@ def bitstamp_http_api_mock():
             status = 200
             response = {"status": "error", "reason": "Order not found."}
 
-        return aioresponses.CallbackResult(status=status, payload=response)
+        return http_mock.CallbackResult(status=status, payload=response)
 
     def cancel_order(url, **kwargs):
         if int(kwargs["data"]["id"]) == 1538604691881987:
@@ -123,9 +123,9 @@ def bitstamp_http_api_mock():
             status = 200
             response = {"error": "Order not found."}
 
-        return aioresponses.CallbackResult(status=status, payload=response)
+        return http_mock.CallbackResult(status=status, payload=response)
 
-    with aioresponses.aioresponses() as m:
+    async with http_mock.HTTPMock("bitstamp.mock") as m:
         m.post(
             "http://bitstamp.mock/api/v2/account_balances/", status=200, payload=[
                 {"available": "0.01374", "currency": "pax", "total": "0.01374", "reserved": "0.00000"},
@@ -232,10 +232,10 @@ def bitstamp_http_api_mock():
 
 
 @pytest.fixture()
-def bitstamp_exchange(realtime_dispatcher):
+def bitstamp_exchange(realtime_dispatcher, bitstamp_http_api_mock):
     return exchange.Exchange(
         realtime_dispatcher, "api_key", "api_secret", tb=token_bucket.TokenBucketLimiter(10, 1, 10),
-        config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+        config_overrides={"api": {"http": {"base_url": bitstamp_http_api_mock.base_url}}}
     )
 
 
@@ -338,7 +338,7 @@ async def test_explicit_session(bitstamp_http_api_mock, realtime_dispatcher):
     async with aiohttp.ClientSession() as session:
         e = exchange.Exchange(
             realtime_dispatcher, "api_key", "api_secret", session=session,
-            config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+            config_overrides={"api": {"http": {"base_url": bitstamp_http_api_mock.base_url}}}
         )
 
         balance = await e.get_balance("USD")
