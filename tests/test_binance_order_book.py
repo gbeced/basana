@@ -21,13 +21,13 @@ import logging
 import re
 
 import aiohttp
-import aioresponses
 import pytest
 import websockets
 
 from .helpers import wait_caplog
 from basana.core import pair
 from basana.external.binance import exchange, order_book
+from tests import http_mock
 
 
 ORDER_BOOK = {
@@ -64,8 +64,8 @@ ORDER_BOOK = {
 
 
 @pytest.fixture()
-def binance_http_api_mock():
-    with aioresponses.aioresponses() as m:
+async def binance_http_api_mock():
+    async with http_mock.HTTPMock("binance.mock") as m:
         m.get(re.compile(r"http://binance.mock/api/v3/depth\\?.*"), status=200, payload=ORDER_BOOK)
         yield m
 
@@ -85,7 +85,7 @@ async def test_poll_ok_with_custom_session(binance_http_api_mock, realtime_dispa
             realtime_dispatcher.subscribe(
                 order_book.PollOrderBook(
                     p, 0.5, limit=100, session=session,
-                    config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+                    config_overrides={"api": {"http": {"base_url": binance_http_api_mock.base_url}}}
                 ),
                 on_order_book_event
             )
@@ -125,7 +125,7 @@ async def test_unhandled_exception_during_poll(
         async with aiohttp.ClientSession() as session:
             poller = order_book.PollOrderBook(
                 pair.Pair("BTC", "USDT"), 0.5, session=session,
-                config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+                config_overrides={"api": {"http": {"base_url": binance_http_api_mock.base_url}}}
             )
             poller.on_error = lambda error: on_error(poller, error)
             realtime_dispatcher.subscribe(poller, on_order_book_event)

@@ -16,15 +16,15 @@
 
 import re
 
-import aioresponses
 import pytest
 
 from basana.external.binance.tools import download_bars
+from tests import http_mock
 
 
 @pytest.fixture()
-def binance_http_api_mock():
-    with aioresponses.aioresponses() as m:
+async def binance_http_api_mock():
+    async with http_mock.HTTPMock("binance.mock") as m:
         yield m
 
 
@@ -82,7 +82,7 @@ async def test_download_ohlc(binance_http_api_mock, capsys):
 
     await download_bars.main(
         params=["-c", "BTCUSDT", "-p", "1d", "-s", "2020-01-01", "-e", "2020-01-01"],
-        config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+        config_overrides={"api": {"http": {"base_url": binance_http_api_mock.base_url}}}
     )
     assert capsys.readouterr().out == """datetime,open,high,low,close,volume
 2020-01-01 00:00:00,7195.24000000,7255.00000000,7175.15000000,7200.85000000,16792.38816500
