@@ -14,7 +14,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "aiohttp[speedups]>=3.13.5,<3.14",
+    "aiohttp[speedups]>=3.14,<4",
     "python-dateutil>=2.9.0.post0,<3",
 ]
 
