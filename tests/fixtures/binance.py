@@ -14,22 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import aioresponses
 import pytest
 
 from basana.core import token_bucket
 from basana.external.binance import exchange
+from tests import http_mock
 
 
 @pytest.fixture()
-def binance_http_api_mock():
-    with aioresponses.aioresponses(passthrough_unmatched=True) as m:
+async def binance_http_api_mock():
+    async with http_mock.HTTPMock("binance.mock") as m:
         yield m
 
 
 @pytest.fixture()
-def binance_exchange(realtime_dispatcher):
+def binance_exchange(realtime_dispatcher, binance_http_api_mock):
     return exchange.Exchange(
         realtime_dispatcher, "api_key", "api_secret", tb=token_bucket.TokenBucketLimiter(10, 1, 0),
-        config_overrides={"api": {"http": {"base_url": "http://binance.mock/"}}}
+        config_overrides={"api": {"http": {"base_url": binance_http_api_mock.base_url}}}
     )

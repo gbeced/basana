@@ -1,6 +1,6 @@
 [project]
 name = "basana"
-version = "1.11"
+version = "1.11.1"
 description = "A Python async and event driven framework for algorithmic trading, with a focus on crypto currencies."
 authors = [{ name = "Gabriel Becedillas", email = "gabriel.becedillas@gmail.com" }]
 requires-python = ">=3.10,<4"
@@ -14,7 +14,7 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
 ]
 dependencies = [
-    "aiohttp[speedups]>=3.13.5,<3.14",
+    "aiohttp[speedups]>=3.14,<4",
     "python-dateutil>=2.9.0.post0,<3",
 ]
 
@@ -34,7 +34,6 @@ Documentation = "https://basana.readthedocs.io/en/latest/"
 
 [dependency-groups]
 dev = [
-    "aioresponses>=0.7.8,<0.8",
     "mypy>=1.20.1,<2",
     "pytest>=9.0.3,<10",
     "pytest-asyncio>=1.3.0,<2",

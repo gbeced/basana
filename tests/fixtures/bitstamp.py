@@ -14,11 +14,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import aioresponses
 import pytest
+
+from tests import http_mock
 
 
 @pytest.fixture()
-def bitstamp_http_api_mock():
-    with aioresponses.aioresponses(passthrough=["ws://127.0.0.1"]) as m:
+async def bitstamp_http_api_mock():
+    async with http_mock.HTTPMock("bitstamp.mock") as m:
         yield m

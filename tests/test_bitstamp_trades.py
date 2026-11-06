@@ -76,7 +76,7 @@ async def test_websocket_ok(public_events, bitstamp_http_api_mock, realtime_disp
                 realtime_dispatcher, "key", "secret",
                 config_overrides={
                     "api": {
-                        "http": {"base_url": "http://bitstamp.mock/"},
+                        "http": {"base_url": bitstamp_http_api_mock.base_url},
                         "websockets": {"base_url": ws_uri}
                     }
                 }

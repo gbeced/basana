@@ -19,7 +19,6 @@ import asyncio
 import logging
 
 import aiohttp
-import aioresponses
 import json
 import pytest
 import re
@@ -28,11 +27,12 @@ import websockets
 from .helpers import wait_caplog
 from basana.core import pair
 from basana.external.bitstamp import exchange, order_book
+from tests import http_mock
 
 
 @pytest.fixture()
-def bitstamp_http_api_mock():
-    with aioresponses.aioresponses() as m:
+async def bitstamp_http_api_mock():
+    async with http_mock.HTTPMock("bitstamp.mock") as m:
         m.get(re.compile(r'http://bitstamp.mock/api/v2/order_book/btcusd/.*'), status=200, payload={
             "timestamp": "1662146819",
             "microtimestamp": "1662146819514365",
@@ -207,7 +207,7 @@ async def test_poll_ok_with_custom_session(bitstamp_http_api_mock, realtime_disp
             realtime_dispatcher.subscribe(
                 order_book.PollOrderBook(
                     p, 0.5, group=1, session=session,
-                    config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+                    config_overrides={"api": {"http": {"base_url": bitstamp_http_api_mock.base_url}}}
                 ),
                 on_order_book_event
             )
@@ -247,7 +247,7 @@ async def test_unhandled_exception_during_poll(
         async with aiohttp.ClientSession() as session:
             poller = order_book.PollOrderBook(
                 pair.Pair("BTC", "PAX"), 0.5, session=session,
-                config_overrides={"api": {"http": {"base_url": "http://bitstamp.mock/"}}}
+                config_overrides={"api": {"http": {"base_url": bitstamp_http_api_mock.base_url}}}
             )
             poller.on_error = lambda error: on_error(poller, error)
             realtime_dispatcher.subscribe(poller, on_order_book_event)

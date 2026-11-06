@@ -70,7 +70,7 @@ Public surface re-exported from `basana/__init__.py` includes: `Bar`, `BarEvent`
 - **Build backend**: `uv_build` (see `pyproject.toml`).
 - **Task runner**: Invoke (`tasks.py`).
 - **Lint/types**: Ruff + mypy.
-- **Tests**: pytest + pytest-asyncio + pytest-cov + aioresponses + pytest-mock.
+- **Tests**: pytest + pytest-asyncio + pytest-cov + pytest-mock. HTTP is mocked with `tests/http_mock.py`, which is built on aiohttp's own `aiohttp.test_utils` server.
 - **Optional extras**:
   - `charts` — Plotly + kaleido
   - `ccxt` — `ccxt>=4.4,<5` (library uses `ccxt.pro`)
@@ -192,7 +192,7 @@ When iterating locally, use `--no-cov` for speed; always re-run `uv run inv test
   - Binance / Bitstamp / CCXT HTTP/WS mocks and exchange fixtures
 - Shared pairs: `tests/common.py` (`btc_pair`, `btc_pair_info`, etc.).
 - Fixture payloads: `tests/data/` (JSON exchange info, CSV bars). Prefer loading via existing helpers rather than embedding large blobs in tests.
-- Mock external HTTP with **aioresponses**; mock CCXT client methods with **pytest-mock** / `unittest.mock` as existing CCXT tests do.
+- Mock external HTTP with `tests.http_mock.HTTPMock` (fixtures `binance_http_api_mock` / `bitstamp_http_api_mock`) and point the client's `config_overrides` `base_url` at `mock.base_url`. Do not use aioresponses: it breaks with aiohttp ≥3.14. mock CCXT client methods with **pytest-mock** / `unittest.mock` as existing CCXT tests do.
 - Name tests `tests/test_<area>.py` and functions `test_<behavior>`.
 - Keep tests deterministic: no real network, no wall-clock sleeps unless mocking time/dispatcher behavior as existing tests do.
 
